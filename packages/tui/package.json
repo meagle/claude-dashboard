@@ -24,10 +24,16 @@
     "ink-testing-library": "^3.0.0"
   },
   "jest": {
-    "preset": "ts-jest",
     "testEnvironment": "node",
+    "moduleDirectories": ["node_modules", "../../node_modules"],
+    "testPathIgnorePatterns": ["/node_modules/", "/dist/", "\\.d\\.ts$"],
     "moduleNameMapper": {
-      "^@claude-dashboard/shared$": "<rootDir>/../shared/src/index.ts"
+      "^@claude-dashboard/shared$": "<rootDir>/../shared/src/index.ts",
+      "^ink-testing-library$": "<rootDir>/src/__mocks__/ink-testing-library.ts",
+      "^ink$": "<rootDir>/src/__mocks__/ink.ts"
+    },
+    "transform": {
+      "^.+\\.tsx?$": ["ts-jest", { "diagnostics": false }]
     }
   }
 }
