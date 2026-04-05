@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Text, useApp, useInput, Key } from 'ink';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
 import { execSync } from 'child_process';
 import { useSessionsFile } from './useSessionsFile';
 import { useConfigFile } from './useConfigFile';
@@ -12,6 +13,11 @@ import { writeSessions } from '@claude-dashboard/shared';
 
 const SESSIONS_FILE = path.join(os.homedir(), '.claude', 'dashboard', 'sessions.json');
 const CONFIG_FILE   = path.join(os.homedir(), '.claude', 'dashboard', 'config.json');
+
+function ensureDashboardDir(): void {
+  const dir = path.dirname(SESSIONS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
 
 export function App() {
   const { exit } = useApp();
@@ -47,6 +53,7 @@ export function App() {
         const updated = sessions.map((s) =>
           s.sessionId === target.sessionId ? { ...s, dismissed: true } : s
         );
+        ensureDashboardDir();
         writeSessions(SESSIONS_FILE, updated);
       }
       return;
@@ -55,6 +62,7 @@ export function App() {
       const updated = sessions.map((s) =>
         s.status === 'done' ? { ...s, dismissed: true } : s
       );
+      ensureDashboardDir();
       writeSessions(SESSIONS_FILE, updated);
       return;
     }

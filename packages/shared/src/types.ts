@@ -28,6 +28,8 @@ export interface Session {
   changedFiles: number | null;
   costUsd: number | null;
   errorState: boolean;
+  loopTool: string | null;    // last tool seen in loop detection
+  loopCount: number;           // consecutive same-tool count
   startedAt: number;
   lastActivity: number;
   dismissed: boolean;

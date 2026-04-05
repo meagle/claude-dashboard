@@ -45,9 +45,6 @@ export type HookEvent =
 
 const LOOP_THRESHOLD = 5;
 
-// Module-level loop tracking (persistent across calls within a single process)
-const loopCounters = new Map<string, { tool: string; count: number }>();
-
 function getGitBranch(cwd: string): string | null {
   try {
     return execSync('git rev-parse --abbrev-ref HEAD', { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
@@ -68,8 +65,9 @@ function getWorktreeBranch(cwd: string): string | null {
       stdio: ['pipe', 'pipe', 'pipe'],
     }).toString();
     const entries = worktreeListRaw.split('\n\n').filter(Boolean);
-    // If more than one worktree entry exists, check if we're in a linked worktree
-    const isLinked = entries.length > 1 && entries.some((e) => e.includes('worktree ' + toplevel));
+    // First entry is always the main worktree; linked worktrees are the rest
+    const linkedEntries = entries.slice(1);
+    const isLinked = linkedEntries.some((e) => e.includes('worktree ' + toplevel));
     if (isLinked) {
       return getGitBranch(cwd);
     }
@@ -101,6 +99,8 @@ function makeNewSession(event: { sessionId: string; pid: number; workingDir: str
     changedFiles: null,
     costUsd: null,
     errorState: false,
+    loopTool: null,
+    loopCount: 0,
     startedAt: now,
     lastActivity: now,
     dismissed: false,
@@ -115,16 +115,16 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
   const now = Date.now();
 
   if (event.type === 'pre-tool') {
-    const key = event.sessionId;
-    const counter = loopCounters.get(key);
-    if (counter && counter.tool === event.toolName) {
-      counter.count++;
-      if (counter.count >= LOOP_THRESHOLD) {
-        session = { ...session, errorState: true };
-      }
+    let loopTool = session.loopTool;
+    let loopCount = session.loopCount;
+    if (loopTool === event.toolName) {
+      loopCount++;
     } else {
-      loopCounters.set(key, { tool: event.toolName, count: 1 });
+      loopTool = event.toolName;
+      loopCount = 1;
     }
+    const newErrorState = loopCount >= LOOP_THRESHOLD ? true : session.errorState;
+    session = { ...session, loopTool, loopCount, errorState: newErrorState };
 
     session = {
       ...session,
@@ -137,8 +137,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
 
     // Reset loop counter on task state change
     if (toolName === 'TaskCreate' || toolName === 'TaskUpdate') {
-      loopCounters.delete(event.sessionId);
-      session = { ...session, errorState: false };
+      session = { ...session, errorState: false, loopTool: null, loopCount: 0 };
     }
 
     let tasks = session.tasks;

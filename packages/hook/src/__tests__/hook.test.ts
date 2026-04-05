@@ -24,6 +24,8 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     changedFiles: null,
     costUsd: null,
     errorState: false,
+    loopTool: null,
+    loopCount: 0,
     startedAt: Date.now() - 5000,
     lastActivity: Date.now() - 5000,
     dismissed: false,

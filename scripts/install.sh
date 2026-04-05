@@ -25,11 +25,25 @@ const fs = require('fs');
 const file = process.env.HOME + '/.claude/settings.json';
 const settings = JSON.parse(fs.readFileSync(file, 'utf8'));
 settings.hooks = settings.hooks || {};
+
+function mergeHook(hooks, event, cmd) {
+  if (!hooks[event]) {
+    hooks[event] = [cmd];
+  } else {
+    // Remove any existing claude-dashboard hook for this event, then add the new one
+    hooks[event] = hooks[event].filter(
+      (h) => !h.command || !h.command.includes('dashboard/hook.js')
+    );
+    hooks[event].push(cmd);
+  }
+}
+
 const hookCmd = (event) => ({ command: `node ~/.claude/dashboard/hook.js ${event}` });
-settings.hooks.PreToolUse   = [hookCmd('pre-tool')];
-settings.hooks.PostToolUse  = [hookCmd('post-tool')];
-settings.hooks.Stop         = [hookCmd('stop')];
-settings.hooks.Notification = [hookCmd('notification')];
+mergeHook(settings.hooks, 'PreToolUse',   hookCmd('pre-tool'));
+mergeHook(settings.hooks, 'PostToolUse',  hookCmd('post-tool'));
+mergeHook(settings.hooks, 'Stop',         hookCmd('stop'));
+mergeHook(settings.hooks, 'Notification', hookCmd('notification'));
+
 fs.writeFileSync(file, JSON.stringify(settings, null, 2));
 console.log('settings.json updated.');
 NODESCRIPT

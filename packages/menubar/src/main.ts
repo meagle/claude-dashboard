@@ -30,7 +30,11 @@ function sendSessionsToPopover() {
   if (!popover || popover.isDestroyed()) return;
   const config = readConfig(CONFIG_FILE);
   const sessions = getActiveSessions();
-  popover.webContents.send('sessions-update', { sessions, showCost: config.columns.cost });
+  const priority = (s: { status: string }) =>
+    s.status === 'waiting_permission' ? 0 :
+    s.status === 'waiting_input'      ? 1 : 2;
+  const sorted = [...sessions].sort((a, b) => priority(a) - priority(b));
+  popover.webContents.send('sessions-update', { sessions: sorted, showCost: config.columns.cost });
 }
 
 app.whenReady().then(() => {
