@@ -25,6 +25,9 @@
   },
   "jest": {
     "preset": "ts-jest",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@claude-dashboard/shared$": "<rootDir>/../shared/src/index.ts"
+    }
   }
 }
