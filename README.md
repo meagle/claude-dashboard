@@ -69,6 +69,8 @@ The install script:
 3. Symlinks the `claude-dashboard` binary globally (`npm link`)
 4. Merges the four hooks into `~/.claude/settings.json` (preserves any existing hooks)
 
+`~/.claude/settings.json` is Claude Code's global user settings file — it applies to every Claude session on your machine, so once installed, the dashboard observes all new sessions automatically with no per-project setup.
+
 **What gets added to `~/.claude/settings.json`:**
 ```json
 {
