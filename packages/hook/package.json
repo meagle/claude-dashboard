@@ -22,6 +22,9 @@
     "testEnvironment": "node",
     "moduleNameMapper": {
       "^@claude-dashboard/shared$": "<rootDir>/../shared/src/index.ts"
-    }
+    },
+    "testPathIgnorePatterns": [
+      "<rootDir>/dist/"
+    ]
   }
 }

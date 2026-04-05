@@ -23,6 +23,8 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     startedAt: Date.now(),
     lastActivity: Date.now(),
     dismissed: false,
+    loopTool: null,
+    loopCount: 0,
     ...overrides,
   };
 }
