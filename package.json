@@ -1,0 +1,11 @@
+{
+  "name": "claude-dashboard",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces --if-present",
+    "dev:tui": "npm run dev -w packages/tui",
+    "dev:hook": "npm run dev -w packages/hook"
+  }
+}
