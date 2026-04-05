@@ -63,13 +63,13 @@ cd claude-dashboard
 bash scripts/install.sh
 ```
 
+That's it — no manual configuration needed. The install script handles everything, including updating `~/.claude/settings.json` (Claude Code's global user settings file) so the dashboard automatically observes every Claude session on your machine.
+
 The install script:
 1. Builds all packages (`npm run build`)
 2. Copies the compiled hook to `~/.claude/dashboard/hook.js`
 3. Symlinks the `claude-dashboard` binary globally (`npm link`)
-4. Merges the four hooks into `~/.claude/settings.json` (preserves any existing hooks)
-
-`~/.claude/settings.json` is Claude Code's global user settings file — it applies to every Claude session on your machine, so once installed, the dashboard observes all new sessions automatically with no per-project setup.
+4. Merges the four hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves any existing hooks)
 
 **What gets added to `~/.claude/settings.json`:**
 ```json
