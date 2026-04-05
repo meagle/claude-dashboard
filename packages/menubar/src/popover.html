@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, monospace;
+        font-size: 13px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        margin: 0;
+        padding: 8px 0;
+        min-width: 300px;
+      }
+      #sessions { padding: 0 8px; }
+      .session-row {
+        display: flex;
+        align-items: center;
+        padding: 4px 8px;
+        cursor: pointer;
+        border-radius: 4px;
+        gap: 8px;
+      }
+      .session-row:hover { background: #2d2d2d; }
+      .badge { font-size: 14px; flex-shrink: 0; }
+      .name { font-weight: bold; flex: 1; }
+      .branch { color: #888; font-size: 11px; }
+      .status { color: #888; font-size: 11px; }
+      .cost { color: #888; font-size: 11px; }
+      hr { border: none; border-top: 1px solid #333; margin: 4px 0; }
+      .open-tui {
+        display: block;
+        padding: 6px 16px;
+        color: #4fc3f7;
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .open-tui:hover { background: #2d2d2d; }
+    </style>
+  </head>
+  <body>
+    <div id="sessions"></div>
+    <hr />
+    <div class="open-tui" onclick="openTUI()">Open Dashboard TUI</div>
+    <script src="popover.js"></script>
+  </body>
+</html>
