@@ -90,12 +90,14 @@ The install script:
 claude-dashboard
 ```
 
+Run this in a dedicated terminal window or pane and leave it open — it's a live view that updates as your Claude sessions work. A split pane in tmux or iTerm2 works well, or just a separate window you keep visible alongside your work.
+
 **Menu bar:**
 ```bash
 npm start -w packages/menubar
 ```
 
-The menu bar app runs persistently in the background. Click the tray icon to see all sessions. Click a session row to bring that terminal window to focus. Click "Open Dashboard TUI" to launch the TUI in a new terminal.
+The menu bar app is the lower-friction option if you don't want a dedicated terminal window. It runs persistently in the background, updates the tray icon with the highest-priority session state, and lets you check in with a click. Click the tray icon to see all sessions, click a session row to bring that terminal window to focus, or click "Open Dashboard TUI" to launch the TUI in a new terminal.
 
 ## Configuration
 
