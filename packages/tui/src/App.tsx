@@ -14,6 +14,21 @@ import { writeSessions } from '@claude-dashboard/shared';
 const SESSIONS_FILE = path.join(os.homedir(), '.claude', 'dashboard', 'sessions.json');
 const CONFIG_FILE   = path.join(os.homedir(), '.claude', 'dashboard', 'config.json');
 
+function focusTerminalByPid(pid: number): void {
+  if (!Number.isSafeInteger(pid) || pid <= 0) return;
+  try {
+    const script = `
+tell application "System Events"
+  set targetProcess to first process whose unix id is ${pid}
+  set frontmost of targetProcess to true
+end tell
+activate application (name of first application process whose unix id is ${pid})`.trim();
+    execSync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
+  } catch {
+    // silently ignore — non-macOS or permission denied
+  }
+}
+
 function ensureDashboardDir(): void {
   const dir = path.dirname(SESSIONS_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -73,6 +88,11 @@ export function App() {
       } catch {
         // ignore editor errors
       }
+      return;
+    }
+    if (key.return) {
+      const target = visible[clampedIdx];
+      if (target) focusTerminalByPid(target.pid);
     }
   });
 
@@ -105,7 +125,7 @@ export function App() {
       </Box>
 
       <Text dimColor>
-        [d] detail   [x] dismiss   [C] clear done   [s] settings   [q] quit   [↑↓] navigate
+        [↵] focus   [d] detail   [x] dismiss   [C] clear done   [s] settings   [q] quit   [↑↓] navigate
       </Text>
     </Box>
   );

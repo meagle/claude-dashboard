@@ -1,11 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    "paths": {
-      "@claude-dashboard/shared": ["../shared/src/index.ts"]
-    }
-  },
+  "compilerOptions": { "outDir": "dist", "rootDir": "src" },
   "include": ["src"]
 }

@@ -4,4 +4,5 @@ export const KEYMAP = {
   CLEAR_DONE:    'C',
   SETTINGS:      's',
   QUIT:          'q',
+  FOCUS:         'return',
 } as const;

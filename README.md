@@ -16,7 +16,7 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code terminal se
   ❓ INPUT    1m      payments     main  Add Stripe webhook  ⏸ awaiting answer
   ✅ done    32m      docs-site    main  Update API docs     last: Write • 5m
 
-[d] detail   [x] dismiss   [C] clear done   [s] settings   [q] quit   [↑↓] navigate
+[↵] focus   [d] detail   [x] dismiss   [C] clear done   [s] settings   [q] quit   [↑↓] navigate
 ```
 
 **Menu bar:** Shows the highest-priority state across all sessions — `🔐 2` if any need approval, `❓ 1` if any need input, `🤖 3` while active, `✅` when all done. Click to open a session list popover.
@@ -122,6 +122,7 @@ Edit `~/.claude/dashboard/config.json` to control what's shown. Changes take eff
 
 | Key | Action |
 |-----|--------|
+| `↵` | Focus the selected session's terminal window |
 | `d` | Toggle compact ↔ detail view |
 | `↑` / `↓` | Navigate sessions |
 | `x` | Dismiss selected completed session |

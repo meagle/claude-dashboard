@@ -20,6 +20,11 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
+    "globals": {
+      "ts-jest": {
+        "tsconfig": "tsconfig.test.json"
+      }
+    },
     "moduleNameMapper": {
       "^@claude-dashboard/shared$": "<rootDir>/../shared/src/index.ts"
     },
