@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Text, useApp, useInput, Key } from 'ink';
+import { Splash } from './Splash';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
@@ -39,8 +40,14 @@ export function App() {
   const config   = useConfigFile(CONFIG_FILE);
   const sessions = useSessionsFile(SESSIONS_FILE, config.staleSessionMinutes);
 
+  const [showSplash, setShowSplash] = useState(true);
   const [detailMode, setDetailMode] = useState(false);
   const [selectedIdx, setSelectedIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const visible = sessions.filter((s) => !s.dismissed);
   const clampedIdx = Math.min(selectedIdx, Math.max(0, visible.length - 1));
@@ -108,6 +115,8 @@ export function App() {
     minute: '2-digit',
     hour12: false,
   });
+
+  if (showSplash) return <Splash />;
 
   return (
     <Box flexDirection="column">
