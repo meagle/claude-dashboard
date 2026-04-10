@@ -1,21 +1,54 @@
-import { app, Tray, BrowserWindow, ipcMain, nativeImage } from 'electron';
+import { app, Tray, BrowserWindow, ipcMain, nativeImage, Menu } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
+import * as fs from 'fs';
+import { execSync } from 'child_process';
 import chokidar from 'chokidar';
-import { readSessions, pruneStaleSessions, readConfig } from '@claude-dashboard/shared';
-import { focusTerminalByPid } from './focusTerminal';
+import { readSessions, pruneStaleSessions, readConfig, DEFAULT_CONFIG } from '@claude-dashboard/shared';
+import { focusTerminal } from './focusTerminal';
 import { getTrayLabel } from './trayIcon';
 
-const SESSIONS_FILE = path.join(os.homedir(), '.claude', 'dashboard', 'sessions.json');
-const CONFIG_FILE   = path.join(os.homedir(), '.claude', 'dashboard', 'config.json');
+const SESSIONS_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
+const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 
+function isClaudeProcess(pid: number): boolean {
+  try {
+    const args = execSync(`ps -o args= -p ${pid}`, { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
+    return args.includes('claude');
+  } catch {
+    return false;
+  }
+}
+
+function isAlive(pid: number): boolean {
+  if (!pid || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    // PID exists — verify it's actually a Claude process, not a reused PID
+    return isClaudeProcess(pid);
+  } catch (e: any) {
+    if (e?.code === 'EPERM') return isClaudeProcess(pid);
+    return false;
+  }
+}
+
 function getActiveSessions() {
   const config = readConfig(CONFIG_FILE);
   const all = readSessions(SESSIONS_FILE);
-  return pruneStaleSessions(all, config.staleSessionMinutes).filter((s) => !s.dismissed);
+  return pruneStaleSessions(all, config.staleSessionMinutes)
+    .filter((s) => !s.dismissed)
+    .filter((s) => {
+      // Hide done sessions after 60s once the Claude process is confirmed dead
+      if (s.status === 'done' && !isAlive(s.pid) && Date.now() - s.lastActivity > 60_000) return false;
+      return true;
+    })
+    .map((s) => {
+      if (s.status !== 'done' && !isAlive(s.pid)) return { ...s, status: 'done' as const };
+      return s;
+    });
 }
 
 function updateTray() {
@@ -26,6 +59,26 @@ function updateTray() {
   tray.setToolTip(label ? `Claude Sessions: ${sessions.length}` : 'Claude Dashboard');
 }
 
+async function resizeToContent(maxHeight: number, onHeight: (h: number) => void) {
+  if (!popover || popover.isDestroyed()) return;
+  try {
+    const h = await popover.webContents.executeJavaScript(
+      '(function(){' +
+      '  var hdr = document.getElementById("header");' +
+      '  var sp  = document.getElementById("settings-panel");' +
+      '  var ses = document.getElementById("sessions");' +
+      '  var hh  = hdr ? hdr.offsetHeight : 0;' +
+      '  if (sp && sp.classList.contains("open")) return hh + sp.scrollHeight + 24;' +
+      '  return hh + (ses ? ses.scrollHeight : 0) + 24;' +
+      '})()'
+    );
+    const clamped = Math.max(120, Math.min(Math.ceil(h), maxHeight));
+    onHeight(clamped);
+    const [width] = popover.getSize();
+    popover.setSize(width, clamped);
+  } catch { /* ignore if popover not ready */ }
+}
+
 function sendSessionsToPopover() {
   if (!popover || popover.isDestroyed()) return;
   const config = readConfig(CONFIG_FILE);
@@ -34,24 +87,53 @@ function sendSessionsToPopover() {
     s.status === 'waiting_permission' ? 0 :
     s.status === 'waiting_input'      ? 1 : 2;
   const sorted = [...sessions].sort((a, b) => priority(a) - priority(b));
-  popover.webContents.send('sessions-update', { sessions: sorted, showCost: config.columns.cost });
+  popover.webContents.send('sessions-update', {
+    sessions: sorted,
+    cardConfig: {
+      showBranch:     config.columns.gitBranch,
+      showGitSummary: config.columns.changedFiles,
+      showSubagents:  config.columns.subagents,
+      showModel:      config.columns.lastAction,
+      compactPaths:   config.columns.compactPaths ?? true,
+    },
+    home: os.homedir(),
+  });
 }
 
 app.whenReady().then(() => {
+  // Hide from dock — this is a menu bar only app
+  if (app.dock) app.dock.hide();
+
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
   tray.setTitle('🤖');
+  tray.on('right-click', () => {
+    tray!.popUpContextMenu(Menu.buildFromTemplate([
+      { label: 'Quit Claude Dashboard', click: () => app.quit() },
+    ]));
+  });
+
+  const MAX_HEIGHT = 700;
+  let cachedHeight = MAX_HEIGHT;
 
   popover = new BrowserWindow({
-    width: 340,
-    height: 400,
+    width: 700,
+    height: MAX_HEIGHT,
     show: false,
     frame: false,
-    resizable: false,
+    resizable: true,
     alwaysOnTop: true,
     webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
   popover.loadFile(path.join(__dirname, 'popover.html'));
+
+  const doResize = () => resizeToContent(MAX_HEIGHT, (h) => { cachedHeight = h; });
+
+  // Render sessions as soon as the popover is ready so cachedHeight is known before first click
+  popover.webContents.on('did-finish-load', async () => {
+    sendSessionsToPopover();
+    setTimeout(doResize, 100);
+  });
 
   tray.on('click', () => {
     if (!popover || popover.isDestroyed()) return;
@@ -59,41 +141,57 @@ app.whenReady().then(() => {
       popover.hide();
     } else {
       const bounds = tray!.getBounds();
-      popover.setPosition(
-        Math.round(bounds.x - 170 + bounds.width / 2),
-        Math.round(bounds.y + bounds.height)
-      );
+      // Pre-size to cached height before showing to avoid flash of full-height window
+      popover.setBounds({
+        x: Math.round(bounds.x - 350 + bounds.width / 2),
+        y: Math.round(bounds.y + bounds.height),
+        width: 700,
+        height: cachedHeight,
+      });
       sendSessionsToPopover();
       popover.show();
       popover.focus();
+      setTimeout(doResize, 100);
     }
   });
 
   popover.on('blur', () => popover?.hide());
 
-  ipcMain.on('focus-terminal', (_event, pid: number) => {
-    focusTerminalByPid(pid);
+  ipcMain.on('focus-terminal', (_event, pid: number, termSessionId: string | null) => {
+    focusTerminal(pid, termSessionId);
     popover?.hide();
   });
 
-  ipcMain.on('open-tui', () => {
-    const { execSync } = require('child_process');
-    try {
-      execSync('open -a Terminal', { stdio: 'ignore' });
-      execSync(`osascript -e 'tell application "Terminal" to do script "claude-dashboard"'`);
-    } catch {
-      // ignore
-    }
-    popover?.hide();
+  ipcMain.handle('get-config', () => readConfig(CONFIG_FILE));
+
+  ipcMain.handle('save-config', (_event, partial: Record<string, unknown>) => {
+    const current = readConfig(CONFIG_FILE);
+    const updated = {
+      ...DEFAULT_CONFIG,
+      ...current,
+      ...partial,
+      columns: { ...DEFAULT_CONFIG.columns, ...current.columns, ...((partial.columns as object) ?? {}) },
+    };
+    fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
+    updateTray();
+    sendSessionsToPopover();
   });
+
+  ipcMain.on('resize-to-fit', () => { setTimeout(doResize, 50); });
 
   const watcher = chokidar.watch([SESSIONS_FILE, CONFIG_FILE], { ignoreInitial: false });
   watcher.on('add', updateTray);
-  watcher.on('change', () => { updateTray(); sendSessionsToPopover(); });
+  watcher.on('change', () => { updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
 
   updateTray();
 });
 
 app.on('window-all-closed', () => {
   // keep running — menu bar app has no windows
+});
+
+app.on('before-quit', () => {
+  tray?.destroy();
+  tray = null;
 });

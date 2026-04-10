@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/popover.html dist/popover.html",
     "start": "electron .",
     "test": "jest"
   },

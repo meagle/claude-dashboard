@@ -23,13 +23,13 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code terminal se
 
 ## How it works
 
-Every time Claude Code uses a tool, a hook fires and updates `~/.claude/dashboard/sessions.json`. The TUI and menu bar watch that file with chokidar and re-render instantly on change.
+Every time Claude Code uses a tool, a hook fires and updates `~/.config/claude-dashboard/sessions.json`. The TUI and menu bar watch that file with chokidar and re-render instantly on change.
 
 ```
 Claude session (any project)
   → PreToolUse / PostToolUse / Stop / Notification hooks fire
-  → ~/.claude/dashboard/hook.js runs
-  → writes/updates ~/.claude/dashboard/sessions.json (atomic)
+  → ~/.config/claude-dashboard/hook.js runs
+  → writes/updates ~/.config/claude-dashboard/sessions.json (atomic)
   → TUI watches file → re-renders live
   → Menu bar watches file → updates tray icon + popover
 ```
@@ -55,6 +55,12 @@ Each session tracks: status, current tool, current task, task progress, running 
 - macOS (menu bar uses AppleScript for terminal focus; TUI works anywhere)
 - Claude Code installed
 
+## macOS permissions
+
+The dashboard hook writes to `~/.config/claude-dashboard/` which is a neutral location with no app association, so no privacy prompts should appear.
+
+If you do see **"iTerm would like to access data from other apps"** (e.g. from a previous installation that used `~/.claude/dashboard/`), click **Allow** or re-run `bash scripts/install.sh` to migrate to the new path.
+
 ## Installation
 
 ```bash
@@ -67,7 +73,7 @@ That's it — no manual configuration needed. The install script handles everyth
 
 The install script:
 1. Builds all packages (`npm run build`)
-2. Copies the compiled hook to `~/.claude/dashboard/hook.js`
+2. Copies the compiled hook to `~/.config/claude-dashboard/hook.js`
 3. Symlinks the `claude-dashboard` binary globally (`npm link`)
 4. Merges the four hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves any existing hooks)
 
@@ -75,10 +81,11 @@ The install script:
 ```json
 {
   "hooks": {
-    "PreToolUse":   [{ "command": "node ~/.claude/dashboard/hook.js pre-tool" }],
-    "PostToolUse":  [{ "command": "node ~/.claude/dashboard/hook.js post-tool" }],
-    "Stop":         [{ "command": "node ~/.claude/dashboard/hook.js stop" }],
-    "Notification": [{ "command": "node ~/.claude/dashboard/hook.js notification" }]
+    "UserPromptSubmit": [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }] }],
+    "PreToolUse":       [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }] }],
+    "PostToolUse":      [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool" }] }],
+    "Stop":             [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop" }] }],
+    "Notification":     [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js notification" }] }]
   }
 }
 ```
@@ -101,7 +108,7 @@ The menu bar app is the lower-friction option if you don't want a dedicated term
 
 ## Configuration
 
-Edit `~/.claude/dashboard/config.json` to control what's shown. Changes take effect immediately — no restart needed. Press `s` in the TUI to open it in `$EDITOR`.
+Edit `~/.config/claude-dashboard/config.json` to control what's shown. Changes take effect immediately — no restart needed. Press `s` in the TUI to open it in `$EDITOR`.
 
 ```json
 {
@@ -135,7 +142,7 @@ Edit `~/.claude/dashboard/config.json` to control what's shown. Changes take eff
 ```
 packages/
   shared/     Session types, sessions.json I/O, config reader
-  hook/       Claude Code hook script (compiled to ~/.claude/dashboard/hook.js)
+  hook/       Claude Code hook script (compiled to ~/.config/claude-dashboard/hook.js)
   tui/        Ink terminal UI  →  claude-dashboard binary
   menubar/    Electron tray app
 scripts/
@@ -158,5 +165,5 @@ Remove the hooks from `~/.claude/settings.json` (the four entries added by insta
 
 ```bash
 npm unlink -g @claude-dashboard/tui
-rm -rf ~/.claude/dashboard
+rm -rf ~/.config/claude-dashboard
 ```

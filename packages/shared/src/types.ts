@@ -13,6 +13,7 @@ export interface SubagentSummary {
 export interface Session {
   sessionId: string;
   pid: number;
+  termSessionId: string | null;  // iTerm2 TERM_SESSION_ID for window focusing
   workingDir: string;
   dirName: string;
   branch: string | null;
@@ -21,16 +22,27 @@ export interface Session {
   currentTool: string | null;
   lastTool: string | null;
   lastToolAt: number | null;
+  lastToolSummary: string | null;  // brief description of what the last tool did
+  lastPrompt: string | null;       // last user prompt text
+  lastMessage: string | null;      // last assistant text response
   currentTask: string | null;
   tasks: TaskSummary[];
   subagents: SubagentSummary[];
   completionPct: number;
   changedFiles: number | null;
   costUsd: number | null;
+  turns: number | null;         // number of user turns in transcript
+  model: string | null;
+  contextPct: number | null;
+  bashStartedAt: number | null; // epoch ms when a Bash tool started (for stuck detection)
+  gitSummary: string | null;    // e.g. "3 files changed, +42 -7"
+  transcriptPath: string | null; // path to Claude transcript file
+  partialResponse: string | null; // latest assistant text from current turn (streaming-like)
   errorState: boolean;
   loopTool: string | null;    // last tool seen in loop detection
   loopCount: number;           // consecutive same-tool count
   startedAt: number;
+  turnStartedAt: number | null;  // epoch ms when the current/last Claude turn began
   lastActivity: number;
   dismissed: boolean;
 }
@@ -43,6 +55,7 @@ export interface DashboardConfig {
     cost: boolean;
     subagents: boolean;
     lastAction: boolean;
+    compactPaths: boolean;
   };
   staleSessionMinutes: number;
   theme: 'dark' | 'light';
@@ -53,9 +66,10 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     elapsedTime: true,
     gitBranch: true,
     changedFiles: true,
-    cost: false,
+    cost: true,
     subagents: true,
     lastAction: true,
+    compactPaths: true,
   },
   staleSessionMinutes: 30,
   theme: 'dark',

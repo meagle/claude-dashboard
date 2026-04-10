@@ -1,21 +1,30 @@
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 
-export function buildAppleScript(pid: number): string {
-  return `
-tell application "System Events"
-  set targetProcess to first process whose unix id is ${pid}
-  set frontmost of targetProcess to true
-end tell
-activate application (name of first application process whose unix id is ${pid})
-`.trim();
-}
-
-export function focusTerminalByPid(pid: number): void {
-  if (!Number.isSafeInteger(pid) || pid <= 0) return;
+export function focusTerminal(pid: number, termSessionId: string | null): void {
   try {
-    const script = buildAppleScript(pid);
-    execSync(`osascript -e '${script.replace(/'/g, "'\\''")}'`);
-  } catch {
-    // silently ignore
-  }
+    if (termSessionId) {
+      const guid = termSessionId.includes(':') ? termSessionId.split(':')[1] : termSessionId;
+      const script = `tell application "iTerm2"
+  repeat with aWindow in windows
+    repeat with aTab in tabs of aWindow
+      repeat with aSession in sessions of aTab
+        if id of aSession is "${guid}" then
+          select aWindow
+          activate
+          return
+        end if
+      end repeat
+    end repeat
+  end repeat
+end tell`;
+      spawnSync('osascript', ['-'], { input: script, encoding: 'utf8' });
+      return;
+    }
+    if (!Number.isSafeInteger(pid) || pid <= 0) return;
+    spawnSync('osascript', [
+      '-e', 'tell application "System Events"',
+      '-e', `set frontmost of (first process whose unix id is ${pid}) to true`,
+      '-e', 'end tell',
+    ]);
+  } catch { }
 }

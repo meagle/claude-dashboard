@@ -9,6 +9,7 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     sessionId: 'sess-1',
     pid: 100,
+    termSessionId: null,
     workingDir: '/tmp/test',
     dirName: 'test',
     branch: 'main',
@@ -17,12 +18,20 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     currentTool: null,
     lastTool: null,
     lastToolAt: null,
+    lastToolSummary: null,
+    lastPrompt: null,
+    lastMessage: null,
     currentTask: null,
     tasks: [],
     subagents: [],
     completionPct: 0,
     changedFiles: null,
     costUsd: null,
+    turns: null,
+    model: null,
+    contextPct: null,
+    bashStartedAt: null,
+    gitSummary: null,
     errorState: false,
     loopTool: null,
     loopCount: 0,
@@ -51,6 +60,7 @@ describe('processHookEvent', () => {
       type: 'pre-tool',
       sessionId: 'new-sess',
       pid: 999,
+      termSessionId: null,
       workingDir: '/tmp/project',
       toolName: 'Bash',
       input: {},
@@ -70,6 +80,7 @@ describe('processHookEvent', () => {
       type: 'post-tool',
       sessionId: 'sess-1',
       pid: 100,
+      termSessionId: null,
       workingDir: '/tmp/test',
       toolName: 'Read',
       input: {},
@@ -89,7 +100,9 @@ describe('processHookEvent', () => {
       type: 'stop',
       sessionId: 'sess-1',
       pid: 100,
+      termSessionId: null,
       workingDir: '/tmp/test',
+      transcriptPath: null,
     };
     processHookEvent(event, sessionsFile);
     const sessions = readSessions(sessionsFile);
@@ -102,11 +115,11 @@ describe('processHookEvent', () => {
     fs.writeFileSync(sessionsFile, JSON.stringify([existing]));
     for (let i = 0; i < 5; i++) {
       processHookEvent(
-        { type: 'pre-tool', sessionId: 'sess-1', pid: 100, workingDir: '/tmp/test', toolName: 'Bash', input: {} },
+        { type: 'pre-tool', sessionId: 'sess-1', pid: 100, termSessionId: null, workingDir: '/tmp/test', toolName: 'Bash', input: {} },
         sessionsFile
       );
       processHookEvent(
-        { type: 'post-tool', sessionId: 'sess-1', pid: 100, workingDir: '/tmp/test', toolName: 'Bash', input: {}, output: {} },
+        { type: 'post-tool', sessionId: 'sess-1', pid: 100, termSessionId: null, workingDir: '/tmp/test', toolName: 'Bash', input: {}, output: {} },
         sessionsFile
       );
     }
@@ -122,6 +135,7 @@ describe('processHookEvent', () => {
         type: 'notification',
         sessionId: 'sess-1',
         pid: 100,
+        termSessionId: null,
         workingDir: '/tmp/test',
         message: 'Waiting for tool approval',
         notificationType: 'permission_request',

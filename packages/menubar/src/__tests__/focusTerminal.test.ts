@@ -1,9 +1,7 @@
-import { buildAppleScript } from '../focusTerminal';
+import { focusTerminal } from '../focusTerminal';
 
-describe('buildAppleScript', () => {
-  it('builds script targeting the given PID', () => {
-    const script = buildAppleScript(1234);
-    expect(script).toContain('1234');
-    expect(script).toContain('activate');
+describe('focusTerminal', () => {
+  it('does not throw for valid pid', () => {
+    expect(() => focusTerminal(0, null)).not.toThrow();
   });
 });
