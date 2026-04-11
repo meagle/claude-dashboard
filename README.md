@@ -19,6 +19,12 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 | `🤖 3` | Active sessions (number = count) |
 | `✅` | All sessions done |
 
+## Demo
+
+![Claude Dashboard demo](docs/demo.gif)
+
+> Sessions cycling through active → waiting for permission → waiting for input → done, including a worktree session.
+
 ## How it works
 
 Every time Claude Code uses a tool, a hook fires and updates `~/.config/claude-dashboard/sessions.json`. The menu bar watches that file and re-renders instantly on change.
