@@ -13,6 +13,7 @@ const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'co
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
+let detachedPanel: BrowserWindow | null = null;
 
 function isClaudeProcess(pid: number): boolean {
   try {
@@ -79,15 +80,14 @@ async function resizeToContent(maxHeight: number, onHeight: (h: number) => void)
   } catch { /* ignore if popover not ready */ }
 }
 
-function sendSessionsToPopover() {
-  if (!popover || popover.isDestroyed()) return;
+function buildSessionsPayload() {
   const config = readConfig(CONFIG_FILE);
   const sessions = getActiveSessions();
   const priority = (s: { status: string }) =>
     s.status === 'waiting_permission' ? 0 :
     s.status === 'waiting_input'      ? 1 : 2;
   const sorted = [...sessions].sort((a, b) => priority(a) - priority(b));
-  popover.webContents.send('sessions-update', {
+  return {
     sessions: sorted,
     cardConfig: {
       showBranch:     config.columns.gitBranch,
@@ -97,7 +97,13 @@ function sendSessionsToPopover() {
       compactPaths:   config.columns.compactPaths ?? true,
     },
     home: os.homedir(),
-  });
+  };
+}
+
+function sendSessionsToPopover() {
+  const payload = buildSessionsPayload();
+  if (popover && !popover.isDestroyed()) popover.webContents.send('sessions-update', payload);
+  if (detachedPanel && !detachedPanel.isDestroyed()) detachedPanel.webContents.send('sessions-update', payload);
 }
 
 app.whenReady().then(() => {
@@ -179,6 +185,36 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('resize-to-fit', () => { setTimeout(doResize, 50); });
+
+  ipcMain.on('open-detached-panel', () => {
+    if (detachedPanel && !detachedPanel.isDestroyed()) {
+      detachedPanel.focus();
+      return;
+    }
+    detachedPanel = new BrowserWindow({
+      width: 720,
+      height: 600,
+      minWidth: 420,
+      minHeight: 200,
+      show: true,
+      frame: false,
+      resizable: true,
+      alwaysOnTop: true,
+      webPreferences: { nodeIntegration: true, contextIsolation: false },
+    });
+    detachedPanel.loadFile(path.join(__dirname, 'popover.html'), { hash: 'detached' });
+    detachedPanel.webContents.on('did-finish-load', () => {
+      if (detachedPanel && !detachedPanel.isDestroyed()) {
+        detachedPanel.webContents.send('sessions-update', buildSessionsPayload());
+      }
+    });
+    detachedPanel.on('closed', () => { detachedPanel = null; });
+  });
+
+  ipcMain.handle('set-always-on-top', (event, value: boolean) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    win?.setAlwaysOnTop(value);
+  });
 
   const watcher = chokidar.watch([SESSIONS_FILE, CONFIG_FILE], { ignoreInitial: false });
   watcher.on('add', updateTray);

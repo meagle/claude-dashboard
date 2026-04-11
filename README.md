@@ -1,65 +1,56 @@
 # Claude Session Dashboard
 
-Real-time dashboard for monitoring multiple simultaneous Claude Code terminal sessions. Two surfaces: a terminal UI (TUI) for heads-down work and a macOS menu bar app for persistent at-a-glance status.
+Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. Runs as a macOS menu bar app — click the tray icon to see all sessions, or pop out a persistent floating panel.
 
 ## What it looks like
 
-**TUI (compact view):**
-```
-🤖 Claude Dashboard  •  3 sessions  •  2 active               04/05 14:32
+**Menu bar popover** (click the tray icon):
 
- STATUS              PROJECT            TASK               TOOL      PROGRESS
- ──────────────────────────────────────────────────────────────────────────────
-› ● active   12m      myapp [🌿 auth]    Fix auth bug       🔧 Bash   ████░░ 50%
-             🤖 Explore (running) › searching src/auth/**            ±4 files
-  🔐 WAITING  4m      api-service  main  Refactor DB layer  ⏸ needs approval
-  ❓ INPUT    1m      payments     main  Add Stripe webhook  ⏸ awaiting answer
-  ✅ done    32m      docs-site    main  Update API docs     last: Write • 5m
+- Each session shows status badge, project name, current task, last tool, git branch, worktree, git diff summary, model, and context usage
+- Cards are color-coded: green border = active, orange = waiting for permission or input, dim = done
+- Click any card to bring that terminal window into focus
+- Pop out a standalone always-on-top panel with the `⧉` button
 
-[↵] focus   [d] detail   [x] dismiss   [C] clear done   [s] settings   [q] quit   [↑↓] navigate
-```
-
-**Menu bar:** Shows the highest-priority state across all sessions — `🔐 2` if any need approval, `❓ 1` if any need input, `🤖 3` while active, `✅` when all done. Click to open a session list popover.
+**Tray icon** shows the highest-priority state across all sessions:
+| Icon | Meaning |
+|------|---------|
+| `🔐 2` | Sessions waiting for tool approval |
+| `❓ 1` | Sessions waiting for your input |
+| `🤖 3` | Active sessions (number = count) |
+| `✅` | All sessions done |
 
 ## How it works
 
-Every time Claude Code uses a tool, a hook fires and updates `~/.config/claude-dashboard/sessions.json`. The TUI and menu bar watch that file with chokidar and re-render instantly on change.
+Every time Claude Code uses a tool, a hook fires and updates `~/.config/claude-dashboard/sessions.json`. The menu bar watches that file and re-renders instantly on change.
 
 ```
 Claude session (any project)
-  → PreToolUse / PostToolUse / Stop / Notification hooks fire
+  → UserPromptSubmit / PreToolUse / PostToolUse / Stop / Notification hooks fire
   → ~/.config/claude-dashboard/hook.js runs
-  → writes/updates ~/.config/claude-dashboard/sessions.json (atomic)
-  → TUI watches file → re-renders live
+  → writes/updates ~/.config/claude-dashboard/sessions.json
   → Menu bar watches file → updates tray icon + popover
 ```
 
-Each session tracks: status, current tool, current task, task progress, running subagents, git branch, worktree, changed files, elapsed time, and cost.
+Each session tracks: status, current tool, last prompt and response, task list progress, running subagents, git branch, worktree, changed files, elapsed time, model, context %, and cost.
 
 **Statuses:**
-| Icon | Status | Meaning |
-|------|--------|---------|
-| `● active` | active | Claude is running a tool |
-| `🔐 WAITING` | waiting_permission | Tool approval needed in terminal |
-| `❓ INPUT` | waiting_input | Claude asked a question |
-| `○ idle` | idle | Between tool calls |
-| `✅ done` | done | Session finished |
+| Badge | Status | Meaning |
+|-------|--------|---------|
+| `● ACTIVE` | active | Claude is running |
+| `● PERMISSION` | waiting_permission | Tool approval needed |
+| `● INPUT` | waiting_input | Claude asked a question |
+| `○ IDLE` | idle | Between tool calls |
+| `● DONE` | done | Session finished |
 
-**Loop detection:** If the same tool fires 5+ times consecutively with no task state change, the session is flagged with a `🔴` error badge.
+**Loop detection:** If the same tool fires 5+ times in a row with no task state change, the session is flagged with a `LOOP` badge.
 
-**Stale sessions** (no activity for 30 minutes) are pruned automatically on read — no cleanup needed.
+**Stale sessions** (no activity for 30 minutes by default) are pruned automatically — no cleanup needed.
 
 ## Requirements
 
 - Node.js 18+
-- macOS (menu bar uses AppleScript for terminal focus; TUI works anywhere)
+- macOS
 - Claude Code installed
-
-## macOS permissions
-
-The dashboard hook writes to `~/.config/claude-dashboard/` which is a neutral location with no app association, so no privacy prompts should appear.
-
-If you do see **"iTerm would like to access data from other apps"** (e.g. from a previous installation that used `~/.claude/dashboard/`), click **Allow** or re-run `bash scripts/install.sh` to migrate to the new path.
 
 ## Installation
 
@@ -69,13 +60,12 @@ cd claude-dashboard
 bash scripts/install.sh
 ```
 
-That's it — no manual configuration needed. The install script handles everything, including updating `~/.claude/settings.json` (Claude Code's global user settings file) so the dashboard automatically observes every Claude session on your machine.
+That's it — no manual configuration needed. The install script handles everything, including updating `~/.claude/settings.json` so the dashboard automatically observes every Claude session on your machine.
 
 The install script:
 1. Builds all packages (`npm run build`)
 2. Copies the compiled hook to `~/.config/claude-dashboard/hook.js`
-3. Symlinks the `claude-dashboard` binary globally (`npm link`)
-4. Merges the four hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves any existing hooks)
+3. Merges the five hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves existing hooks)
 
 **What gets added to `~/.claude/settings.json`:**
 ```json
@@ -92,50 +82,34 @@ The install script:
 
 ## Running
 
-**TUI:**
-```bash
-claude-dashboard
-```
-
-Run this in a dedicated terminal window or pane and leave it open — it's a live view that updates as your Claude sessions work. A split pane in tmux or iTerm2 works well, or just a separate window you keep visible alongside your work.
-
-**Menu bar:**
 ```bash
 npm start -w packages/menubar
 ```
 
-The menu bar app is the lower-friction option if you don't want a dedicated terminal window. It runs persistently in the background, updates the tray icon with the highest-priority session state, and lets you check in with a click. Click the tray icon to see all sessions, click a session row to bring that terminal window to focus, or click "Open Dashboard TUI" to launch the TUI in a new terminal.
+Right-click the tray icon to quit.
 
-## Configuration
+## Standalone panel
 
-Edit `~/.config/claude-dashboard/config.json` to control what's shown. Changes take effect immediately — no restart needed. Press `s` in the TUI to open it in `$EDITOR`.
+Click `⧉` in the popover header to open a persistent floating panel. It receives the same live updates as the popover and stays visible regardless of what you click. Use the pin button (red = always on top, gray = normal window) to toggle whether it floats above all other windows.
 
-```json
-{
-  "columns": {
-    "elapsedTime": true,
-    "gitBranch": true,
-    "changedFiles": true,
-    "cost": false,
-    "subagents": true,
-    "lastAction": true
-  },
-  "staleSessionMinutes": 30,
-  "theme": "dark"
-}
-```
+## Settings
 
-## Keyboard shortcuts (TUI)
+Click `⚙` in the popover to open the settings panel. Options:
 
-| Key | Action |
-|-----|--------|
-| `↵` | Focus the selected session's terminal window |
-| `d` | Toggle compact ↔ detail view |
-| `↑` / `↓` | Navigate sessions |
-| `x` | Dismiss selected completed session |
-| `C` | Clear all done sessions |
-| `s` | Open `config.json` in `$EDITOR` |
-| `q` / `Ctrl+C` | Quit |
+| Setting | Description |
+|---------|-------------|
+| Stale session timeout | Hide sessions with no activity after this many minutes |
+| Show git branch | Display the current git branch on each card |
+| Show git diff summary | Show changed file count and line diff |
+| Show subagent info | Show running subagent details |
+| Show model & context | Show model name and context usage bar |
+| Compact paths | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`) |
+
+Changes take effect immediately — no restart needed.
+
+## macOS permissions
+
+If you see **"iTerm would like to access data from other apps"**, click **Allow** — this is needed to focus terminal windows when clicking a session card.
 
 ## Project structure
 
@@ -143,8 +117,7 @@ Edit `~/.config/claude-dashboard/config.json` to control what's shown. Changes t
 packages/
   shared/     Session types, sessions.json I/O, config reader
   hook/       Claude Code hook script (compiled to ~/.config/claude-dashboard/hook.js)
-  tui/        Ink terminal UI  →  claude-dashboard binary
-  menubar/    Electron tray app
+  menubar/    Electron tray app + popover
 scripts/
   install.sh  Build + install
 ```
@@ -153,17 +126,24 @@ scripts/
 
 ```bash
 npm install
-npm test          # run all tests (47 tests across 4 packages)
+npm test          # run all tests
 npm run build     # compile all packages
 ```
 
-The hook runs in-process during tests — no live Claude session needed to test it.
+After modifying the hook:
+```bash
+npm run build -w packages/hook && cp packages/hook/dist/hook.js ~/.config/claude-dashboard/hook.js
+```
+
+After modifying the menubar:
+```bash
+npm run build -w packages/menubar
+```
 
 ## Uninstalling
 
-Remove the hooks from `~/.claude/settings.json` (the four entries added by install), then:
+Remove the hook entries from `~/.claude/settings.json`, then:
 
 ```bash
-npm unlink -g @claude-dashboard/tui
 rm -rf ~/.config/claude-dashboard
 ```

@@ -308,6 +308,33 @@ ipcRenderer.on('sessions-update', (_: unknown, data: { sessions: SessionRow[]; c
   renderSessions(data.sessions, data.home);
 });
 
+// ── Detached panel mode ───────────────────────────────────────────────────────
+const isDetached = window.location.hash === '#detached';
+if (isDetached) document.body.classList.add('detached');
+
+const popoutBtn = document.getElementById('popout-btn')!;
+popoutBtn.addEventListener('click', () => {
+  ipcRenderer.send('open-detached-panel');
+});
+
+if (isDetached) {
+  let alwaysOnTop = true;
+  const pinBtn   = document.getElementById('pin-btn')!;
+  const closeBtn = document.getElementById('close-btn')!;
+
+  pinBtn.classList.add('pinned');
+  pinBtn.addEventListener('click', async () => {
+    alwaysOnTop = !alwaysOnTop;
+    await ipcRenderer.invoke('set-always-on-top', alwaysOnTop);
+    pinBtn.classList.toggle('pinned', alwaysOnTop);
+    pinBtn.title = alwaysOnTop ? 'Always on top (click to disable)' : 'Always on top (click to enable)';
+  });
+
+  closeBtn.addEventListener('click', () => {
+    window.close();
+  });
+}
+
 // ── Settings panel ────────────────────────────────────────────────────────────
 const settingsBtn      = document.getElementById('settings-btn')!;
 const settingsPanel    = document.getElementById('settings-panel')!;
