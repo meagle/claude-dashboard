@@ -40,13 +40,18 @@ Claude session (any project)
 Each session tracks: status, current tool, last prompt and response, task list progress, running subagents, git branch, worktree, changed files, elapsed time, model, context %, and cost.
 
 **Statuses:**
+
 | Badge | Status | Meaning |
 |-------|--------|---------|
-| `● ACTIVE` | active | Claude is running |
-| `● PERMISSION` | waiting_permission | Tool approval needed |
-| `● INPUT` | waiting_input | Claude asked a question |
-| `○ IDLE` | idle | Between tool calls |
-| `● DONE` | done | Session finished |
+| ![](https://img.shields.io/badge/●_ACTIVE-238636?style=flat-square) | `active` | Claude is running |
+| ![](https://img.shields.io/badge/●_PERMISSION-b45309?style=flat-square) | `waiting_permission` | Tool approval needed |
+| ![](https://img.shields.io/badge/●_INPUT-b45309?style=flat-square) | `waiting_input` | Claude asked a question |
+| ![](https://img.shields.io/badge/○_IDLE-444444?style=flat-square) | `idle` | Between tool calls |
+| ![](https://img.shields.io/badge/●_DONE-555555?style=flat-square) | `done` | Session finished |
+
+**Example cards:**
+
+![Example session cards showing all states](docs/status-cards.svg)
 
 **Loop detection:** If the same tool fires 5+ times in a row with no task state change, the session is flagged with a `LOOP` badge.
 
