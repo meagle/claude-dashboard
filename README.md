@@ -53,6 +53,8 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 ![Example session cards showing all states](docs/status-cards.svg)
 
+**Worktree indicator:** When Claude is running inside a [git worktree](https://git-scm.com/docs/git-worktree) (including sessions spawned by Claude Code's Agent tool with `isolation: "worktree"`), a 🌿 icon appears after the branch name on the card — e.g. `main 🌿 stripe-v2`. The worktree name is the directory basename of the linked worktree.
+
 **Loop detection:** If the same tool fires 5+ times in a row with no task state change, the session is flagged with a `LOOP` badge.
 
 **Stale sessions** (no activity for 30 minutes by default) are pruned automatically — no cleanup needed.
