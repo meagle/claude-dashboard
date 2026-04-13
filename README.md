@@ -6,8 +6,10 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 
 **Menu bar popover** (click the tray icon):
 
-- Each session shows status badge, project name, current task, last tool, git branch, worktree, git diff summary, model, and context usage
+- Each session shows status badge, elapsed/ago time, project name, current task, last tool, git branch, worktree, git diff summary, commits ahead of upstream, model, and context usage
 - Cards are color-coded: green border = active, orange = waiting for permission or input, dim = done
+- Cards are ordered by priority: waiting → active → idle → done, then by most recent activity within each group
+- While Claude is working but hasn't produced output yet, a "Clauding…" animated placeholder appears
 - Click any card to bring that terminal window into focus
 - Click the path on a card to copy the full path to the clipboard
 - Hover a done card to reveal the `✕` dismiss button and clear it from the list
@@ -39,7 +41,7 @@ Claude session (any project)
   → Menu bar watches file → updates tray icon + popover
 ```
 
-Each session tracks: status, current tool, last prompt and response, task list progress, running subagents, git branch, worktree, changed files, elapsed time, model, context %, and cost.
+Each session tracks: status, current tool, last prompt and response, task list progress, running subagents, git branch, worktree, changed files, commits ahead of upstream, elapsed time, model, context %, and cost.
 
 **Statuses:**
 
@@ -117,11 +119,12 @@ Click `⚙` in the popover to open the settings panel. Options:
 | Notifications | Show macOS notifications when sessions need attention or finish |
 | Sound alerts | Play a system beep on permission/input transitions |
 | Show git branch | Display the current git branch on each card |
-| Show git diff summary | Show changed file count and line diff |
+| Show git diff summary | Show changed file count, line diff, and commits ahead of upstream (↑N) |
 | Show subagent info | Show running subagent details |
-| Show model & context | Show model name and context usage bar |
+| Show model & context | Show model name and context usage bar on active/idle cards |
+| Show model & context on done cards | Show model name and context usage bar on completed cards |
 | Compact paths | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`) |
-| Show session cost | Display the USD cost in the footer of done cards |
+| Show session cost | Display the USD cost in the footer of done cards (API billing only) |
 
 Changes take effect immediately — no restart needed.
 
