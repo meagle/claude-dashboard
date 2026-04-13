@@ -7,11 +7,11 @@ interface ContextBarProps {
 
 export function ContextBar({ pct }: ContextBarProps) {
   return (
-    <span className="ctx-bar">
-      <div className="ctx-track">
+    <span className="flex items-center gap-[5px]">
+      <div className="w-20 h-[5px] bg-ctx-track rounded-[2px] overflow-hidden">
         <div className={ctxBarClass(pct)} style={{ width: `${pct}%` }} />
       </div>
-      <span className="ctx-pct">{pct}%</span>
+      <span className="text-faint text-sm">{pct}%</span>
     </span>
   );
 }

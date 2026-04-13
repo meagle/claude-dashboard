@@ -14,25 +14,26 @@ export function Badge({ status, lastActivity, errorState, loopTool, loopCount }:
 
   if (status === 'done') {
     badge = (
-      <span className="badge-done">
-        ● DONE <span className="badge-time">{agoStr(lastActivity)}</span>
+      <span className="font-bold shrink-0 text-badge-done">
+        ● DONE{' '}
+        <span className="font-normal text-[13px] text-faint">{agoStr(lastActivity)}</span>
       </span>
     );
   } else if (status === 'waiting_permission') {
-    badge = <span className="badge-waiting">● PERMISSION</span>;
+    badge = <span className="font-bold shrink-0 text-badge-waiting">● PERMISSION</span>;
   } else if (status === 'waiting_input') {
-    badge = <span className="badge-waiting">● INPUT</span>;
+    badge = <span className="font-bold shrink-0 text-badge-waiting">● INPUT</span>;
   } else if (status === 'active') {
-    badge = <span className="badge-active">● ACTIVE</span>;
+    badge = <span className="font-bold shrink-0 text-badge-active">● ACTIVE</span>;
   } else {
-    badge = <span className="badge-idle">○ IDLE</span>;
+    badge = <span className="font-bold shrink-0 text-badge-idle">○ IDLE</span>;
   }
 
   return (
     <>
       {badge}
       {errorState && (
-        <span className="badge-loop">
+        <span className="font-bold text-badge-loop">
           {' '}LOOP{loopTool ? ` 🔧 ${loopTool} ×${loopCount}` : ''}
         </span>
       )}

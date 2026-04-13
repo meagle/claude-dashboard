@@ -22,7 +22,8 @@ export function compactPath(workingDir: string, home: string): string {
 }
 
 export function ctxBarClass(pct: number): string {
-  if (pct >= 80) return 'ctx-fill crit';
-  if (pct >= 60) return 'ctx-fill warn';
-  return 'ctx-fill';
+  const base = 'h-full rounded-[2px] transition-[width] duration-300';
+  if (pct >= 80) return `${base} bg-ctx-crit`;
+  if (pct >= 60) return `${base} bg-ctx-warn`;
+  return `${base} bg-ctx-fill`;
 }

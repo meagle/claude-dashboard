@@ -23,13 +23,15 @@ describe('SessionList', () => {
       makeSession({ sessionId: 'b', dirName: 'beta', lastPrompt: 'Task B' }),
     ];
     const { container } = renderList(sessions);
-    expect(container.querySelectorAll('.card')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-session]')).toHaveLength(2);
   });
 
-  it('marks newly-done sessions with newly-done class on first render', () => {
+  it('marks newly-done sessions with animate-flash class on first render', () => {
     const sessions = [makeSession({ sessionId: 'a', status: 'done', dirName: 'alpha' })];
     const { container } = renderList(sessions);
-    expect(container.querySelector('.newly-done')).toBeInTheDocument();
+    const card = container.querySelector('[data-session="a"]');
+    expect(card).toBeInTheDocument();
+    expect(card!.className).toContain('animate-flash');
   });
 
   it('does not mark session as newly-done if it was already present', () => {
@@ -44,6 +46,7 @@ describe('SessionList', () => {
       />
     );
     // Was already tracked, so not newly-done
-    expect(container.querySelector('.newly-done')).not.toBeInTheDocument();
+    const card = container.querySelector('[data-session="a"]');
+    expect(card!.className).not.toContain('animate-flash');
   });
 });

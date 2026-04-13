@@ -33,9 +33,15 @@ const DEFAULTS: FormState = {
 
 function Toggle({ id, checked, onChange }: { id: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="toggle-switch">
-      <input type="checkbox" id={id} checked={checked} onChange={e => onChange(e.target.checked)} />
-      <span className="toggle-track" />
+    <label htmlFor={id} className="relative inline-flex items-center cursor-pointer shrink-0">
+      <input
+        type="checkbox"
+        id={id}
+        checked={checked}
+        onChange={e => onChange(e.target.checked)}
+        className="sr-only peer"
+      />
+      <div className="w-8 h-4 bg-edge rounded-full transition-colors duration-200 peer-checked:bg-accent relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-transform after:duration-200 peer-checked:after:translate-x-4" />
     </label>
   );
 }
@@ -80,14 +86,19 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
     onSave();
   };
 
+  const ROW = 'flex justify-between items-center py-[7px]';
+  const LABEL = 'text-[13px] text-bright cursor-pointer';
+  const DESC = 'text-[12px] text-faint mt-0.5';
+
   return (
-    <div id="settings-panel" className="open">
-      <div className="setting-row">
+    <div id="settings-panel" className="px-3 pt-2 pb-3">
+      {/* Stale timeout */}
+      <div className="flex justify-between items-start py-[7px]">
         <div>
-          <div className="setting-label">Stale session timeout</div>
-          <div className="setting-desc">Hide sessions with no activity after this long</div>
+          <div className="text-[13px] text-bright">Stale session timeout</div>
+          <div className={DESC}>Hide sessions with no activity after this long</div>
         </div>
-        <div className="setting-control">
+        <div className="flex items-center gap-1.5 shrink-0 ml-3">
           <input
             type="number"
             id="stale-minutes"
@@ -95,65 +106,61 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
             max={480}
             value={form.staleMinutes}
             onChange={e => set('staleMinutes', parseInt(e.target.value) || 30)}
+            className="w-12 bg-edge border border-line text-bright text-[13px] text-center rounded px-1 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:border-accent"
           />
-          <span className="setting-unit">min</span>
+          <span className="text-faint text-[13px]">min</span>
         </div>
       </div>
-      <hr className="setting-divider" />
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="show-branch">
-          <span className="setting-label">Show git branch</span>
-        </label>
+
+      <hr className="border-line my-1" />
+
+      <div className={ROW}>
+        <label htmlFor="show-branch" className={LABEL}>Show git branch</label>
         <Toggle id="show-branch" checked={form.gitBranch} onChange={v => set('gitBranch', v)} />
       </div>
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="show-git-summary">
-          <span className="setting-label">Show git diff summary</span>
-        </label>
+      <div className={ROW}>
+        <label htmlFor="show-git-summary" className={LABEL}>Show git diff summary</label>
         <Toggle id="show-git-summary" checked={form.changedFiles} onChange={v => set('changedFiles', v)} />
       </div>
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="show-subagents">
-          <span className="setting-label">Show subagent info</span>
-        </label>
+      <div className={ROW}>
+        <label htmlFor="show-subagents" className={LABEL}>Show subagent info</label>
         <Toggle id="show-subagents" checked={form.subagents} onChange={v => set('subagents', v)} />
       </div>
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="show-model">
-          <span className="setting-label">Show model &amp; context</span>
-        </label>
+      <div className={ROW}>
+        <label htmlFor="show-model" className={LABEL}>Show model &amp; context</label>
         <Toggle id="show-model" checked={form.lastAction} onChange={v => set('lastAction', v)} />
       </div>
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="show-compact-paths">
-          <span className="setting-label">Compact paths</span>
-        </label>
+      <div className={ROW}>
+        <label htmlFor="show-compact-paths" className={LABEL}>Compact paths</label>
         <Toggle id="show-compact-paths" checked={form.compactPaths} onChange={v => set('compactPaths', v)} />
       </div>
-      <div className="setting-row">
+      <div className="flex justify-between items-start py-[7px]">
         <div>
-          <label className="setting-toggle" htmlFor="show-cost">
-            <span className="setting-label">Show session cost</span>
-          </label>
-          <div className="setting-desc">API billing only — not available on Pro or Max subscriptions</div>
+          <label htmlFor="show-cost" className={LABEL}>Show session cost</label>
+          <div className={DESC}>API billing only — not available on Pro or Max subscriptions</div>
         </div>
         <Toggle id="show-cost" checked={form.cost} onChange={v => set('cost', v)} />
       </div>
-      <hr className="setting-divider" />
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="show-notifications">
-          <span className="setting-label">Notifications</span>
-        </label>
+
+      <hr className="border-line my-1" />
+
+      <div className={ROW}>
+        <label htmlFor="show-notifications" className={LABEL}>Notifications</label>
         <Toggle id="show-notifications" checked={form.notifications} onChange={v => set('notifications', v)} />
       </div>
-      <div className="setting-row">
-        <label className="setting-toggle" htmlFor="notification-sound">
-          <span className="setting-label">Sound alerts</span>
-        </label>
+      <div className={ROW}>
+        <label htmlFor="notification-sound" className={LABEL}>Sound alerts</label>
         <Toggle id="notification-sound" checked={form.notificationSound} onChange={v => set('notificationSound', v)} />
       </div>
-      <hr className="setting-divider" />
-      <button id="save-settings" onClick={handleSave}>Save</button>
+
+      <hr className="border-line my-1" />
+
+      <button
+        onClick={handleSave}
+        className="w-full mt-1.5 py-1.5 bg-accent text-base text-[13px] font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
+      >
+        Save
+      </button>
     </div>
   );
 }

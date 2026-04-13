@@ -6,6 +6,8 @@ const PIN_ICON = (
   </svg>
 );
 
+const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150';
+
 interface HeaderProps {
   isDetached: boolean;
   isSettingsOpen: boolean;
@@ -26,33 +28,39 @@ export function Header({
   onClose,
 }: HeaderProps) {
   return (
-    <div id="header">
-      <span className="title">🤖 Claude Dashboard</span>
-      <span id="header-right">
+    <div id="header" className="flex justify-between items-center px-3 pb-1.5 border-b border-line shrink-0">
+      <span className="font-bold text-bright text-[13px]">🤖 Claude Dashboard</span>
+      <span className="flex items-center gap-2.5">
         {!isDetached && (
-          <button id="popout-btn" title="Open as standalone panel" onClick={onPopout}>
+          <button
+            title="Open as standalone panel"
+            className={`${BTN} hover:text-bright`}
+            onClick={onPopout}
+          >
             ⧉
           </button>
         )}
         <button
-          id="settings-btn"
           title="Settings"
-          className={isSettingsOpen ? 'active' : ''}
+          className={`${BTN} ${isSettingsOpen ? 'text-accent' : 'hover:text-bright'}`}
           onClick={onSettingsToggle}
         >
           ⚙
         </button>
         {isDetached && (
-          <span id="detached-controls" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="flex items-center gap-2">
             <button
-              id="pin-btn"
               title={alwaysOnTop ? 'Always on top (click to disable)' : 'Always on top (click to enable)'}
-              className={alwaysOnTop ? 'pinned' : ''}
+              className={`${BTN} ${alwaysOnTop ? 'text-[#cc4444]' : 'text-faint hover:text-[#cc4444]'}`}
               onClick={onPinToggle}
             >
               {PIN_ICON}
             </button>
-            <button id="close-btn" title="Close panel" onClick={onClose}>
+            <button
+              title="Close panel"
+              className={`${BTN} hover:text-[#e06060]`}
+              onClick={onClose}
+            >
               ✕
             </button>
           </span>

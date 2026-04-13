@@ -36,9 +36,6 @@ export function SessionCard({
   const isActive  = s.status === 'active';
   const isWaiting = s.status === 'waiting_permission' || s.status === 'waiting_input';
 
-  const statusCls = isWaiting ? 'waiting' : isActive ? 'active' : isDone ? 'done' : '';
-  const flashCls  = isNew ? ' newly-done' : '';
-
   const turnMs = s.turnStartedAt != null
     ? Date.now() - s.turnStartedAt
     : Date.now() - s.startedAt;
@@ -54,7 +51,7 @@ export function SessionCard({
       ].filter(Boolean).join(' ')
     : '';
 
-  const gitLabel = cfg.showGitSummary && s.gitSummary ? s.gitSummary : '';
+  const gitLabel   = cfg.showGitSummary && s.gitSummary ? s.gitSummary : '';
   const elapsedStr2 = !isDone ? elapsedStr(turnMs) : null;
 
   const handleCopyPath = (e: React.MouseEvent) => {
@@ -64,9 +61,23 @@ export function SessionCard({
     setTimeout(() => setPathCopied(false), 1500);
   };
 
+  // Card border + state classes
+  const cardBorder = isNew
+    ? 'border-[#3a8a3a] animate-flash'
+    : isWaiting
+    ? 'border-waiting-border'
+    : isActive
+    ? 'border-active-border'
+    : isDone
+    ? 'border-line opacity-50'
+    : 'border-edge';
+
+  const cardCls = `border rounded-md px-[11px] pt-2 pb-[7px] cursor-pointer transition-colors duration-100 hover:bg-surface ${cardBorder}`;
+
   const header = (
-    <div className="card-header">
-      <div className="card-header-top">
+    <div className="flex flex-col gap-0.5 mb-[5px] leading-[1.4]">
+      {/* Top row: badge + dirname + dismiss */}
+      <div className="flex items-baseline gap-2 overflow-hidden">
         <Badge
           status={s.status}
           lastActivity={s.lastActivity}
@@ -74,10 +85,12 @@ export function SessionCard({
           loopTool={s.loopTool}
           loopCount={s.loopCount}
         />
-        <span className="dirname">{s.dirName}</span>
+        <span className="font-bold text-brighter shrink min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+          {s.dirName}
+        </span>
         {isDone && (
           <button
-            className="dismiss-btn"
+            className="shrink-0 ml-auto bg-transparent border-none cursor-pointer text-faint text-[13px] leading-none px-0.5 pl-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:text-[#e06060]"
             title="Dismiss"
             onClick={(e) => { e.stopPropagation(); onDismiss(s.sessionId); }}
           >
@@ -85,23 +98,26 @@ export function SessionCard({
           </button>
         )}
       </div>
+      {/* Sub row: path, branch, git, elapsed */}
       {(pathStr || branchLabel || gitLabel || elapsedStr2) && (
-        <div className="card-header-sub">
+        <div className="flex items-baseline gap-2.5 flex-wrap" style={{ rowGap: '2px' }}>
           {pathStr && (
             <span
-              className="card-path-wrap"
+              className="inline-flex items-center min-w-0 shrink cursor-pointer group/path"
               title="Click to copy full path"
               onClick={handleCopyPath}
             >
-              <span className="card-path" style={pathCopied ? { color: '#5acce0' } : undefined}>
+              <span className={`text-sm overflow-hidden text-ellipsis whitespace-nowrap min-w-0 ${pathCopied ? 'text-accent' : 'text-path group-hover/path:text-soft'}`}>
                 {pathCopied ? 'copied!' : pathStr}
               </span>
-              <span className="copy-icon">{COPY_ICON}</span>
+              <span className="shrink-0 text-edge px-1.5 inline-flex items-center leading-none transition-colors duration-150 group-hover/path:text-accent">
+                {COPY_ICON}
+              </span>
             </span>
           )}
-          {branchLabel && <span className="branch">{branchLabel}</span>}
-          {gitLabel && <span className="git-summary">git {gitLabel}</span>}
-          {elapsedStr2 && <span className="elapsed">{elapsedStr2}</span>}
+          {branchLabel && <span className="text-branch text-sm whitespace-nowrap">{branchLabel}</span>}
+          {gitLabel    && <span className="text-git text-sm whitespace-nowrap">git {gitLabel}</span>}
+          {elapsedStr2 && <span className="text-fainter text-sm whitespace-nowrap">{elapsedStr2}</span>}
         </div>
       )}
     </div>
@@ -111,50 +127,48 @@ export function SessionCard({
     const prompt = s.currentTask ?? s.lastPrompt;
     const answer = s.lastMessage;
     const doneFooter = cfg.showCost && s.costUsd != null
-      ? <div className="card-footer"><span className="cost-badge">${s.costUsd.toFixed(4)}</span></div>
+      ? <div className="flex items-center gap-2 mt-4"><span className="text-soft text-[13px] shrink-0">${s.costUsd.toFixed(4)}</span></div>
       : null;
 
     return (
       <div
-        className={`card ${statusCls}${flashCls}`}
+        className={`group ${cardCls}`}
         data-pid={s.pid}
         data-session={s.sessionId}
         data-term={s.termSessionId ?? ''}
         onClick={() => onFocus(s.pid, s.termSessionId)}
       >
         {header}
-        {prompt && <div className="card-task">📋 {prompt}</div>}
+        {prompt && <div className="text-sm text-[#c0c0c0] mt-[14px] mb-1.5 break-words">📋 {prompt}</div>}
         {answer ? (
-          <div className="card-qa-answer">
-            ↳ {answer} <span className="done-time">• ✅ {agoStr(s.lastActivity)}</span>
+          <div className="text-sm text-soft break-words pl-[14px] mt-0.5 mb-1">
+            ↳ {answer} <span className="text-git">• ✅ {agoStr(s.lastActivity)}</span>
           </div>
         ) : (
-          <div className="card-done-row done-time">✅ Completed {agoStr(s.lastActivity)}</div>
+          <div className="text-sm text-git whitespace-nowrap overflow-hidden text-ellipsis">✅ Completed {agoStr(s.lastActivity)}</div>
         )}
         {doneFooter}
       </div>
     );
   }
 
-  // ── Active / waiting / idle card ─────────────────────────────────────────
+  // ── Active / waiting / idle card ──────────────────────────────────────────
   const taskText = s.currentTask ?? s.lastPrompt;
 
-  // Status line: current tool takes priority over partial response
   let streamRow: React.ReactNode = null;
   if (taskText) {
     if (s.currentTool) {
       streamRow = (
-        <div className="card-qa-answer card-qa-tool">
+        <div className="text-sm text-tool break-words pl-[14px] mt-0.5 mb-1">
           ↳ 🔧 {s.currentTool}
-          {s.lastToolSummary && <span className="tool-summary"> {s.lastToolSummary}</span>}
+          {s.lastToolSummary && <span className="text-faint"> {s.lastToolSummary}</span>}
         </div>
       );
     } else if (s.partialResponse) {
-      streamRow = <div className="card-qa-answer">↳ {s.partialResponse}</div>;
+      streamRow = <div className="text-sm text-soft break-words pl-[14px] mt-0.5 mb-1">↳ {s.partialResponse}</div>;
     }
   }
 
-  // Tasks row
   let tasksRow: React.ReactNode = null;
   if (s.tasks && s.tasks.length > 0) {
     const completed  = s.tasks.filter(t => t.status === 'completed').length;
@@ -165,14 +179,13 @@ export function SessionCard({
     if (inProgress) counts.push(`🔄 ${inProgress}`);
     if (pending)    counts.push(`⏳ ${pending}`);
     tasksRow = (
-      <div className="card-tasks-row">
-        <span className="tasks-counts">Tasks: {counts.join('  ')}</span>
-        {s.contextPct != null ? <ContextBar pct={s.contextPct} /> : <span className="ctx-pct">{s.completionPct}%</span>}
+      <div className="flex items-center justify-between mb-1 text-sm text-soft">
+        <span className="shrink-0">Tasks: {counts.join('  ')}</span>
+        {s.contextPct != null ? <ContextBar pct={s.contextPct} /> : <span className="text-faint">{s.completionPct}%</span>}
       </div>
     );
   }
 
-  // Tool row (only when no task text)
   let toolRow: React.ReactNode = null;
   const runningAgents = (s.subagents ?? []).filter(a => a.status === 'running');
   const toolParts: React.ReactNode[] = [];
@@ -180,22 +193,20 @@ export function SessionCard({
   if (!taskText) {
     if (s.currentTool) {
       toolParts.push(
-        <span key="tool" className="detail-tool">
+        <span key="tool" className="text-tool">
           🔧 {s.currentTool}
-          {s.lastToolSummary && <span className="tool-summary"> {s.lastToolSummary}</span>}
+          {s.lastToolSummary && <span className="text-faint"> {s.lastToolSummary}</span>}
         </span>
       );
     } else if (s.lastTool) {
       const ago = s.lastToolAt ? ` • ${agoStr(s.lastToolAt)}` : '';
-      toolParts.push(
-        <span key="lasttool" className="detail-value">🔧 {s.lastTool}{ago}</span>
-      );
+      toolParts.push(<span key="lasttool">🔧 {s.lastTool}{ago}</span>);
     }
   }
 
   if (cfg.showSubagents && runningAgents.length > 0) {
     toolParts.push(
-      <span key="agents" className="detail-agent">
+      <span key="agents" className="text-branch">
         subagents: {runningAgents.map(a => `🤖 ${a.type} (running)`).join(', ')}
       </span>
     );
@@ -203,7 +214,7 @@ export function SessionCard({
 
   if (toolParts.length > 0) {
     toolRow = (
-      <div className="card-tool-row">
+      <div className="text-sm text-dim whitespace-nowrap overflow-hidden text-ellipsis mb-0.5">
         {toolParts.map((p, i) => (
           <React.Fragment key={i}>{i > 0 ? ' • ' : ''}{p}</React.Fragment>
         ))}
@@ -211,65 +222,61 @@ export function SessionCard({
     );
   }
 
-  // Last message (idle only — not active or waiting)
   const lastMsgRow = !taskText && !toolRow && s.lastMessage && !isActive && !isWaiting
-    ? <div className="card-last-msg">└ {s.lastMessage}</div>
+    ? <div className="text-sm text-soft break-words">└ {s.lastMessage}</div>
     : null;
 
-  // Alerts
   const alerts: React.ReactNode[] = [];
   if (isWaiting) {
     const waitMsg = s.status === 'waiting_permission' ? '⚠ Waiting for tool approval' : '⚠ Awaiting answer';
-    const idleMs = Date.now() - s.lastActivity;
-    const idleMins = Math.floor(idleMs / 60000);
+    const idleMins = Math.floor((Date.now() - s.lastActivity) / 60000);
     alerts.push(
-      <div key="wait" className="card-alert">{waitMsg} • {idleMins}m idle</div>
+      <div key="wait" className="text-alert text-sm mb-0.5">{waitMsg} • {idleMins}m idle</div>
     );
   }
   if (s.bashStartedAt && (Date.now() - s.bashStartedAt) > 30_000) {
     const elapsed = Math.floor((Date.now() - s.bashStartedAt) / 60000);
     alerts.push(
-      <div key="bash" className="card-alert">⏳ Bash running {elapsed}m…</div>
+      <div key="bash" className="text-alert text-sm mb-0.5">⏳ Bash running {elapsed}m…</div>
     );
   }
 
-  // Footer
   const costBadge = cfg.showCost && s.costUsd != null
-    ? <span className="cost-badge">${s.costUsd.toFixed(4)}</span>
+    ? <span className="text-soft text-[13px] shrink-0">${s.costUsd.toFixed(4)}</span>
     : null;
 
   let footer: React.ReactNode = null;
   if (cfg.showModel) {
     if (!tasksRow && (s.model || s.contextPct != null)) {
       footer = (
-        <div className="card-footer">
-          {s.model && <span className="model-badge">{s.model}</span>}
+        <div className="flex items-center gap-2 mt-4">
+          {s.model && <span className="bg-model-bg text-accent text-[13px] font-bold px-[5px] py-px rounded-[3px] shrink-0">{s.model}</span>}
           {s.contextPct != null && <ContextBar pct={s.contextPct} />}
           {costBadge}
         </div>
       );
     } else if (s.model || costBadge) {
       footer = (
-        <div className="card-footer">
-          {s.model && <span className="model-badge">{s.model}</span>}
+        <div className="flex items-center gap-2 mt-4">
+          {s.model && <span className="bg-model-bg text-accent text-[13px] font-bold px-[5px] py-px rounded-[3px] shrink-0">{s.model}</span>}
           {costBadge}
         </div>
       );
     }
   } else if (costBadge) {
-    footer = <div className="card-footer">{costBadge}</div>;
+    footer = <div className="flex items-center gap-2 mt-4">{costBadge}</div>;
   }
 
   return (
     <div
-      className={`card ${statusCls}${flashCls}`}
+      className={`group ${cardCls}`}
       data-pid={s.pid}
       data-session={s.sessionId}
       data-term={s.termSessionId ?? ''}
       onClick={() => onFocus(s.pid, s.termSessionId)}
     >
       {header}
-      {taskText && <div className="card-task">📋 {taskText}</div>}
+      {taskText && <div className="text-sm text-[#c0c0c0] mt-[14px] mb-1.5 break-words">📋 {taskText}</div>}
       {streamRow}
       {tasksRow}
       {toolRow}

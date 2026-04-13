@@ -67,17 +67,17 @@ describe('compactPath', () => {
 
 describe('ctxBarClass', () => {
   it('returns normal class for low pct', () => {
-    expect(ctxBarClass(0)).toBe('ctx-fill');
-    expect(ctxBarClass(59)).toBe('ctx-fill');
+    expect(ctxBarClass(0)).toContain('bg-ctx-fill');
+    expect(ctxBarClass(59)).toContain('bg-ctx-fill');
   });
 
   it('returns warn class at 60%', () => {
-    expect(ctxBarClass(60)).toBe('ctx-fill warn');
-    expect(ctxBarClass(79)).toBe('ctx-fill warn');
+    expect(ctxBarClass(60)).toContain('bg-ctx-warn');
+    expect(ctxBarClass(79)).toContain('bg-ctx-warn');
   });
 
   it('returns crit class at 80%', () => {
-    expect(ctxBarClass(80)).toBe('ctx-fill crit');
-    expect(ctxBarClass(100)).toBe('ctx-fill crit');
+    expect(ctxBarClass(80)).toContain('bg-ctx-crit');
+    expect(ctxBarClass(100)).toContain('bg-ctx-crit');
   });
 });

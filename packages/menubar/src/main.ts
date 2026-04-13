@@ -72,7 +72,7 @@ async function resizeToContent(maxHeight: number, onHeight: (h: number) => void)
       '  var sp  = document.getElementById("settings-panel");' +
       '  var ses = document.getElementById("sessions");' +
       '  var hh  = hdr ? hdr.offsetHeight : 0;' +
-      '  if (sp && sp.classList.contains("open")) return hh + sp.scrollHeight + 24;' +
+      '  if (sp) return hh + sp.scrollHeight + 24;' +
       '  return hh + (ses ? ses.scrollHeight : 0) + 24;' +
       '})()'
     );

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
 export default defineConfig({
@@ -12,7 +13,7 @@ export default defineConfig({
       input: path.resolve(__dirname, 'src/renderer/index.html'),
     },
   },
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   resolve: {
     alias: {
       '@claude-dashboard/shared': path.resolve(__dirname, '../shared/src/index.ts'),

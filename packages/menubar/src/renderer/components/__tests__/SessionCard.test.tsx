@@ -143,7 +143,7 @@ describe('SessionCard — copy path', () => {
 describe('SessionCard — focus', () => {
   it('calls onFocus when card clicked', () => {
     const { onFocus, session, container } = renderCard({ status: 'active' });
-    fireEvent.click(container.querySelector('.card')!);
+    fireEvent.click(container.querySelector('[data-session]')!);
     expect(onFocus).toHaveBeenCalledWith(session.pid, session.termSessionId);
   });
 });

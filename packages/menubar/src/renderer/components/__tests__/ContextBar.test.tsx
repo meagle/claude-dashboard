@@ -11,24 +11,23 @@ describe('ContextBar', () => {
 
   it('uses normal fill class below 60%', () => {
     const { container } = render(<ContextBar pct={59} />);
-    const fill = container.querySelector('.ctx-fill');
+    const fill = container.querySelector('[class*="bg-ctx-fill"]');
     expect(fill).toBeInTheDocument();
-    expect(fill!.className).toBe('ctx-fill');
   });
 
   it('uses warn class at 60%', () => {
     const { container } = render(<ContextBar pct={60} />);
-    expect(container.querySelector('.ctx-fill.warn')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-ctx-warn"]')).toBeInTheDocument();
   });
 
   it('uses crit class at 80%', () => {
     const { container } = render(<ContextBar pct={80} />);
-    expect(container.querySelector('.ctx-fill.crit')).toBeInTheDocument();
+    expect(container.querySelector('[class*="bg-ctx-crit"]')).toBeInTheDocument();
   });
 
   it('sets width style to pct%', () => {
     const { container } = render(<ContextBar pct={45} />);
-    const fill = container.querySelector('.ctx-fill') as HTMLElement;
+    const fill = container.querySelector('[class*="bg-ctx-fill"]') as HTMLElement;
     expect(fill.style.width).toBe('45%');
   });
 });

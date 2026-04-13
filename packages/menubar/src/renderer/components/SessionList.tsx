@@ -33,7 +33,7 @@ export function SessionList({ sessions, cardConfig, home }: SessionListProps) {
   }, []);
 
   if (sessions.length === 0) {
-    return <div id="empty">No active Claude sessions</div>;
+    return <div className="text-faint text-[13px] text-center py-8">No active Claude sessions</div>;
   }
 
   return (
