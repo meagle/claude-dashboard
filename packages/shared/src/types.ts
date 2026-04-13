@@ -56,6 +56,7 @@ export interface DashboardConfig {
     subagents: boolean;
     lastAction: boolean;
     compactPaths: boolean;
+    doneFooter: boolean;
   };
   staleSessionMinutes: number;
   theme: 'dark' | 'light';
@@ -72,6 +73,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     subagents: true,
     lastAction: true,
     compactPaths: true,
+    doneFooter: false,
   },
   staleSessionMinutes: 30,
   theme: 'dark',

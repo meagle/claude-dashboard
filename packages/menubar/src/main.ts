@@ -131,7 +131,8 @@ function buildSessionsPayload() {
       showSubagents:  config.columns.subagents,
       showModel:      config.columns.lastAction,
       compactPaths:   config.columns.compactPaths ?? true,
-      showCost:       config.columns.cost ?? true,
+      showCost:       config.columns.cost ?? false,
+      showDoneFooter: config.columns.doneFooter ?? false,
     },
     home: os.homedir(),
   };

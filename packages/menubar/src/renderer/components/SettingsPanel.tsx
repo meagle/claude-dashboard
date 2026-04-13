@@ -15,6 +15,7 @@ interface FormState {
   lastAction: boolean;
   compactPaths: boolean;
   cost: boolean;
+  doneFooter: boolean;
   notifications: boolean;
   notificationSound: boolean;
 }
@@ -27,6 +28,7 @@ const DEFAULTS: FormState = {
   lastAction: true,
   compactPaths: true,
   cost: false,
+  doneFooter: false,
   notifications: true,
   notificationSound: true,
 };
@@ -58,7 +60,8 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
         subagents:    config.columns?.subagents     ?? true,
         lastAction:   config.columns?.lastAction    ?? true,
         compactPaths: config.columns?.compactPaths  ?? true,
-        cost:         config.columns?.cost          ?? true,
+        cost:         config.columns?.cost          ?? false,
+        doneFooter:   config.columns?.doneFooter    ?? false,
         notifications:     config.notifications      ?? true,
         notificationSound: config.notificationSound  ?? true,
       });
@@ -81,6 +84,7 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
         lastAction:   form.lastAction,
         compactPaths: form.compactPaths,
         cost:         form.cost,
+        doneFooter:   form.doneFooter,
       },
     });
     onSave();
@@ -140,6 +144,10 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
           <div className={DESC}>API billing only — not available on Pro or Max subscriptions</div>
         </div>
         <Toggle id="show-cost" checked={form.cost} onChange={v => set('cost', v)} />
+      </div>
+      <div className={ROW}>
+        <label htmlFor="show-done-footer" className={LABEL}>Show model &amp; context on done cards</label>
+        <Toggle id="show-done-footer" checked={form.doneFooter} onChange={v => set('doneFooter', v)} />
       </div>
 
       <hr className="border-line my-1" />

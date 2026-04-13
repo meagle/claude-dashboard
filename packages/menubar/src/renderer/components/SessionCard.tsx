@@ -5,9 +5,9 @@ import { ContextBar } from './ContextBar';
 import { elapsedStr, agoStr, compactPath } from '../utils/format';
 
 const COPY_ICON = (
-  <svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z" />
-    <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5H3.5A1.5 1.5 0 0 0 2 3h12a1.5 1.5 0 0 0-1.5-1.5H11A1.5 1.5 0 0 0 9.5 0h-3z" />
+  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
 
@@ -133,8 +133,18 @@ export function SessionCard({
   if (isDone) {
     const prompt = s.currentTask ?? s.lastPrompt;
     const answer = s.lastMessage;
-    const doneFooter = cfg.showCost && s.costUsd != null
-      ? <div className="flex items-center gap-2 mt-4"><span className="text-soft text-[13px] shrink-0">${s.costUsd.toFixed(4)}</span></div>
+
+    const doneCostBadge = cfg.showCost && s.costUsd != null
+      ? <span className="text-soft text-[13px] shrink-0">${s.costUsd.toFixed(4)}</span>
+      : null;
+    const doneModelBadge = cfg.showDoneFooter && s.model
+      ? <span className="bg-model-bg text-accent text-[13px] font-bold px-[5px] py-px rounded-[3px] shrink-0">{s.model}</span>
+      : null;
+    const doneContextBar = cfg.showDoneFooter && s.contextPct != null
+      ? <ContextBar pct={s.contextPct} />
+      : null;
+    const doneFooter = (doneCostBadge || doneModelBadge || doneContextBar)
+      ? <div className="flex items-center gap-2 mt-4">{doneModelBadge}{doneContextBar}{doneCostBadge}</div>
       : null;
 
     return (

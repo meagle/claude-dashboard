@@ -53,6 +53,7 @@ export interface CardConfig {
   showModel: boolean;
   compactPaths: boolean;
   showCost: boolean;
+  showDoneFooter: boolean;
 }
 
 export interface DashboardConfig {
