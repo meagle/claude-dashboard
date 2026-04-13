@@ -69,10 +69,10 @@ export function SessionCard({
     : isActive
     ? 'border-active-border'
     : isDone
-    ? 'border-line opacity-50'
+    ? 'border-line opacity-50 hover:opacity-90'
     : 'border-edge';
 
-  const cardCls = `border rounded-md px-[11px] pt-2 pb-[7px] cursor-pointer transition-colors duration-100 hover:bg-surface ${cardBorder}`;
+  const cardCls = `border rounded-md px-[11px] pt-2 pb-[7px] cursor-pointer transition-[colors,opacity] duration-150 hover:bg-surface ${cardBorder}`;
 
   const header = (
     <div className="flex flex-col gap-0.5 mb-[5px] leading-[1.4]">
@@ -90,7 +90,7 @@ export function SessionCard({
         </span>
         {isDone && (
           <button
-            className="shrink-0 ml-auto bg-transparent border-none cursor-pointer text-faint text-[13px] leading-none px-0.5 pl-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:text-[#e06060]"
+            className="shrink-0 ml-auto bg-transparent border-none cursor-pointer text-bright text-[13px] leading-none px-0.5 pl-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:text-[#e06060]"
             title="Dismiss"
             onClick={(e) => { e.stopPropagation(); onDismiss(s.sessionId); }}
           >
