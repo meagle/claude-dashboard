@@ -116,35 +116,53 @@ function checkNotifications() {
   }
 }
 
+const GIT_ENV = {
+  ...process.env,
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ASKPASS: 'true',
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_SSH_COMMAND: 'ssh -oBatchMode=yes',
+  GIT_OPTIONAL_LOCKS: '0',
+};
+
+function queryGitAhead(cwd: string): number | null {
+  try {
+    const raw = execSync('git rev-list @{u}..HEAD --count', {
+      cwd,
+      env: GIT_ENV,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 3000,
+    }).toString().trim();
+    const n = parseInt(raw, 10);
+    return isNaN(n) || n === 0 ? null : n;
+  } catch {
+    return null;
+  }
+}
+
 function refreshGitAhead() {
   const all = readSessions(SESSIONS_FILE);
-  const done = all.filter(s => s.status === 'done' && s.workingDir);
-  if (done.length === 0) return;
+  if (!all.some(s => s.status === 'done')) return;
+
+  const cache = new Map<string, number | null>();
+  const getAhead = (dir: string) => {
+    if (!cache.has(dir)) cache.set(dir, queryGitAhead(dir));
+    return cache.get(dir)!;
+  };
 
   let changed = false;
   const updated = all.map(s => {
     if (s.status !== 'done' || !s.workingDir) return s;
-    try {
-      const raw = execSync('git rev-list @{u}..HEAD --count', {
-        cwd: s.workingDir,
-        env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
-        stdio: ['pipe', 'pipe', 'pipe'],
-        timeout: 3000,
-      }).toString().trim();
-      const n = parseInt(raw, 10);
-      const next = isNaN(n) || n === 0 ? null : n;
-      if (next !== (s.gitAhead ?? null)) {
-        changed = true;
-        return { ...s, gitAhead: next };
-      }
-    } catch { /* no upstream or not a git repo */ }
+    const next = getAhead(s.workingDir);
+    if (next !== s.gitAhead) {
+      changed = true;
+      return { ...s, gitAhead: next };
+    }
     return s;
   });
 
-  if (changed) {
-    writeSessions(SESSIONS_FILE, updated);
-    sendSessionsToPopover();
-  }
+  // writeSessions triggers chokidar which handles sendSessionsToPopover
+  if (changed) writeSessions(SESSIONS_FILE, updated);
 }
 
 function buildSessionsPayload() {
@@ -152,8 +170,12 @@ function buildSessionsPayload() {
   const sessions = getActiveSessions();
   const priority = (s: { status: string }) =>
     s.status === 'waiting_permission' ? 0 :
-    s.status === 'waiting_input'      ? 1 : 2;
-  const sorted = [...sessions].sort((a, b) => priority(a) - priority(b));
+    s.status === 'waiting_input'      ? 1 :
+    s.status === 'active'             ? 2 :
+    s.status === 'idle'               ? 3 : 4;
+  const sorted = [...sessions].sort((a, b) =>
+    priority(a) - priority(b) || b.lastActivity - a.lastActivity
+  );
   return {
     sessions: sorted,
     cardConfig: {
