@@ -70,7 +70,7 @@ describe('getTrayLabel', () => {
     expect(getTrayLabel(sessions)).toBe('🔐 2');
   });
 
-  it('returns empty string when no sessions', () => {
-    expect(getTrayLabel([])).toBe('');
+  it('returns robot emoji when no sessions', () => {
+    expect(getTrayLabel([])).toBe('🤖');
   });
 });
