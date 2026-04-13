@@ -278,7 +278,7 @@ export function SessionCard({
       {header}
       {taskText && <div className="text-sm text-[#c0c0c0] mt-[14px] mb-1.5 break-words">📋 {taskText}</div>}
       {streamRow ?? (isActive && taskText
-        ? <div className="text-sm text-faint italic pl-[14px] mt-0.5 mb-1">Clauding…</div>
+        ? <div className="text-sm italic pl-[14px] mt-0.5 mb-1 text-[rebeccapurple]">Clauding…</div>
         : null)}
       {tasksRow}
       {toolRow}
