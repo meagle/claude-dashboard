@@ -18,7 +18,7 @@
   --color-dim:      #777777;
   --color-faint:    #555555;
   --color-fainter:  #444444;
-  --color-path:     #5a5a5a;
+  --color-path:     #7a7a7a;
 
   /* Accent */
   --color-accent: #5acce0;
@@ -29,7 +29,7 @@
 
   /* Semantic */
   --color-branch: #4a8a4a;
-  --color-git:    #4a4a4a;
+  --color-git:    #7a7a7a;
   --color-tool:   #9a5dc0;
   --color-alert:  #c07800;
 
@@ -71,7 +71,7 @@
     color: var(--color-body);
     margin: 0;
     padding: 6px 0 0;
-    min-width: 680px;
+    min-width: 685px;
     height: 100%;
     overflow: hidden;
     display: flex;

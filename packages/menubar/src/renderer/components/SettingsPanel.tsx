@@ -26,7 +26,7 @@ const DEFAULTS: FormState = {
   subagents: true,
   lastAction: true,
   compactPaths: true,
-  cost: true,
+  cost: false,
   notifications: true,
   notificationSound: true,
 };

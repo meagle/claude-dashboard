@@ -239,7 +239,7 @@ app.whenReady().then(() => {
     detachedPanel = new BrowserWindow({
       width: 720,
       height: 600,
-      minWidth: 420,
+      minWidth: 685,
       minHeight: 200,
       show: true,
       frame: false,

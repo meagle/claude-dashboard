@@ -68,7 +68,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     elapsedTime: true,
     gitBranch: true,
     changedFiles: true,
-    cost: true,
+    cost: false,
     subagents: true,
     lastAction: true,
     compactPaths: true,

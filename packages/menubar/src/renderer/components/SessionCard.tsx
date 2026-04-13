@@ -110,7 +110,7 @@ export function SessionCard({
               <span className={`text-sm overflow-hidden text-ellipsis whitespace-nowrap min-w-0 ${pathCopied ? 'text-accent' : 'text-path group-hover/path:text-soft'}`}>
                 {pathCopied ? 'copied!' : pathStr}
               </span>
-              <span className="shrink-0 text-edge px-1.5 inline-flex items-center leading-none transition-colors duration-150 group-hover/path:text-accent">
+              <span className="shrink-0 text-soft px-1.5 inline-flex items-center leading-none transition-colors duration-150 group-hover/path:text-accent">
                 {COPY_ICON}
               </span>
             </span>
