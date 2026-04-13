@@ -9,6 +9,8 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - Each session shows status badge, project name, current task, last tool, git branch, worktree, git diff summary, model, and context usage
 - Cards are color-coded: green border = active, orange = waiting for permission or input, dim = done
 - Click any card to bring that terminal window into focus
+- Click the path on a card to copy the full path to the clipboard
+- Hover a done card to reveal the `✕` dismiss button and clear it from the list
 - Pop out a standalone always-on-top panel with the `⧉` button
 
 **Tray icon** shows the highest-priority state across all sessions:
@@ -112,11 +114,14 @@ Click `⚙` in the popover to open the settings panel. Options:
 | Setting | Description |
 |---------|-------------|
 | Stale session timeout | Hide sessions with no activity after this many minutes |
+| Notifications | Show macOS notifications when sessions need attention or finish |
+| Sound alerts | Play a system beep on permission/input transitions |
 | Show git branch | Display the current git branch on each card |
 | Show git diff summary | Show changed file count and line diff |
 | Show subagent info | Show running subagent details |
 | Show model & context | Show model name and context usage bar |
 | Compact paths | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`) |
+| Show session cost | Display the USD cost in the footer of done cards |
 
 Changes take effect immediately — no restart needed.
 
@@ -155,8 +160,8 @@ npm run build -w packages/menubar
 
 ## Uninstalling
 
-Remove the hook entries from `~/.claude/settings.json`, then:
-
 ```bash
-rm -rf ~/.config/claude-dashboard
+bash scripts/uninstall.sh
 ```
+
+This removes the hook entries from `~/.claude/settings.json`, deletes `~/.config/claude-dashboard`, and removes the `claude-dashboard` launch script. Quit the menu bar app first if it is running.

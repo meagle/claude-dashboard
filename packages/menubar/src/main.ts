@@ -11,6 +11,8 @@ import { getTrayLabel } from './trayIcon';
 const SESSIONS_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
 const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
 
+const isDev = !fs.existsSync(path.join(__dirname, 'index.html'));
+
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
@@ -166,7 +168,11 @@ app.whenReady().then(() => {
     alwaysOnTop: true,
     webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
-  popover.loadFile(path.join(__dirname, 'popover.html'));
+  if (isDev) {
+    popover.loadURL('http://localhost:5173');
+  } else {
+    popover.loadFile(path.join(__dirname, 'index.html'));
+  }
 
   const doResize = () => resizeToContent(MAX_HEIGHT, (h) => { cachedHeight = h; });
 
@@ -242,7 +248,11 @@ app.whenReady().then(() => {
       alwaysOnTop: true,
       webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
-    detachedPanel.loadFile(path.join(__dirname, 'popover.html'), { hash: 'detached' });
+    if (isDev) {
+      detachedPanel.loadURL('http://localhost:5173/#detached');
+    } else {
+      detachedPanel.loadFile(path.join(__dirname, 'index.html'), { hash: 'detached' });
+    }
     detachedPanel.webContents.on('did-finish-load', () => {
       if (detachedPanel && !detachedPanel.isDestroyed()) {
         detachedPanel.webContents.send('sessions-update', buildSessionsPayload());

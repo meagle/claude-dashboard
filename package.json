@@ -1,10 +1,17 @@
 {
   "name": "claude-dashboard",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "dev:hook": "npm run dev -w packages/hook"
+  },
+  "devDependencies": {
+    "esbuild": "0.27.7",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   }
 }
