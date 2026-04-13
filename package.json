@@ -5,7 +5,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w packages/shared && npm run build -w packages/hook && npm run build -w packages/menubar",
     "test": "npm run test --workspaces --if-present",
     "dev": "npm run dev -w packages/menubar",
     "dev:hook": "npm run dev -w packages/hook"
