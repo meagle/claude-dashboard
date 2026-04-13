@@ -60,7 +60,7 @@ function updateTray() {
   const sessions = getActiveSessions();
   const label = getTrayLabel(sessions);
   tray.setTitle(label);
-  tray.setToolTip(label ? `Claude Sessions: ${sessions.length}` : 'Claude Dashboard');
+  tray.setToolTip(sessions.length > 0 ? `Claude Sessions: ${sessions.length}` : 'Claude Dashboard');
 }
 
 async function resizeToContent(maxHeight: number, onHeight: (h: number) => void) {
@@ -149,7 +149,6 @@ app.whenReady().then(() => {
 
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
-  tray.setTitle('🤖');
   tray.on('right-click', () => {
     tray!.popUpContextMenu(Menu.buildFromTemplate([
       { label: 'Quit Claude Dashboard', click: () => app.quit() },

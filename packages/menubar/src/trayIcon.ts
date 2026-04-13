@@ -1,7 +1,7 @@
 import { Session } from '@claude-dashboard/shared';
 
 export function getTrayLabel(sessions: Session[]): string {
-  if (sessions.length === 0) return '';
+  if (sessions.length === 0) return '🤖';
 
   const hasPermission = sessions.some((s) => s.status === 'waiting_permission');
   const hasInput      = sessions.some((s) => s.status === 'waiting_input');
