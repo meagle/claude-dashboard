@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SessionRow, CardConfig } from '../types';
 import { Badge } from './Badge';
 import { ContextBar } from './ContextBar';
@@ -31,10 +31,17 @@ export function SessionCard({
   onCopyPath,
 }: SessionCardProps) {
   const [pathCopied, setPathCopied] = useState(false);
+  const [dots, setDots] = useState('');
 
   const isDone    = s.status === 'done';
   const isActive  = s.status === 'active';
   const isWaiting = s.status === 'waiting_permission' || s.status === 'waiting_input';
+
+  useEffect(() => {
+    if (!isActive) return;
+    const id = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 500);
+    return () => clearInterval(id);
+  }, [isActive]);
 
   const turnMs = s.turnStartedAt != null
     ? Date.now() - s.turnStartedAt
@@ -142,10 +149,10 @@ export function SessionCard({
         {prompt && <div className="text-sm text-[#c0c0c0] mt-[14px] mb-1.5 break-words">📋 {prompt}</div>}
         {answer ? (
           <div className="text-sm text-soft break-words pl-[14px] mt-0.5 mb-1">
-            ↳ {answer} <span className="text-git">• ✅ {agoStr(s.lastActivity)}</span>
+            ↳ {answer}
           </div>
         ) : (
-          <div className="text-sm text-git whitespace-nowrap overflow-hidden text-ellipsis">✅ Completed {agoStr(s.lastActivity)}</div>
+          <div className="text-sm text-git whitespace-nowrap overflow-hidden text-ellipsis">✅ Completed</div>
         )}
         {doneFooter}
       </div>
@@ -278,7 +285,7 @@ export function SessionCard({
       {header}
       {taskText && <div className="text-sm text-[#c0c0c0] mt-[14px] mb-1.5 break-words">📋 {taskText}</div>}
       {streamRow ?? (isActive && taskText
-        ? <div className="text-sm italic pl-[14px] mt-0.5 mb-1 text-[rebeccapurple]">Clauding…</div>
+        ? <div className="text-sm italic pl-[14px] mt-0.5 mb-1 text-[rebeccapurple]">Clauding{dots}</div>
         : null)}
       {tasksRow}
       {toolRow}
