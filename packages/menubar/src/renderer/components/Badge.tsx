@@ -1,5 +1,5 @@
-import React from 'react';
-import { agoStr } from '../utils/format';
+import React from "react";
+import { agoStr } from "../utils/format";
 
 interface BadgeProps {
   status: string;
@@ -9,22 +9,38 @@ interface BadgeProps {
   loopCount: number;
 }
 
-export function Badge({ status, lastActivity, errorState, loopTool, loopCount }: BadgeProps) {
+export function Badge({
+  status,
+  lastActivity,
+  errorState,
+  loopTool,
+  loopCount,
+}: BadgeProps) {
   let badge: React.ReactNode;
 
-  if (status === 'done') {
+  if (status === "done") {
     badge = (
       <span className="font-bold shrink-0 text-badge-done">
-        ● DONE{' '}
-        <span className="font-normal text-[13px] text-faint">{agoStr(lastActivity)}</span>
+        ● DONE{" "}
+        <span className="font-normal text-[13px] text-faint pl-4 pr-4">
+          {agoStr(lastActivity)}
+        </span>
       </span>
     );
-  } else if (status === 'waiting_permission') {
-    badge = <span className="font-bold shrink-0 text-badge-waiting">● PERMISSION</span>;
-  } else if (status === 'waiting_input') {
-    badge = <span className="font-bold shrink-0 text-badge-waiting">● INPUT</span>;
-  } else if (status === 'active') {
-    badge = <span className="font-bold shrink-0 text-badge-active">● ACTIVE</span>;
+  } else if (status === "waiting_permission") {
+    badge = (
+      <span className="font-bold shrink-0 text-badge-waiting">
+        ● PERMISSION
+      </span>
+    );
+  } else if (status === "waiting_input") {
+    badge = (
+      <span className="font-bold shrink-0 text-badge-waiting">● INPUT</span>
+    );
+  } else if (status === "active") {
+    badge = (
+      <span className="font-bold shrink-0 text-badge-active">● ACTIVE</span>
+    );
   } else {
     badge = <span className="font-bold shrink-0 text-badge-idle">○ IDLE</span>;
   }
@@ -34,7 +50,8 @@ export function Badge({ status, lastActivity, errorState, loopTool, loopCount }:
       {badge}
       {errorState && (
         <span className="font-bold text-badge-loop">
-          {' '}LOOP{loopTool ? ` 🔧 ${loopTool} ×${loopCount}` : ''}
+          {" "}
+          LOOP{loopTool ? ` 🔧 ${loopTool} ×${loopCount}` : ""}
         </span>
       )}
     </>
