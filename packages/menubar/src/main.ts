@@ -116,6 +116,37 @@ function checkNotifications() {
   }
 }
 
+function refreshGitAhead() {
+  const all = readSessions(SESSIONS_FILE);
+  const done = all.filter(s => s.status === 'done' && s.workingDir);
+  if (done.length === 0) return;
+
+  let changed = false;
+  const updated = all.map(s => {
+    if (s.status !== 'done' || !s.workingDir) return s;
+    try {
+      const raw = execSync('git rev-list @{u}..HEAD --count', {
+        cwd: s.workingDir,
+        env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+        stdio: ['pipe', 'pipe', 'pipe'],
+        timeout: 3000,
+      }).toString().trim();
+      const n = parseInt(raw, 10);
+      const next = isNaN(n) || n === 0 ? null : n;
+      if (next !== (s.gitAhead ?? null)) {
+        changed = true;
+        return { ...s, gitAhead: next };
+      }
+    } catch { /* no upstream or not a git repo */ }
+    return s;
+  });
+
+  if (changed) {
+    writeSessions(SESSIONS_FILE, updated);
+    sendSessionsToPopover();
+  }
+}
+
 function buildSessionsPayload() {
   const config = readConfig(CONFIG_FILE);
   const sessions = getActiveSessions();
@@ -272,6 +303,7 @@ app.whenReady().then(() => {
   watcher.on('change', () => { checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
 
   updateTray();
+  setInterval(refreshGitAhead, 30_000);
 });
 
 app.on('window-all-closed', () => {
