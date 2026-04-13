@@ -401,15 +401,18 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     const newErrorState = loopCount >= LOOP_THRESHOLD ? true : session.errorState;
     session = { ...session, loopTool, loopCount, errorState: newErrorState };
 
-    // Read partial assistant text from transcript (what Claude wrote before calling this tool)
+    // Read partial assistant text from transcript (what Claude wrote before calling this tool).
+    // Ignore if it matches lastMessage — that means the transcript hasn't been updated yet
+    // for this turn and we'd be showing the previous turn's response.
     const partial = session.transcriptPath ? readPartialResponse(session.transcriptPath) : null;
+    const freshPartial = partial && partial !== session.lastMessage ? partial : null;
 
     session = {
       ...session,
       status: 'active',
       currentTool: event.toolName,
       lastActivity: now,
-      ...(partial ? { partialResponse: partial } : {}),
+      ...(freshPartial ? { partialResponse: freshPartial } : {}),
       // Track when Bash starts so we can detect stuck commands
       ...(event.toolName === 'Bash' ? { bashStartedAt: now } : {}),
     };

@@ -95,8 +95,9 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
   const flashCls  = isNew ? ' newly-done' : '';
 
   // Status badge — dot style to match target
+  const turnMs = s.turnStartedAt != null ? Date.now() - s.turnStartedAt : Date.now() - s.startedAt;
   let badge: string;
-  if (isDone)                                 badge = `<span class="badge-done">● DONE</span>`;
+  if (isDone)                                 badge = `<span class="badge-done">● DONE <span class="badge-time">${agoStr(s.lastActivity)}</span></span>`;
   else if (s.status === 'waiting_permission') badge = `<span class="badge-waiting">● PERMISSION</span>`;
   else if (s.status === 'waiting_input')      badge = `<span class="badge-waiting">● INPUT</span>`;
   else if (isActive)                          badge = `<span class="badge-active">● ACTIVE</span>`;
@@ -107,8 +108,6 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
     badge += ` <span class="badge-loop">LOOP${toolInfo}</span>`;
   }
 
-  const turnMs      = s.turnStartedAt != null ? Date.now() - s.turnStartedAt : Date.now() - s.startedAt;
-  const timeLabel   = isDone ? agoStr(s.lastActivity) : elapsedStr(turnMs);
   const branchLabel = cfg.showBranch
     ? [
         s.branch,
@@ -118,32 +117,33 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
   const gitLabel    = cfg.showGitSummary && s.gitSummary ? s.gitSummary : '';
   const pathStr     = cfg.compactPaths ? compactPath(s.workingDir, home) : (s.workingDir.startsWith(home) ? '~' + s.workingDir.slice(home.length) : s.workingDir);
 
-  // ── Header: top row (badge · dirname · elapsed), sub row (path · branch · git) ──
+  // ── Header: line 1 (badge · dirname · ✕), line 2 (path · branch · git · elapsed) ──
+  const elapsedStr2 = !isDone ? elapsedStr(turnMs) : null;
   const header = `
     <div class="card-header">
       <div class="card-header-top">
         ${badge}
         <span class="dirname">${esc(s.dirName)}</span>
-        <span class="elapsed">${esc(timeLabel)}</span>
         ${isDone ? '<button class="dismiss-btn" title="Dismiss">✕</button>' : ''}
       </div>
-      ${(pathStr || branchLabel || gitLabel) ? `
+      ${(pathStr || branchLabel || gitLabel || elapsedStr2) ? `
       <div class="card-header-sub">
-        <span class="card-path-wrap" title="Click to copy full path">
+        ${pathStr ? `<span class="card-path-wrap" title="Click to copy full path">
           <span class="card-path">${esc(pathStr)}</span>
           <span class="copy-icon"><svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5H3.5A1.5 1.5 0 0 0 2 3h12a1.5 1.5 0 0 0-1.5-1.5H11A1.5 1.5 0 0 0 9.5 0h-3z"/></svg></span>
-        </span>
+        </span>` : ''}
         ${branchLabel ? `<span class="branch">${esc(branchLabel)}</span>` : ''}
         ${gitLabel ? `<span class="git-summary">git ${esc(gitLabel)}</span>` : ''}
+        ${elapsedStr2 ? `<span class="elapsed">${esc(elapsedStr2)}</span>` : ''}
       </div>` : ''}
     </div>`;
 
   if (isDone) {
     const prompt  = s.currentTask ?? s.lastPrompt;
     const answer  = s.lastMessage;
-    const promptRow = prompt ? `<div class="card-task">📋 ${esc(trunc(prompt))}</div>` : '';
+    const promptRow = prompt ? `<div class="card-task">📋 ${esc(prompt)}</div>` : '';
     const answerRow = answer
-      ? `<div class="card-qa-answer">↳ ${esc(trunc(answer))} <span class="done-time">• ✅ ${agoStr(s.lastActivity)}</span></div>`
+      ? `<div class="card-qa-answer">↳ ${esc(answer)} <span class="done-time">• ✅ ${agoStr(s.lastActivity)}</span></div>`
       : `<div class="card-done-row done-time">✅ Completed ${agoStr(s.lastActivity)}</div>`;
     const doneFooter = cfg.showCost && s.costUsd != null
       ? `<div class="card-footer"><span class="cost-badge">$${s.costUsd.toFixed(4)}</span></div>`
@@ -160,14 +160,14 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
   // ── Line 2: current task / last prompt ────────────────────────────────────
   const taskText = s.currentTask ?? s.lastPrompt;
   const taskRow = taskText
-    ? `<div class="card-task">📋 ${esc(trunc(taskText))}</div>`
+    ? `<div class="card-task">📋 ${esc(taskText)}</div>`
     : '';
 
-  // ── Partial / streaming response ─────────────────────────────────────────
-  const streamRow = !taskText ? '' : (s.partialResponse
-    ? `<div class="card-qa-answer">↳ ${esc(trunc(s.partialResponse))}</div>`
-    : (s.currentTool
-      ? `<div class="card-qa-answer card-qa-tool">↳ 🔧 ${esc(s.currentTool)}${s.lastToolSummary ? ` <span class="tool-summary">${esc(trunc(s.lastToolSummary, 50))}</span>` : ''}</div>`
+  // ── Status line: current tool (priority) or partial response ─────────────
+  const streamRow = !taskText ? '' : (s.currentTool
+    ? `<div class="card-qa-answer card-qa-tool">↳ 🔧 ${esc(s.currentTool)}${s.lastToolSummary ? ` <span class="tool-summary">${esc(s.lastToolSummary)}</span>` : ''}</div>`
+    : (s.partialResponse
+      ? `<div class="card-qa-answer">↳ ${esc(s.partialResponse)}</div>`
       : ''));
 
   // ── Line 3: task counts + progress bar ────────────────────────────────────

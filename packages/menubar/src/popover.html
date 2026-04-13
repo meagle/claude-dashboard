@@ -130,10 +130,10 @@
       }
       .card:hover { background: #1e1e1e; }
       .dismiss-btn {
-        flex-shrink: 0; margin-left: 6px;
+        flex-shrink: 0; margin-left: auto; padding-left: 10px;
         background: none; border: none; cursor: pointer;
         color: #555; font-size: 13px; line-height: 1;
-        padding: 0 2px; opacity: 0; transition: opacity 0.15s, color 0.15s;
+        padding: 0 2px 0 10px; opacity: 0; transition: opacity 0.15s, color 0.15s;
       }
       .card:hover .dismiss-btn { opacity: 1; }
       .dismiss-btn:hover { color: #e06060; }
@@ -163,24 +163,22 @@
       .card-header-top {
         display: flex;
         align-items: baseline;
-        gap: 18px;
-        white-space: nowrap;
+        gap: 8px;
         overflow: hidden;
       }
-      .card-header-top .elapsed { margin-left: auto; flex-shrink: 0; }
       .card-header-sub {
         display: flex;
         align-items: baseline;
-        gap: 16px;
-        white-space: nowrap;
-        overflow: hidden;
+        gap: 10px;
+        flex-wrap: wrap;
+        row-gap: 2px;
       }
       .badge-active  { color: #3fb950; font-weight: bold; flex-shrink: 0; }
       .badge-waiting { color: #d97706; font-weight: bold; flex-shrink: 0; }
       .badge-done    { color: #555;    font-weight: bold; flex-shrink: 0; }
       .badge-idle    { color: #444;    font-weight: bold; flex-shrink: 0; }
       .badge-loop    { color: #c75050; font-weight: bold; }
-      .dirname { font-weight: bold; color: #e8e8e8; flex-shrink: 0; }
+      .dirname { font-weight: bold; color: #e8e8e8; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
       .card-path-wrap {
         display: inline-flex;
         align-items: center;
@@ -207,9 +205,10 @@
         transition: color 0.15s;
       }
       .card-path-wrap:hover .copy-icon { color: #5acce0; }
-      .branch { color: #4a8a4a; font-size: 14px; flex-shrink: 0; white-space: nowrap; }
-      .git-summary { color: #4a4a4a; font-size: 14px; flex-shrink: 0; white-space: nowrap; margin-left: auto; }
-      .elapsed { color: #444; font-size: 14px; flex-shrink: 0; }
+      .badge-time { color: #555; font-weight: normal; font-size: 13px; }
+      .branch { color: #4a8a4a; font-size: 14px; white-space: nowrap; }
+      .git-summary { color: #4a4a4a; font-size: 14px; white-space: nowrap; }
+      .elapsed { color: #444; font-size: 14px; white-space: nowrap; }
 
       /* ── Task row ─────────────────────────────────────────── */
       .card-task {
@@ -217,9 +216,7 @@
         color: #c0c0c0;
         margin-top: 14px;
         margin-bottom: 6px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        word-break: break-word;
       }
 
       /* ── Tasks counts + progress on same row ─────────────── */
@@ -254,9 +251,7 @@
       .card-qa-answer {
         font-size: 14px;
         color: #888;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        word-break: break-word;
         padding-left: 14px;
         margin-top: 2px;
         margin-bottom: 4px;
@@ -267,9 +262,7 @@
       .card-last-msg {
         font-size: 14px;
         color: #888;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        word-break: break-word;
       }
 
       /* ── Done card compact row ────────────────────────────── */
