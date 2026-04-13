@@ -161,7 +161,7 @@ npm run build -w packages/menubar
 For live HMR during renderer development:
 
 ```bash
-npm run dev -w packages/menubar
+npm run dev
 ```
 
 This starts the TypeScript watcher, Vite dev server, and Electron together. Renderer changes hot-reload instantly. Press `Ctrl+C` to stop everything. Changes to `main.ts` require restarting the command.

@@ -4,7 +4,7 @@
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc --project tsconfig.main.json && vite build",
-    "dev": "concurrently --kill-others -n tsc,vite,electron \"tsc -w --project tsconfig.main.json\" \"vite dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "concurrently --kill-others -n tsc,vite,electron \"tsc -w --project tsconfig.main.json\" \"vite dev\" \"wait-on http://localhost:5173 && NODE_ENV=development electron .\"",
     "start": "electron .",
     "test": "vitest run",
     "test:watch": "vitest"

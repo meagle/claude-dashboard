@@ -11,7 +11,7 @@ import { getTrayLabel } from './trayIcon';
 const SESSIONS_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
 const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
 
-const isDev = !fs.existsSync(path.join(__dirname, 'index.html'));
+const isDev = process.env.NODE_ENV === 'development' || !fs.existsSync(path.join(__dirname, 'index.html'));
 
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
@@ -178,6 +178,7 @@ app.whenReady().then(() => {
 
   // Render sessions as soon as the popover is ready so cachedHeight is known before first click
   popover.webContents.on('did-finish-load', async () => {
+    if (isDev) popover?.webContents.openDevTools({ mode: 'detach' });
     sendSessionsToPopover();
     setTimeout(doResize, 100);
   });
