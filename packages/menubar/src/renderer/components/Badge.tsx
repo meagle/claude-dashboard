@@ -1,5 +1,4 @@
 import React from "react";
-import { agoStr } from "../utils/format";
 
 interface BadgeProps {
   status: string;
@@ -20,12 +19,7 @@ export function Badge({
 
   if (status === "done") {
     badge = (
-      <span className="font-bold shrink-0 text-badge-done">
-        ● DONE{" "}
-        <span className="font-normal text-[13px] text-faint pl-4 pr-4">
-          {agoStr(lastActivity)}
-        </span>
-      </span>
+      <span className="font-bold shrink-0 text-badge-done">● DONE</span>
     );
   } else if (status === "waiting_permission") {
     badge = (

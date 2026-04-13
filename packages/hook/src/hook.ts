@@ -236,6 +236,17 @@ function getGitBranch(cwd: string): string | null {
   }
 }
 
+function getGitAhead(cwd: string): number | null {
+  try {
+    const raw = execSync('git rev-list @{u}..HEAD --count', { cwd, env: GIT_ENV, stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 })
+      .toString().trim();
+    const n = parseInt(raw, 10);
+    return isNaN(n) || n === 0 ? null : n;
+  } catch {
+    return null;
+  }
+}
+
 function getGitSummary(cwd: string): string | null {
   try {
     const raw = execSync('git diff --shortstat HEAD', { cwd, env: GIT_ENV, stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 })
@@ -329,6 +340,7 @@ function makeNewSession(event: { sessionId: string; pid: number; termSessionId: 
     contextPct: null,
     bashStartedAt: null,
     gitSummary: null,
+    gitAhead: null,
     transcriptPath: null,
     partialResponse: null,
     errorState: false,
@@ -478,6 +490,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       ? readLastAssistantStatsWithRetry(event.transcriptPath, session.lastMessage)
       : { text: null, model: null, contextPct: null, turns: null, costUsd: null };
     const gitSummary = getGitSummary(event.workingDir);
+    const gitAhead = getGitAhead(event.workingDir);
     session = {
       ...session,
       status: 'done',
@@ -491,6 +504,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(gitSummary ? { gitSummary } : {}),
+      ...(gitAhead !== null ? { gitAhead } : {}),
     };
   } else if (event.type === 'notification') {
     const nt = (event.notificationType ?? '').toLowerCase();

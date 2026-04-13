@@ -81,8 +81,11 @@ export function SessionCard({
         .join(" ")
     : "";
 
-  const gitLabel = cfg.showGitSummary && s.gitSummary ? s.gitSummary : "";
-  const elapsedStr2 = !isDone ? elapsedStr(turnMs) : null;
+  const gitParts = cfg.showGitSummary
+    ? [s.gitSummary, s.gitAhead != null ? `↑${s.gitAhead}` : null].filter(Boolean)
+    : [];
+  const gitLabel = gitParts.join("  ");
+  const timeLabel = isDone ? agoStr(s.lastActivity) : elapsedStr(turnMs);
 
   const handleCopyPath = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -106,7 +109,7 @@ export function SessionCard({
 
   const header = (
     <div className="flex flex-col gap-0.5 mb-[5px] leading-[1.4]">
-      {/* Top row: badge + dirname + dismiss */}
+      {/* Top row: badge + dirname + elapsed (non-done) + dismiss (done) */}
       <div className="flex items-baseline gap-2 overflow-hidden">
         <Badge
           status={s.status}
@@ -115,6 +118,11 @@ export function SessionCard({
           loopTool={s.loopTool}
           loopCount={s.loopCount}
         />
+        {timeLabel && (
+          <span className="text-fainter text-sm whitespace-nowrap shrink-0 px-4">
+            {timeLabel}
+          </span>
+        )}
         <span className="font-bold text-brighter shrink min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
           {s.dirName}
         </span>
@@ -131,8 +139,8 @@ export function SessionCard({
           </button>
         )}
       </div>
-      {/* Sub row: path, branch, git, elapsed */}
-      {(pathStr || branchLabel || gitLabel || elapsedStr2) && (
+      {/* Sub row: path, branch, git */}
+      {(pathStr || branchLabel || gitLabel) && (
         <div
           className="flex items-baseline gap-2.5 flex-wrap"
           style={{ rowGap: "2px" }}
@@ -161,11 +169,6 @@ export function SessionCard({
           {gitLabel && (
             <span className="text-git text-sm whitespace-nowrap pl-2">
               git {gitLabel}
-            </span>
-          )}
-          {elapsedStr2 && (
-            <span className="text-fainter text-sm whitespace-nowrap">
-              {elapsedStr2}
             </span>
           )}
         </div>

@@ -37,10 +37,9 @@ describe('Badge', () => {
     expect(screen.getByText(/○ IDLE/)).toBeInTheDocument();
   });
 
-  it('renders DONE badge with elapsed time', () => {
+  it('renders DONE badge', () => {
     render(<Badge status="done" {...base} />);
     expect(screen.getByText(/● DONE/)).toBeInTheDocument();
-    expect(screen.getByText(/5m ago/)).toBeInTheDocument();
   });
 
   it('appends LOOP badge when errorState is true', () => {

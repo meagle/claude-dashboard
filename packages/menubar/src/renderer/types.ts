@@ -35,6 +35,7 @@ export interface SessionRow {
   contextPct: number | null;
   bashStartedAt: number | null;
   gitSummary: string | null;
+  gitAhead: number | null;
   transcriptPath: string | null;
   partialResponse: string | null;
   errorState: boolean;

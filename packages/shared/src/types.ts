@@ -36,6 +36,7 @@ export interface Session {
   contextPct: number | null;
   bashStartedAt: number | null; // epoch ms when a Bash tool started (for stuck detection)
   gitSummary: string | null;    // e.g. "3 files changed, +42 -7"
+  gitAhead: number | null;      // commits ahead of upstream
   transcriptPath: string | null; // path to Claude transcript file
   partialResponse: string | null; // latest assistant text from current turn (streaming-like)
   errorState: boolean;
