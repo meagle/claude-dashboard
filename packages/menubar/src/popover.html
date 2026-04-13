@@ -129,6 +129,14 @@
         transition: background 0.1s;
       }
       .card:hover { background: #1e1e1e; }
+      .dismiss-btn {
+        flex-shrink: 0; margin-left: 6px;
+        background: none; border: none; cursor: pointer;
+        color: #555; font-size: 13px; line-height: 1;
+        padding: 0 2px; opacity: 0; transition: opacity 0.15s, color 0.15s;
+      }
+      .card:hover .dismiss-btn { opacity: 1; }
+      .dismiss-btn:hover { color: #e06060; }
       .card.active  { border-color: #238636; }
       .card.waiting { border-color: #b45309; }
       .card.done    { border-color: #252525; opacity: 0.50; }
@@ -173,6 +181,13 @@
       .badge-idle    { color: #444;    font-weight: bold; flex-shrink: 0; }
       .badge-loop    { color: #c75050; font-weight: bold; }
       .dirname { font-weight: bold; color: #e8e8e8; flex-shrink: 0; }
+      .card-path-wrap {
+        display: inline-flex;
+        align-items: center;
+        min-width: 0;
+        cursor: pointer;
+        flex-shrink: 1;
+      }
       .card-path {
         color: #5a5a5a;
         font-size: 14px;
@@ -181,6 +196,17 @@
         white-space: nowrap;
         min-width: 0;
       }
+      .card-path-wrap:hover .card-path { color: #aaa; }
+      .copy-icon {
+        flex-shrink: 0;
+        color: #383838;
+        padding: 0 6px;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+        transition: color 0.15s;
+      }
+      .card-path-wrap:hover .copy-icon { color: #5acce0; }
       .branch { color: #4a8a4a; font-size: 14px; flex-shrink: 0; white-space: nowrap; }
       .git-summary { color: #4a4a4a; font-size: 14px; flex-shrink: 0; white-space: nowrap; margin-left: auto; }
       .elapsed { color: #444; font-size: 14px; flex-shrink: 0; }
@@ -283,6 +309,7 @@
       .ctx-fill.warn { background: #7a4a00; }
       .ctx-fill.crit { background: #7a1a1a; }
       .ctx-pct { color: #555; font-size: 14px; }
+      .cost-badge { color: #888; font-size: 13px; flex-shrink: 0; }
 
       #footer { display: none; }
     </style>
@@ -355,6 +382,37 @@
         </label>
         <label class="toggle-switch">
           <input type="checkbox" id="show-compact-paths" checked />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <div>
+          <label class="setting-toggle" for="show-cost">
+            <span class="setting-label">Show session cost</span>
+          </label>
+          <div class="setting-desc">API billing only — not available on Pro or Max subscriptions</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="show-cost" checked />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <hr class="setting-divider" />
+      <div class="setting-row">
+        <label class="setting-toggle" for="show-notifications">
+          <span class="setting-label">Notifications</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="show-notifications" checked />
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label class="setting-toggle" for="notification-sound">
+          <span class="setting-label">Sound alerts</span>
+        </label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notification-sound" checked />
           <span class="toggle-track"></span>
         </label>
       </div>

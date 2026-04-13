@@ -1,10 +1,10 @@
-import { app, Tray, BrowserWindow, ipcMain, nativeImage, Menu } from 'electron';
+import { app, Tray, BrowserWindow, ipcMain, nativeImage, Menu, Notification, shell } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
 import { execSync } from 'child_process';
 import chokidar from 'chokidar';
-import { readSessions, pruneStaleSessions, readConfig, DEFAULT_CONFIG } from '@claude-dashboard/shared';
+import { readSessions, writeSessions, pruneStaleSessions, readConfig, DEFAULT_CONFIG } from '@claude-dashboard/shared';
 import { focusTerminal } from './focusTerminal';
 import { getTrayLabel } from './trayIcon';
 
@@ -14,6 +14,7 @@ const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'co
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
+const prevStatusMap = new Map<string, string>();
 
 function isClaudeProcess(pid: number): boolean {
   try {
@@ -80,6 +81,39 @@ async function resizeToContent(maxHeight: number, onHeight: (h: number) => void)
   } catch { /* ignore if popover not ready */ }
 }
 
+function checkNotifications() {
+  const config = readConfig(CONFIG_FILE);
+  const sessions = getActiveSessions();
+  const currentIds = new Set(sessions.map(s => s.sessionId));
+
+  for (const s of sessions) {
+    const prev = prevStatusMap.get(s.sessionId);
+    const curr = s.status;
+
+    if (prev !== undefined && prev !== curr) {
+      const wantsNotif  = config.notifications       ?? true;
+      const wantsSound  = config.notificationSound   ?? true;
+
+      if (curr === 'waiting_permission') {
+        if (wantsSound) shell.beep();
+        if (wantsNotif) new Notification({ title: 'Permission needed', body: `${s.dirName}: tool approval required`, silent: true }).show();
+      } else if (curr === 'waiting_input') {
+        if (wantsSound) shell.beep();
+        if (wantsNotif) new Notification({ title: 'Input needed', body: `${s.dirName}: Claude asked a question`, silent: true }).show();
+      } else if (curr === 'done' && prev !== 'done') {
+        if (wantsNotif) new Notification({ title: 'Session done', body: `${s.dirName}: task completed`, silent: true }).show();
+      }
+    }
+
+    prevStatusMap.set(s.sessionId, curr);
+  }
+
+  // Clean up removed sessions
+  for (const id of prevStatusMap.keys()) {
+    if (!currentIds.has(id)) prevStatusMap.delete(id);
+  }
+}
+
 function buildSessionsPayload() {
   const config = readConfig(CONFIG_FILE);
   const sessions = getActiveSessions();
@@ -95,6 +129,7 @@ function buildSessionsPayload() {
       showSubagents:  config.columns.subagents,
       showModel:      config.columns.lastAction,
       compactPaths:   config.columns.compactPaths ?? true,
+      showCost:       config.columns.cost ?? true,
     },
     home: os.homedir(),
   };
@@ -186,6 +221,11 @@ app.whenReady().then(() => {
 
   ipcMain.on('resize-to-fit', () => { setTimeout(doResize, 50); });
 
+  ipcMain.on('dismiss-session', (_event, sessionId: string) => {
+    const all = readSessions(SESSIONS_FILE);
+    writeSessions(SESSIONS_FILE, all.map(s => s.sessionId === sessionId ? { ...s, dismissed: true } : s));
+  });
+
   ipcMain.on('open-detached-panel', () => {
     if (detachedPanel && !detachedPanel.isDestroyed()) {
       detachedPanel.focus();
@@ -218,7 +258,7 @@ app.whenReady().then(() => {
 
   const watcher = chokidar.watch([SESSIONS_FILE, CONFIG_FILE], { ignoreInitial: false });
   watcher.on('add', updateTray);
-  watcher.on('change', () => { updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
+  watcher.on('change', () => { checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
 
   updateTray();
 });

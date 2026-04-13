@@ -56,5 +56,7 @@ export interface DashboardConfig {
     };
     staleSessionMinutes: number;
     theme: 'dark' | 'light';
+    notifications: boolean;
+    notificationSound: boolean;
 }
 export declare const DEFAULT_CONFIG: DashboardConfig;

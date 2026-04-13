@@ -41,6 +41,8 @@ interface SessionRow {
   transcriptPath: string | null;
   partialResponse: string | null;
   errorState: boolean;
+  loopTool: string | null;
+  loopCount: number;
   startedAt: number;
   turnStartedAt: number | null;
   lastActivity: number;
@@ -100,7 +102,10 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
   else if (isActive)                          badge = `<span class="badge-active">● ACTIVE</span>`;
   else                                        badge = `<span class="badge-idle">○ IDLE</span>`;
 
-  if (s.errorState) badge += ` <span class="badge-loop">LOOP</span>`;
+  if (s.errorState) {
+    const toolInfo = s.loopTool ? ` 🔧 ${esc(s.loopTool)} ×${s.loopCount}` : '';
+    badge += ` <span class="badge-loop">LOOP${toolInfo}</span>`;
+  }
 
   const turnMs      = s.turnStartedAt != null ? Date.now() - s.turnStartedAt : Date.now() - s.startedAt;
   const timeLabel   = isDone ? agoStr(s.lastActivity) : elapsedStr(turnMs);
@@ -120,10 +125,14 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
         ${badge}
         <span class="dirname">${esc(s.dirName)}</span>
         <span class="elapsed">${esc(timeLabel)}</span>
+        ${isDone ? '<button class="dismiss-btn" title="Dismiss">✕</button>' : ''}
       </div>
       ${(pathStr || branchLabel || gitLabel) ? `
       <div class="card-header-sub">
-        <span class="card-path">${esc(pathStr)}</span>
+        <span class="card-path-wrap" title="Click to copy full path">
+          <span class="card-path">${esc(pathStr)}</span>
+          <span class="copy-icon"><svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5H3.5A1.5 1.5 0 0 0 2 3h12a1.5 1.5 0 0 0-1.5-1.5H11A1.5 1.5 0 0 0 9.5 0h-3z"/></svg></span>
+        </span>
         ${branchLabel ? `<span class="branch">${esc(branchLabel)}</span>` : ''}
         ${gitLabel ? `<span class="git-summary">git ${esc(gitLabel)}</span>` : ''}
       </div>` : ''}
@@ -136,11 +145,15 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
     const answerRow = answer
       ? `<div class="card-qa-answer">↳ ${esc(trunc(answer))} <span class="done-time">• ✅ ${agoStr(s.lastActivity)}</span></div>`
       : `<div class="card-done-row done-time">✅ Completed ${agoStr(s.lastActivity)}</div>`;
+    const doneFooter = cfg.showCost && s.costUsd != null
+      ? `<div class="card-footer"><span class="cost-badge">$${s.costUsd.toFixed(4)}</span></div>`
+      : '';
     return `
-      <div class="card ${statusCls}${flashCls}" data-pid="${s.pid}" data-term="${esc(s.termSessionId ?? '')}">
+      <div class="card ${statusCls}${flashCls}" data-pid="${s.pid}" data-session="${esc(s.sessionId)}" data-term="${esc(s.termSessionId ?? '')}">
         ${header}
         ${promptRow}
         ${answerRow}
+        ${doneFooter}
       </div>`;
   }
 
@@ -210,26 +223,30 @@ function renderCard(s: SessionRow, idx: number, home: string, isNew: boolean, cf
 
   // ── Footer: model + context (when no tasks row) ───────────────────────────
   let footer = '';
+  const costBadge = cfg.showCost && s.costUsd != null ? `<span class="cost-badge">$${s.costUsd.toFixed(4)}</span>` : '';
   if (cfg.showModel) {
     if (!tasksRow && (s.model || s.contextPct != null)) {
       footer = `
         <div class="card-footer">
           ${s.model ? `<span class="model-badge">${esc(s.model)}</span>` : ''}
           ${s.contextPct != null ? `<span class="ctx-bar">${ctxBarHtml(s.contextPct)}</span>` : ''}
+          ${costBadge}
         </div>`;
-    } else if (s.model) {
-      footer = `<div class="card-footer"><span class="model-badge">${esc(s.model)}</span></div>`;
+    } else if (s.model || costBadge) {
+      footer = `<div class="card-footer">${s.model ? `<span class="model-badge">${esc(s.model)}</span>` : ''}${costBadge}</div>`;
     }
+  } else if (costBadge) {
+    footer = `<div class="card-footer">${costBadge}</div>`;
   }
 
   // ── Last message (when no task row and no tool row) ───────────────────────
   let lastMsgRow = '';
-  if (!taskRow && !toolRow && s.lastMessage) {
+  if (!taskRow && !toolRow && s.lastMessage && !isActive && !isWaiting) {
     lastMsgRow = `<div class="card-last-msg">└ ${esc(trunc(s.lastMessage))}</div>`;
   }
 
   return `
-    <div class="card ${statusCls}${flashCls}" data-pid="${s.pid}" data-term="${esc(s.termSessionId ?? '')}">
+    <div class="card ${statusCls}${flashCls}" data-pid="${s.pid}" data-session="${esc(s.sessionId)}" data-term="${esc(s.termSessionId ?? '')}">
       ${header}
       ${taskRow}
       ${streamRow}
@@ -287,6 +304,36 @@ function renderSessions(sessions: SessionRow[], home: string) {
     });
   });
 
+  container.querySelectorAll<HTMLElement>('.dismiss-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const card = btn.closest<HTMLElement>('.card');
+      const sessionId = card?.dataset.session;
+      if (sessionId) ipcRenderer.send('dismiss-session', sessionId);
+    });
+  });
+
+  container.querySelectorAll<HTMLElement>('.card-path-wrap').forEach(wrap => {
+    wrap.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const card = wrap.closest<HTMLElement>('.card');
+      const sessionId = card?.dataset.session;
+      const session = currentSessions.find(s => s.sessionId === sessionId);
+      if (!session) return;
+      const { clipboard } = (require as (m: string) => any)('electron');
+      clipboard.writeText(session.workingDir);
+      const pathText = wrap.querySelector<HTMLElement>('.card-path');
+      if (!pathText) return;
+      const orig = pathText.textContent;
+      pathText.textContent = 'copied!';
+      pathText.style.color = '#5acce0';
+      setTimeout(() => {
+        pathText.textContent = orig;
+        pathText.style.color = '';
+      }, 1500);
+    });
+  });
+
 }
 
 interface CardConfig {
@@ -295,9 +342,10 @@ interface CardConfig {
   showSubagents: boolean;
   showModel: boolean;
   compactPaths: boolean;
+  showCost: boolean;
 }
 
-let currentCardConfig: CardConfig = { showBranch: true, showGitSummary: true, showSubagents: true, showModel: true, compactPaths: true };
+let currentCardConfig: CardConfig = { showBranch: true, showGitSummary: true, showSubagents: true, showModel: true, compactPaths: true, showCost: false };
 let currentHome = '';
 let currentSessions: SessionRow[] = [];
 
@@ -336,15 +384,18 @@ if (isDetached) {
 }
 
 // ── Settings panel ────────────────────────────────────────────────────────────
-const settingsBtn      = document.getElementById('settings-btn')!;
-const settingsPanel    = document.getElementById('settings-panel')!;
-const sessionsDiv      = document.getElementById('sessions')!;
-const staleInput       = document.getElementById('stale-minutes') as HTMLInputElement;
+const settingsBtn         = document.getElementById('settings-btn')!;
+const settingsPanel       = document.getElementById('settings-panel')!;
+const sessionsDiv         = document.getElementById('sessions')!;
+const staleInput          = document.getElementById('stale-minutes') as HTMLInputElement;
 const branchToggle        = document.getElementById('show-branch') as HTMLInputElement;
 const gitSummaryToggle    = document.getElementById('show-git-summary') as HTMLInputElement;
 const subagentsToggle     = document.getElementById('show-subagents') as HTMLInputElement;
 const modelToggle         = document.getElementById('show-model') as HTMLInputElement;
 const compactPathsToggle  = document.getElementById('show-compact-paths') as HTMLInputElement;
+const costToggle          = document.getElementById('show-cost') as HTMLInputElement;
+const notificationsToggle = document.getElementById('show-notifications') as HTMLInputElement;
+const soundToggle         = document.getElementById('notification-sound') as HTMLInputElement;
 const saveBtn             = document.getElementById('save-settings')!;
 
 settingsBtn.addEventListener('click', async () => {
@@ -355,27 +406,33 @@ settingsBtn.addEventListener('click', async () => {
 
   if (opening) {
     const config = await ipcRenderer.invoke('get-config');
-    staleInput.value              = String(config.staleSessionMinutes ?? 30);
-    branchToggle.checked          = config.columns?.gitBranch      ?? true;
-    gitSummaryToggle.checked      = config.columns?.changedFiles   ?? true;
-    subagentsToggle.checked       = config.columns?.subagents      ?? true;
-    modelToggle.checked           = config.columns?.lastAction     ?? true;
-    compactPathsToggle.checked    = config.columns?.compactPaths   ?? true;
+    if (staleInput)          staleInput.value            = String(config.staleSessionMinutes ?? 30);
+    if (branchToggle)        branchToggle.checked        = config.columns?.gitBranch    ?? true;
+    if (gitSummaryToggle)    gitSummaryToggle.checked    = config.columns?.changedFiles ?? true;
+    if (subagentsToggle)     subagentsToggle.checked     = config.columns?.subagents    ?? true;
+    if (modelToggle)         modelToggle.checked         = config.columns?.lastAction   ?? true;
+    if (compactPathsToggle)  compactPathsToggle.checked  = config.columns?.compactPaths ?? true;
+    if (costToggle)          costToggle.checked          = config.columns?.cost         ?? true;
+    if (notificationsToggle) notificationsToggle.checked = config.notifications         ?? true;
+    if (soundToggle)         soundToggle.checked         = config.notificationSound     ?? true;
   }
 
   ipcRenderer.send('resize-to-fit');
 });
 
 saveBtn.addEventListener('click', async () => {
-  const minutes = Math.max(5, Math.min(480, parseInt(staleInput.value) || 30));
+  const minutes = Math.max(5, Math.min(480, parseInt(staleInput?.value ?? '30') || 30));
   await ipcRenderer.invoke('save-config', {
     staleSessionMinutes: minutes,
+    notifications:      notificationsToggle?.checked ?? true,
+    notificationSound:  soundToggle?.checked         ?? true,
     columns: {
-      gitBranch:    branchToggle.checked,
-      changedFiles: gitSummaryToggle.checked,
-      subagents:    subagentsToggle.checked,
-      lastAction:   modelToggle.checked,
-      compactPaths: compactPathsToggle.checked,
+      gitBranch:    branchToggle?.checked       ?? true,
+      changedFiles: gitSummaryToggle?.checked   ?? true,
+      subagents:    subagentsToggle?.checked     ?? true,
+      lastAction:   modelToggle?.checked         ?? true,
+      compactPaths: compactPathsToggle?.checked  ?? true,
+      cost:         costToggle?.checked          ?? true,
     },
   });
   settingsPanel.classList.remove('open');
