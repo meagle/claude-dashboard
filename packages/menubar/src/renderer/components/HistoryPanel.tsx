@@ -99,8 +99,9 @@ export function HistoryPanel({ showCost }: HistoryPanelProps) {
               const turns = formatTurns(s.turns);
               const cost = showCost ? formatCost(s.costUsd) : null;
               const model = shortModel(s.model);
-              const prompt = s.lastPrompt
-                ? s.lastPrompt.length > 60 ? s.lastPrompt.slice(0, 60) + '…' : s.lastPrompt
+              const prompt = s.currentTask ?? s.lastPrompt;
+              const answer = s.lastMessage
+                ? s.lastMessage.length > 80 ? s.lastMessage.slice(0, 80) + '…' : s.lastMessage
                 : null;
               return (
                 <div key={s.sessionId} className="px-1 py-0.5 rounded hover:bg-card text-[11px]">
@@ -112,8 +113,17 @@ export function HistoryPanel({ showCost }: HistoryPanelProps) {
                     {model && <span className="text-faint">model {model}</span>}
                   </div>
                   {prompt && (
-                    <div className="pl-4 text-faint truncate mt-0.5">› {prompt}</div>
+                    <div className="text-[11px] text-[#c0c0c0] mt-1 break-words">
+                      📋 {prompt}
+                    </div>
                   )}
+                  {answer ? (
+                    <div className="text-[11px] text-soft break-words pl-3.5 mt-0.5">
+                      ↳ {answer}
+                    </div>
+                  ) : prompt ? (
+                    <div className="text-[11px] text-git pl-3.5 mt-0.5">✅ Completed</div>
+                  ) : null}
                 </div>
               );
             })}
