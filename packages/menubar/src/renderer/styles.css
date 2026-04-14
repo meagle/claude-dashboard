@@ -93,6 +93,13 @@
     flex-direction: column;
   }
 
+  #root {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
   /* Detached panel: header becomes drag handle */
   body.detached {
     padding-top: 0;
