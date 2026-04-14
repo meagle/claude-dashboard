@@ -47,6 +47,10 @@ export interface SessionRow {
   dismissed: boolean;
 }
 
+export interface HistoryRow extends SessionRow {
+  archivedAt: number;
+}
+
 export interface CardConfig {
   showBranch: boolean;
   showGitSummary: boolean;

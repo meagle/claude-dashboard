@@ -11,8 +11,10 @@ const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.
 interface HeaderProps {
   isDetached: boolean;
   isSettingsOpen: boolean;
+  isHistoryOpen: boolean;
   alwaysOnTop: boolean;
   onSettingsToggle: () => void;
+  onHistoryToggle: () => void;
   onPopout: () => void;
   onPinToggle: () => void;
   onClose: () => void;
@@ -21,8 +23,10 @@ interface HeaderProps {
 export function Header({
   isDetached,
   isSettingsOpen,
+  isHistoryOpen,
   alwaysOnTop,
   onSettingsToggle,
+  onHistoryToggle,
   onPopout,
   onPinToggle,
   onClose,
@@ -40,6 +44,13 @@ export function Header({
             ⧉
           </button>
         )}
+        <button
+          title="Session history"
+          className={`${BTN} ${isHistoryOpen ? 'text-accent' : 'hover:text-bright'}`}
+          onClick={onHistoryToggle}
+        >
+          🕐
+        </button>
         <button
           title="Settings"
           className={`${BTN} ${isSettingsOpen ? 'text-accent' : 'hover:text-bright'}`}

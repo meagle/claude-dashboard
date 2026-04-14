@@ -4,12 +4,13 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
 import chokidar from 'chokidar';
-import { readSessions, writeSessions, pruneStaleSessions, readConfig, DEFAULT_CONFIG } from '@claude-dashboard/shared';
+import { readSessions, writeSessions, pruneStaleSessions, appendHistory, readHistory, readConfig, DEFAULT_CONFIG } from '@claude-dashboard/shared';
 import { focusTerminal } from './focusTerminal';
 import { getTrayLabel } from './trayIcon';
 
 const SESSIONS_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
 const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
+const HISTORY_FILE  = path.join(os.homedir(), '.config', 'claude-dashboard', 'history.json');
 
 const isDev = process.env.NODE_ENV === 'development' || !fs.existsSync(path.join(__dirname, 'index.html'));
 
@@ -48,6 +49,12 @@ function isAlive(pid: number): boolean {
 function getActiveSessions() {
   const config = readConfig(CONFIG_FILE);
   const all = readSessions(SESSIONS_FILE);
+  const cutoff = Date.now() - config.staleSessionMinutes * 60 * 1000;
+  const toArchive = all.filter(s => s.lastActivity <= cutoff);
+  if (toArchive.length > 0) {
+    appendHistory(HISTORY_FILE, toArchive);
+    writeSessions(SESSIONS_FILE, all.filter(s => s.lastActivity > cutoff));
+  }
   return pruneStaleSessions(all, config.staleSessionMinutes)
     .filter((s) => !s.dismissed)
     .filter((s) => {
@@ -284,6 +291,8 @@ app.whenReady().then(() => {
     updateTray();
     sendSessionsToPopover();
   });
+
+  ipcMain.handle('get-history', () => readHistory(HISTORY_FILE));
 
   ipcMain.on('resize-to-fit', () => { setTimeout(doResize, 50); });
 

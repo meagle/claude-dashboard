@@ -65,6 +65,10 @@ export interface DashboardConfig {
   notificationSound: boolean;
 }
 
+export interface ArchivedSession extends Session {
+  archivedAt: number;  // epoch ms when archived
+}
+
 export const DEFAULT_CONFIG: DashboardConfig = {
   columns: {
     elapsedTime: true,

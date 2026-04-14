@@ -1,0 +1,26 @@
+appId: com.meagle.claude-dashboard
+productName: Claude Dashboard
+copyright: Copyright © 2026
+
+mac:
+  category: public.app-category.developer-tools
+  darkModeSupport: true
+  # Uncomment + fill in to enable signing:
+  # identity: "Developer ID Application: Your Name (TEAMID)"
+  # hardenedRuntime: true
+  # gatekeeperAssess: false
+  # entitlements: build/entitlements.mac.plist
+  # entitlementsInherit: build/entitlements.mac.plist
+
+dmg:
+  title: Claude Dashboard
+  sign: false
+
+files:
+  - dist/**/*
+  - "!dist/**/*.map"
+  - package.json
+
+directories:
+  buildResources: build
+  output: release
