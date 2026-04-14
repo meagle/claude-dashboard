@@ -1,9 +1,15 @@
 import { spawnSync } from 'child_process';
 
+export function sanitizeGuid(termSessionId: string): string {
+  const raw = termSessionId.includes(':') ? termSessionId.split(':')[1] : termSessionId;
+  return raw.replace(/[^a-zA-Z0-9\-_]/g, '');
+}
+
 export function focusTerminal(pid: number, termSessionId: string | null): void {
   try {
     if (termSessionId) {
-      const guid = termSessionId.includes(':') ? termSessionId.split(':')[1] : termSessionId;
+      const guid = sanitizeGuid(termSessionId);
+      if (!guid) return;
       const script = `tell application "iTerm2"
   repeat with aWindow in windows
     repeat with aTab in tabs of aWindow

@@ -41,6 +41,32 @@ describe('SettingsPanel', () => {
     });
   });
 
+  it('shows error message when save-config rejects', async () => {
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(mockConfig);
+      return Promise.reject(new Error('disk full'));
+    });
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} />);
+    await waitFor(() => screen.getByText('Save'));
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => {
+      expect(screen.getByText('disk full')).toBeInTheDocument();
+    });
+  });
+
+  it('does not call onSave when save-config rejects', async () => {
+    const onSave = vi.fn();
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(mockConfig);
+      return Promise.reject(new Error('permission denied'));
+    });
+    render(<SettingsPanel onSave={onSave} onCancel={vi.fn()} />);
+    await waitFor(() => screen.getByText('Save'));
+    fireEvent.click(screen.getByText('Save'));
+    await waitFor(() => screen.getByText('permission denied'));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('calls save-config with updated value when toggled and saved', async () => {
     const onSave = vi.fn();
     render(<SettingsPanel onSave={onSave} onCancel={vi.fn()} />);

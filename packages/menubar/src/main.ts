@@ -2,7 +2,7 @@ import { app, Tray, BrowserWindow, ipcMain, nativeImage, Menu, Notification, she
 import * as path from 'path';
 import * as os from 'os';
 import * as fs from 'fs';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import chokidar from 'chokidar';
 import { readSessions, writeSessions, pruneStaleSessions, readConfig, DEFAULT_CONFIG } from '@claude-dashboard/shared';
 import { focusTerminal } from './focusTerminal';
@@ -18,9 +18,12 @@ let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
 const prevStatusMap = new Map<string, string>();
 
+// Cache isAlive results for 2s to avoid spawning ps on every chokidar tick
+const isAliveCache = new Map<number, { result: boolean; ts: number }>();
+
 function isClaudeProcess(pid: number): boolean {
   try {
-    const args = execSync(`ps -o args= -p ${pid}`, { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
+    const args = execFileSync('ps', ['-o', 'args=', '-p', String(pid)], { stdio: ['pipe', 'pipe', 'pipe'] }).toString().trim();
     return args.includes('claude');
   } catch {
     return false;
@@ -29,14 +32,17 @@ function isClaudeProcess(pid: number): boolean {
 
 function isAlive(pid: number): boolean {
   if (!pid || pid <= 0) return false;
+  const cached = isAliveCache.get(pid);
+  if (cached && Date.now() - cached.ts < 2000) return cached.result;
+  let result = false;
   try {
     process.kill(pid, 0);
-    // PID exists — verify it's actually a Claude process, not a reused PID
-    return isClaudeProcess(pid);
-  } catch (e: any) {
-    if (e?.code === 'EPERM') return isClaudeProcess(pid);
-    return false;
+    result = isClaudeProcess(pid);
+  } catch (e: unknown) {
+    if ((e as NodeJS.ErrnoException)?.code === 'EPERM') result = isClaudeProcess(pid);
   }
+  isAliveCache.set(pid, { result, ts: Date.now() });
+  return result;
 }
 
 function getActiveSessions() {
@@ -127,7 +133,7 @@ const GIT_ENV = {
 
 function queryGitAhead(cwd: string): number | null {
   try {
-    const raw = execSync('git rev-list @{u}..HEAD --count', {
+    const raw = execFileSync('git', ['rev-list', '@{u}..HEAD', '--count'], {
       cwd,
       env: GIT_ENV,
       stdio: ['pipe', 'pipe', 'pipe'],

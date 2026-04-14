@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ipcRenderer } from '../utils/electron';
 import { DashboardConfig } from '../types';
 
@@ -50,6 +50,7 @@ function Toggle({ id, checked, onChange }: { id: string; checked: boolean; onCha
 
 export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
   const [form, setForm] = useState<FormState>(DEFAULTS);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     ipcRenderer.invoke('get-config').then((config: DashboardConfig) => {
@@ -71,24 +72,29 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(f => ({ ...f, [key]: value }));
 
-  const handleSave = async () => {
-    const minutes = Math.max(5, Math.min(480, form.staleMinutes || 30));
-    await ipcRenderer.invoke('save-config', {
-      staleSessionMinutes: minutes,
-      notifications:      form.notifications,
-      notificationSound:  form.notificationSound,
-      columns: {
-        gitBranch:    form.gitBranch,
-        changedFiles: form.changedFiles,
-        subagents:    form.subagents,
-        lastAction:   form.lastAction,
-        compactPaths: form.compactPaths,
-        cost:         form.cost,
-        doneFooter:   form.doneFooter,
-      },
-    });
-    onSave();
-  };
+  const handleSave = useCallback(async () => {
+    setSaveError(null);
+    try {
+      const minutes = Math.max(5, Math.min(480, form.staleMinutes || 30));
+      await ipcRenderer.invoke('save-config', {
+        staleSessionMinutes: minutes,
+        notifications:      form.notifications,
+        notificationSound:  form.notificationSound,
+        columns: {
+          gitBranch:    form.gitBranch,
+          changedFiles: form.changedFiles,
+          subagents:    form.subagents,
+          lastAction:   form.lastAction,
+          compactPaths: form.compactPaths,
+          cost:         form.cost,
+          doneFooter:   form.doneFooter,
+        },
+      });
+      onSave();
+    } catch (e: unknown) {
+      setSaveError((e as Error)?.message ?? 'Failed to save settings');
+    }
+  }, [form, onSave]);
 
   const ROW = 'flex justify-between items-center py-[7px]';
   const LABEL = 'text-[13px] text-bright cursor-pointer';
@@ -163,6 +169,9 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
 
       <hr className="border-line my-1" />
 
+      {saveError && (
+        <div className="text-[12px] text-[#e06060] mt-1 mb-1">{saveError}</div>
+      )}
       <button
         onClick={handleSave}
         className="w-full mt-1.5 py-1.5 bg-accent text-base text-[13px] font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
