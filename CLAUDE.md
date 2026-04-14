@@ -95,3 +95,6 @@ Written by hook, read by main process. Each entry is a `Session` object (see `pa
 
 ### README
 - After completing any user-facing feature or behavioral change, update `README.md` to reflect it before committing. This includes new UI elements, new settings, new data files written, new build/packaging commands, and changes to existing behavior.
+
+### Commits and pushes
+- Never commit or push automatically. Always ask first, e.g. "Ready to commit and push — want me to go ahead?"
