@@ -298,7 +298,9 @@ app.whenReady().then(() => {
 
   ipcMain.on('dismiss-session', (_event, sessionId: string) => {
     const all = readSessions(SESSIONS_FILE);
-    writeSessions(SESSIONS_FILE, all.map(s => s.sessionId === sessionId ? { ...s, dismissed: true } : s));
+    const toArchive = all.filter(s => s.sessionId === sessionId);
+    if (toArchive.length > 0) appendHistory(HISTORY_FILE, toArchive);
+    writeSessions(SESSIONS_FILE, all.filter(s => s.sessionId !== sessionId));
   });
 
   ipcMain.on('open-detached-panel', () => {

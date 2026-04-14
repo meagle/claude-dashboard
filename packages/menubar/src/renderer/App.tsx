@@ -70,7 +70,7 @@ export function App() {
           onCancel={() => setSettingsOpen(false)}
         />
       ) : historyOpen ? (
-        <HistoryPanel />
+        <HistoryPanel showCost={cardConfig.showCost} />
       ) : (
         <div id="sessions" className="flex flex-col gap-1.5 px-2 py-1.5 overflow-y-auto flex-1 min-h-0">
           <SessionList sessions={sessions} cardConfig={cardConfig} home={home} />

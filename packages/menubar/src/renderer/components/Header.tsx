@@ -6,7 +6,7 @@ const PIN_ICON = (
   </svg>
 );
 
-const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150';
+const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150 focus:outline-none';
 
 interface HeaderProps {
   isDetached: boolean;
@@ -45,11 +45,11 @@ export function Header({
           </button>
         )}
         <button
-          title="Session history"
+          title={isHistoryOpen ? 'Back to sessions' : 'Session history'}
           className={`${BTN} ${isHistoryOpen ? 'text-accent' : 'hover:text-bright'}`}
           onClick={onHistoryToggle}
         >
-          🕐
+          {isHistoryOpen ? '🏠' : '🕐'}
         </button>
         <button
           title="Settings"

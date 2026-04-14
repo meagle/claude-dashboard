@@ -2,12 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { ipcRenderer } from '../utils/electron';
 import { HistoryRow } from '../types';
 
-function formatDuration(startedAt: number, lastActivity: number): string {
-  const mins = Math.round((lastActivity - startedAt) / 60_000);
-  if (mins < 60) return `${mins}m`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+function formatTurns(turns: number | null): string | null {
+  if (turns == null || turns <= 0) return null;
+  return turns === 1 ? '1 turn' : `${turns} turns`;
 }
 
 function formatCost(costUsd: number | null): string | null {
@@ -30,7 +27,7 @@ interface DayGroup {
   totalCost: number | null;
 }
 
-function groupByDay(sessions: HistoryRow[]): DayGroup[] {
+function groupByDay(sessions: HistoryRow[], showCost: boolean): DayGroup[] {
   const today = new Date();
   const sorted = [...sessions].sort((a, b) => b.startedAt - a.startedAt);
   const map = new Map<string, HistoryRow[]>();
@@ -41,7 +38,7 @@ function groupByDay(sessions: HistoryRow[]): DayGroup[] {
     map.get(key)!.push(s);
   }
   return Array.from(map.entries()).map(([key, rows]) => {
-    const hasCost = rows.some(r => r.costUsd != null);
+    const hasCost = showCost && rows.some(r => r.costUsd != null);
     const total = hasCost ? rows.reduce((sum, r) => sum + (r.costUsd ?? 0), 0) : null;
     return {
       label: dayLabel(new Date(key), today),
@@ -59,7 +56,11 @@ function shortModel(model: string | null): string | null {
   return model.split('-').slice(0, 2).join(' ');
 }
 
-export function HistoryPanel() {
+interface HistoryPanelProps {
+  showCost: boolean;
+}
+
+export function HistoryPanel({ showCost }: HistoryPanelProps) {
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export function HistoryPanel() {
     );
   }
 
-  const groups = groupByDay(history);
+  const groups = groupByDay(history, showCost);
 
   return (
     <div id="history-panel" className="px-2 py-1.5 overflow-y-auto flex-1 min-h-0">
@@ -91,12 +92,12 @@ export function HistoryPanel() {
           <div className="flex items-center gap-2 px-1 pb-1 border-b border-line text-[11px] text-faint">
             <span className="font-semibold text-soft">{group.label}</span>
             <span>{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
-            {group.totalCost != null && <span>${group.totalCost.toFixed(2)}</span>}
+            {group.totalCost != null && <span>total {formatCost(group.totalCost)}</span>}
           </div>
           <div className="flex flex-col gap-0.5 mt-1">
             {group.sessions.map((s) => {
-              const dur = formatDuration(s.startedAt, s.lastActivity);
-              const cost = formatCost(s.costUsd);
+              const turns = formatTurns(s.turns);
+              const cost = showCost ? formatCost(s.costUsd) : null;
               const model = shortModel(s.model);
               const prompt = s.lastPrompt
                 ? s.lastPrompt.length > 60 ? s.lastPrompt.slice(0, 60) + '…' : s.lastPrompt
@@ -106,12 +107,12 @@ export function HistoryPanel() {
                   <div className="flex items-center gap-2 text-soft">
                     <span className="text-faint">●</span>
                     <span className="font-medium text-bright">{s.dirName}</span>
-                    <span>{dur}</span>
-                    {cost && <span>{cost}</span>}
-                    {model && <span className="text-faint">{model}</span>}
+                    {turns && <span>{turns}</span>}
+                    {cost && <span>cost {cost}</span>}
+                    {model && <span className="text-faint">model {model}</span>}
                   </div>
                   {prompt && (
-                    <div className="pl-4 text-faint truncate mt-0.5">{prompt}</div>
+                    <div className="pl-4 text-faint truncate mt-0.5">› {prompt}</div>
                   )}
                 </div>
               );
