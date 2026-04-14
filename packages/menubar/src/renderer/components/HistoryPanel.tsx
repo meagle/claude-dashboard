@@ -89,7 +89,7 @@ export function HistoryPanel({ showCost }: HistoryPanelProps) {
     <div id="history-panel" className="px-2 py-1.5 overflow-y-auto flex-1 min-h-0">
       {groups.map((group) => (
         <div key={group.label} className="mb-3">
-          <div className="flex items-center gap-2 px-1 pb-1 border-b border-line text-[11px] text-faint">
+          <div className="flex items-center gap-2 px-1 pb-1 border-b border-line text-xs text-faint">
             <span className="font-semibold text-soft">{group.label}</span>
             <span>{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
             {group.totalCost != null && <span>total {formatCost(group.totalCost)}</span>}
@@ -104,8 +104,8 @@ export function HistoryPanel({ showCost }: HistoryPanelProps) {
                 ? s.lastMessage.length > 80 ? s.lastMessage.slice(0, 80) + '…' : s.lastMessage
                 : null;
               return (
-                <div key={s.sessionId} className="px-1 py-0.5 rounded hover:bg-card text-[11px]">
-                  <div className="flex items-center gap-2 text-soft">
+                <div key={s.sessionId} className="px-1 py-0.5 rounded hover:bg-card">
+                  <div className="flex items-center gap-2 text-xs text-soft">
                     <span className="text-faint">●</span>
                     <span className="font-medium text-bright">{s.dirName}</span>
                     {turns && <span>{turns}</span>}
@@ -113,16 +113,16 @@ export function HistoryPanel({ showCost }: HistoryPanelProps) {
                     {model && <span className="text-faint">model {model}</span>}
                   </div>
                   {prompt && (
-                    <div className="text-[11px] text-[#c0c0c0] mt-1 break-words">
+                    <div className="text-sm text-[#c0c0c0] mt-1 break-words">
                       📋 {prompt}
                     </div>
                   )}
                   {answer ? (
-                    <div className="text-[11px] text-soft break-words pl-3.5 mt-0.5">
+                    <div className="text-sm text-soft break-words pl-[14px] mt-0.5">
                       ↳ {answer}
                     </div>
                   ) : prompt ? (
-                    <div className="text-[11px] text-git pl-3.5 mt-0.5">✅ Completed</div>
+                    <div className="text-sm text-git pl-[14px] mt-0.5">✅ Completed</div>
                   ) : null}
                 </div>
               );

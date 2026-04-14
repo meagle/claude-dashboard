@@ -83,9 +83,11 @@ async function resizeToContent(maxHeight: number, onHeight: (h: number) => void)
       '(function(){' +
       '  var hdr = document.getElementById("header");' +
       '  var sp  = document.getElementById("settings-panel");' +
+      '  var hp  = document.getElementById("history-panel");' +
       '  var ses = document.getElementById("sessions");' +
       '  var hh  = hdr ? hdr.offsetHeight : 0;' +
       '  if (sp) return hh + sp.scrollHeight + 24;' +
+      '  if (hp) return hh + hp.scrollHeight + 24;' +
       '  return hh + (ses ? ses.scrollHeight : 0) + 24;' +
       '})()'
     );
