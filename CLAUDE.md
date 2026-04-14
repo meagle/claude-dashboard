@@ -86,3 +86,12 @@ The hook package still uses Jest (separate from the Vitest setup in menubar).
 ### `sessions.json` schema
 
 Written by hook, read by main process. Each entry is a `Session` object (see `packages/shared/src/types.ts`). Sessions are pruned after `staleSessionMinutes` of inactivity (default 30). The `dismissed` field is set to `true` when a user dismisses a done card — dismissed sessions are filtered out in `getActiveSessions()` in main.ts.
+
+## Always do without being asked
+
+### Tests
+- When adding new logic (utility functions, IPC handlers, React components, hook behavior), add tests for it.
+- When adding fields to `Session` in `packages/shared/src/types.ts`, update all test fixtures in `packages/hook/src/__tests__/hook.test.ts` and `packages/shared/src/__tests__/sessions.test.ts` to include the new field — otherwise the hook Jest suite will fail with a type error.
+
+### README
+- After completing any user-facing feature or behavioral change, update `README.md` to reflect it before committing. This includes new UI elements, new settings, new data files written, new build/packaging commands, and changes to existing behavior.
