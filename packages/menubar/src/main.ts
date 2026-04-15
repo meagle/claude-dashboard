@@ -215,6 +215,28 @@ const GIT_ENV = {
   GIT_OPTIONAL_LOCKS: '0',
 };
 
+function queryGitSummary(cwd: string): string | null {
+  try {
+    const raw = execFileSync('git', ['diff', '--shortstat', 'HEAD'], {
+      cwd,
+      env: GIT_ENV,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 3000,
+    }).toString().trim();
+    if (!raw) return null;
+    const files = raw.match(/(\d+) files? changed/);
+    const ins   = raw.match(/(\d+) insertion/);
+    const del   = raw.match(/(\d+) deletion/);
+    const parts: string[] = [];
+    if (files) parts.push(`${files[1]} files`);
+    if (ins)   parts.push(`+${ins[1]}`);
+    if (del)   parts.push(`-${del[1]}`);
+    return parts.length > 0 ? parts.join(' ') : null;
+  } catch {
+    return null;
+  }
+}
+
 function queryGitAhead(cwd: string): number | null {
   try {
     const raw = execFileSync('git', ['rev-list', '@{u}..HEAD', '--count'], {
@@ -230,23 +252,23 @@ function queryGitAhead(cwd: string): number | null {
   }
 }
 
-function refreshGitAhead() {
+function refreshGitInfo() {
   const all = readSessions(SESSIONS_FILE);
-  if (!all.some(s => s.status === 'done')) return;
+  if (all.length === 0) return;
 
-  const cache = new Map<string, number | null>();
-  const getAhead = (dir: string) => {
-    if (!cache.has(dir)) cache.set(dir, queryGitAhead(dir));
-    return cache.get(dir)!;
-  };
+  const aheadCache   = new Map<string, number | null>();
+  const summaryCache = new Map<string, string | null>();
+  const getAhead   = (dir: string) => { if (!aheadCache.has(dir))   aheadCache.set(dir,   queryGitAhead(dir));   return aheadCache.get(dir)!; };
+  const getSummary = (dir: string) => { if (!summaryCache.has(dir)) summaryCache.set(dir, queryGitSummary(dir)); return summaryCache.get(dir)!; };
 
   let changed = false;
   const updated = all.map(s => {
-    if (s.status !== 'done' || !s.workingDir) return s;
-    const next = getAhead(s.workingDir);
-    if (next !== s.gitAhead) {
+    if (!s.workingDir) return s;
+    const nextSummary = getSummary(s.workingDir);
+    const nextAhead   = s.status === 'done' ? getAhead(s.workingDir) : s.gitAhead;
+    if (nextSummary !== s.gitSummary || nextAhead !== s.gitAhead) {
       changed = true;
-      return { ...s, gitAhead: next };
+      return { ...s, gitSummary: nextSummary, gitAhead: nextAhead };
     }
     return s;
   });
@@ -455,7 +477,7 @@ app.whenReady().then(() => {
   watcher.on('change', () => { MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700; checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
 
   updateTray();
-  setInterval(refreshGitAhead, 30_000);
+  setInterval(refreshGitInfo, 30_000);
 
   // Catch changes not triggered by file writes: dead processes (idle→done) and stale expiry.
   // Compare sessionId:status so status changes (not just adds/removes) trigger updates.
