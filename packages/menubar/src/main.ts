@@ -472,12 +472,19 @@ app.whenReady().then(() => {
     win?.setAlwaysOnTop(value);
   });
 
+  // Debounced git refresh: coalesce rapid chokidar ticks into one git query
+  let gitRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  const scheduleGitRefresh = () => {
+    if (gitRefreshTimer) clearTimeout(gitRefreshTimer);
+    gitRefreshTimer = setTimeout(refreshGitInfo, 2000);
+  };
+
   const watcher = chokidar.watch([SESSIONS_FILE, CONFIG_FILE], { ignoreInitial: false });
   watcher.on('add', updateTray);
-  watcher.on('change', () => { MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700; checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
+  watcher.on('change', () => { MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700; checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); scheduleGitRefresh(); });
 
   updateTray();
-  setInterval(refreshGitInfo, 30_000);
+  setInterval(refreshGitInfo, 10_000);
 
   // Catch changes not triggered by file writes: dead processes (idle→done) and stale expiry.
   // Compare sessionId:status so status changes (not just adds/removes) trigger updates.
