@@ -18,25 +18,13 @@ export function Badge({
   let badge: React.ReactNode;
 
   if (status === "done") {
-    badge = (
-      <span className="font-bold shrink-0 text-badge-done">● DONE</span>
-    );
-  } else if (status === "waiting_permission") {
-    badge = (
-      <span className="font-bold shrink-0 text-badge-waiting">
-        ● PERMISSION
-      </span>
-    );
-  } else if (status === "waiting_input") {
-    badge = (
-      <span className="font-bold shrink-0 text-badge-waiting">● INPUT</span>
-    );
+    badge = <span className="shrink-0 text-2xl leading-none text-badge-done">●</span>;
+  } else if (status === "waiting_permission" || status === "waiting_input") {
+    badge = <span className="shrink-0 text-2xl leading-none text-badge-waiting">●</span>;
   } else if (status === "active") {
-    badge = (
-      <span className="font-bold shrink-0 text-badge-active">● ACTIVE</span>
-    );
+    badge = <span className="shrink-0 text-2xl leading-none text-badge-active">●</span>;
   } else {
-    badge = <span className="font-bold shrink-0 text-badge-idle">○ IDLE</span>;
+    badge = <span className="shrink-0 text-2xl leading-none text-badge-idle">○</span>;
   }
 
   return (

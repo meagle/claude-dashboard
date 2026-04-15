@@ -118,14 +118,14 @@ export function SessionCard({
           loopTool={s.loopTool}
           loopCount={s.loopCount}
         />
+        <span className="font-bold text-brighter shrink min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ml-2">
+          {s.dirName}
+        </span>
         {timeLabel && (
           <span className="text-fainter text-sm whitespace-nowrap shrink-0 px-4">
             {timeLabel}
           </span>
         )}
-        <span className="font-bold text-brighter shrink min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-          {s.dirName}
-        </span>
         {isDone && (
           <button
             className="shrink-0 ml-auto bg-transparent border-none cursor-pointer text-bright text-[13px] leading-none px-0.5 pl-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 hover:text-[#e06060]"
