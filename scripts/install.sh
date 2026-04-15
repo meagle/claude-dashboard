@@ -4,6 +4,9 @@ set -euo pipefail
 DASHBOARD_DIR="$HOME/.config/claude-dashboard"
 SETTINGS_FILE="$HOME/.claude/settings.json"
 
+echo "Installing dependencies..."
+npm install
+
 echo "Building Claude Session Dashboard..."
 npm run build
 
