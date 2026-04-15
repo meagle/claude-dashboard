@@ -68,14 +68,31 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 ## Requirements
 
-- Node.js 18+
 - macOS
 - Claude Code installed
+- Node.js 18+ _(source install only)_
 
-## Installation
+## Download
+
+**[Download the latest release →](https://github.com/meagle/claude-dashboard/releases/latest)**
+
+1. Download `Claude Dashboard-x.x.x-arm64.dmg`
+2. Open the DMG and drag **Claude Dashboard** to `/Applications`
+3. Launch Claude Dashboard from `/Applications`
+
+> **First launch:** macOS will block an unsigned app. Right-click → **Open** → **Open** to bypass Gatekeeper. You only need to do this once.
+
+After launching, run the hook installer to wire up Claude Code:
+```bash
+curl -fsSL https://raw.githubusercontent.com/meagle/claude-dashboard/master/scripts/install-hook.sh | bash
+```
+
+> _Don't have `curl`? See [manual hook installation](#manual-hook-installation) below._
+
+## Installation from source
 
 ```bash
-git clone <this-repo> claude-dashboard
+git clone https://github.com/meagle/claude-dashboard claude-dashboard
 cd claude-dashboard
 bash scripts/install.sh
 ```

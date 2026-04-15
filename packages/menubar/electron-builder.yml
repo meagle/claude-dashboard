@@ -1,6 +1,7 @@
 appId: com.meagle.claude-dashboard
 productName: Claude Dashboard
 copyright: Copyright © 2026
+electronVersion: "30.5.1"
 
 mac:
   category: public.app-category.developer-tools
