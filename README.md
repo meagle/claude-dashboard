@@ -80,7 +80,11 @@ Each session tracks: status, current tool, last prompt and response, task list p
 2. Open the DMG and drag **Claude Dashboard** to `/Applications`
 3. Launch Claude Dashboard from `/Applications`
 
-> **First launch:** macOS will block an unsigned app. Right-click → **Open** → **Open** to bypass Gatekeeper. You only need to do this once.
+> **First launch:** macOS will block the unsigned app. If you see "damaged and can't be opened", run this in Terminal then launch normally:
+> ```bash
+> xattr -cr "/Applications/Claude Dashboard.app"
+> ```
+> On older macOS you may instead see an "unidentified developer" warning — right-click → **Open** → **Open** bypasses that. Either way, you only need to do this once.
 
 The app automatically installs the hook and wires up `~/.claude/settings.json` on every launch — no separate setup step needed. Each new release also updates the hook automatically when you replace the app and relaunch.
 
