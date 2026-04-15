@@ -42,11 +42,20 @@ export function SessionCard({
 }: SessionCardProps) {
   const [pathCopied, setPathCopied] = useState(false);
   const [dots, setDots] = useState("");
+  const [isFlashing, setIsFlashing] = useState(false);
 
   const isDone = s.status === "done";
   const isActive = s.status === "active";
   const isWaiting =
     s.status === "waiting_permission" || s.status === "waiting_input";
+
+  // Start a one-shot flash when isNew becomes true, then clear after animation (3 × 0.7s)
+  useEffect(() => {
+    if (!isNew) return;
+    setIsFlashing(true);
+    const id = setTimeout(() => setIsFlashing(false), 2100);
+    return () => clearTimeout(id);
+  }, [isNew]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -95,7 +104,7 @@ export function SessionCard({
   };
 
   // Card border + state classes
-  const cardBorder = isNew
+  const cardBorder = isFlashing
     ? "border-[#3a8a3a] animate-flash"
     : isWaiting
       ? "border-waiting-border"

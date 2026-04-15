@@ -11,15 +11,17 @@ interface SessionListProps {
 }
 
 export function SessionList({ sessions, cardConfig, home }: SessionListProps) {
-  const prevSessionIds = useRef<Set<string>>(new Set());
+  const prevNonDoneIds = useRef<Set<string>>(new Set());
 
   const newSessionIds = new Set<string>();
   for (const s of sessions) {
-    if (s.status === 'done' && !prevSessionIds.current.has(s.sessionId)) {
+    if (s.status === 'done' && prevNonDoneIds.current.has(s.sessionId)) {
       newSessionIds.add(s.sessionId);
     }
   }
-  prevSessionIds.current = new Set(sessions.map(s => s.sessionId));
+  prevNonDoneIds.current = new Set(
+    sessions.filter(s => s.status !== 'done').map(s => s.sessionId)
+  );
 
   const handleFocus = useCallback((pid: number, termSessionId: string | null) => {
     ipcRenderer.send('focus-terminal', pid, termSessionId);

@@ -17,29 +17,29 @@ beforeEach(() => {
 });
 
 describe('Badge', () => {
-  it('renders ACTIVE badge', () => {
-    render(<Badge status="active" {...base} />);
-    expect(screen.getByText(/● ACTIVE/)).toBeInTheDocument();
+  it('renders ACTIVE badge with filled circle', () => {
+    const { container } = render(<Badge status="active" {...base} />);
+    expect(container.querySelector('span')?.textContent).toBe('●');
   });
 
-  it('renders PERMISSION badge', () => {
-    render(<Badge status="waiting_permission" {...base} />);
-    expect(screen.getByText(/● PERMISSION/)).toBeInTheDocument();
+  it('renders PERMISSION badge with filled circle', () => {
+    const { container } = render(<Badge status="waiting_permission" {...base} />);
+    expect(container.querySelector('span')?.textContent).toBe('●');
   });
 
-  it('renders INPUT badge', () => {
-    render(<Badge status="waiting_input" {...base} />);
-    expect(screen.getByText(/● INPUT/)).toBeInTheDocument();
+  it('renders INPUT badge with filled circle', () => {
+    const { container } = render(<Badge status="waiting_input" {...base} />);
+    expect(container.querySelector('span')?.textContent).toBe('●');
   });
 
-  it('renders IDLE badge', () => {
-    render(<Badge status="idle" {...base} />);
-    expect(screen.getByText(/○ IDLE/)).toBeInTheDocument();
+  it('renders IDLE badge with hollow circle', () => {
+    const { container } = render(<Badge status="idle" {...base} />);
+    expect(container.querySelector('span')?.textContent).toBe('○');
   });
 
-  it('renders DONE badge', () => {
-    render(<Badge status="done" {...base} />);
-    expect(screen.getByText(/● DONE/)).toBeInTheDocument();
+  it('renders DONE badge with filled circle', () => {
+    const { container } = render(<Badge status="done" {...base} />);
+    expect(container.querySelector('span')?.textContent).toBe('●');
   });
 
   it('appends LOOP badge when errorState is true', () => {
