@@ -320,7 +320,6 @@ app.whenReady().then(() => {
   }
 
   const doResize = (win?: BrowserWindow) => {
-    MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700;
     const target = win ?? popover;
     if (!target || target.isDestroyed()) return;
     const isPopover = target === popover;
@@ -373,6 +372,7 @@ app.whenReady().then(() => {
     };
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
+    MAX_HEIGHT = updated.maxHeight ?? 700;
     updateTray();
     sendSessionsToPopover();
   });
@@ -414,8 +414,6 @@ app.whenReady().then(() => {
     const toArchive = all.filter(s => s.sessionId === sessionId);
     if (toArchive.length > 0) appendHistory(HISTORY_FILE, toArchive);
     writeSessions(SESSIONS_FILE, all.filter(s => s.sessionId !== sessionId));
-    // Resize after framer-motion exit animation completes (~300ms)
-    setTimeout(() => doResize(), 500);
   });
 
   ipcMain.on('open-detached-panel', () => {
@@ -454,12 +452,22 @@ app.whenReady().then(() => {
 
   const watcher = chokidar.watch([SESSIONS_FILE, CONFIG_FILE], { ignoreInitial: false });
   watcher.on('add', updateTray);
-  watcher.on('change', () => { checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
+  watcher.on('change', () => { MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700; checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
 
   updateTray();
   setInterval(refreshGitAhead, 30_000);
-  // Catch stale-session expiry (no file write occurs, so watcher never fires)
-  setInterval(() => { sendSessionsToPopover(); setTimeout(doResize, 100); }, 60_000);
+
+  // Catch changes not triggered by file writes: dead processes (idle→done) and stale expiry.
+  // Compare sessionId:status so status changes (not just adds/removes) trigger updates.
+  let lastSessionSnapshot = '';
+  setInterval(() => {
+    const snapshot = getActiveSessions().map(s => `${s.sessionId}:${s.status}`).sort().join(',');
+    if (snapshot !== lastSessionSnapshot) {
+      lastSessionSnapshot = snapshot;
+      sendSessionsToPopover();
+      setTimeout(doResize, 100);
+    }
+  }, 5_000);
 });
 
 app.on('window-all-closed', () => {

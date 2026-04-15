@@ -30,6 +30,11 @@ export function compressBranch(label: string, maxLen = 20): string {
   return compressed;
 }
 
+export function formatTokens(totalTokens: number | null): string | null {
+  if (totalTokens == null) return null;
+  return totalTokens >= 1000 ? `${Math.round(totalTokens / 1000)}k tok` : `${totalTokens} tok`;
+}
+
 export function ctxBarClass(pct: number): string {
   const base = 'h-full rounded-[2px] transition-[width] duration-300';
   if (pct >= 80) return `${base} bg-ctx-crit`;
