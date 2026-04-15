@@ -521,8 +521,8 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(gitSummary ? { gitSummary } : {}),
-      ...(gitAhead !== null ? { gitAhead } : {}),
+      gitSummary,
+      gitAhead,
     };
   } else if (event.type === 'notification') {
     const nt = (event.notificationType ?? '').toLowerCase();
