@@ -1,15 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { ipcRenderer, clipboard } from '../utils/electron';
 import { HistoryRow } from '../types';
-import { compactPath } from '../utils/format';
-
-const COPY_ICON = (
-  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2"
-    strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
-);
+import { compactPath, formatTokens } from '../utils/format';
+import { COPY_ICON } from './icons';
 
 function formatTurns(turns: number | null): string | null {
   if (turns == null || turns <= 0) return null;
@@ -19,6 +12,10 @@ function formatTurns(turns: number | null): string | null {
 function formatCost(costUsd: number | null): string | null {
   if (costUsd == null) return null;
   return `$${costUsd.toFixed(2)}`;
+}
+
+function formatTools(toolCount: number): string | null {
+  return toolCount > 0 ? `${toolCount} tools` : null;
 }
 
 function dayLabel(date: Date, today: Date): string {
@@ -75,11 +72,13 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
   const [pathCopied, setPathCopied] = useState(false);
 
   const turns = formatTurns(s.turns);
+  const tools = formatTools(s.toolCount);
   const cost = showCost ? formatCost(s.costUsd) : null;
+  const tokens = showCost ? formatTokens(s.totalTokens) : null;
   const model = shortModel(s.model);
   const prompt = s.currentTask ?? s.lastPrompt;
   const answer = s.lastMessage
-    ? s.lastMessage.length > 80 ? s.lastMessage.slice(0, 80) + '…' : s.lastMessage
+    ? s.lastMessage.length > 160 ? s.lastMessage.slice(0, 160) + '…' : s.lastMessage
     : null;
   const pathStr = compactPath(s.workingDir, home);
 
@@ -96,6 +95,8 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
       <div className="flex items-baseline gap-2.5 mb-[3px] leading-[1.4]">
         <span className="font-bold text-brighter text-[13px]">{s.dirName}</span>
         {turns && <span className="text-soft text-[13px] px-2">{turns}</span>}
+        {tools && <span className="text-faint text-[13px]">{tools}</span>}
+        {tokens && <span className="text-faint text-[13px]">{tokens}</span>}
         {cost && <span className="text-soft text-[13px]">{cost}</span>}
         {model && <span className="text-faint text-[13px]">{model}</span>}
       </div>

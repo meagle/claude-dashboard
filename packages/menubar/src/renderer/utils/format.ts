@@ -21,6 +21,20 @@ export function compactPath(workingDir: string, home: string): string {
   return [parts[0], ...parts.slice(1, -1).map(p => p.charAt(0)), parts[parts.length - 1]].join('/');
 }
 
+export function compressBranch(label: string, maxLen = 20): string {
+  if (label.length <= maxLen) return label;
+  const parts = label.split('/');
+  if (parts.length <= 1) return label;
+  const last = parts[parts.length - 1];
+  const compressed = [...parts.slice(0, -1).map(p => p.charAt(0)), last].join('/');
+  return compressed;
+}
+
+export function formatTokens(totalTokens: number | null): string | null {
+  if (totalTokens == null) return null;
+  return totalTokens >= 1000 ? `${Math.round(totalTokens / 1000)}k tok` : `${totalTokens} tok`;
+}
+
 export function ctxBarClass(pct: number): string {
   const base = 'h-full rounded-[2px] transition-[width] duration-300';
   if (pct >= 80) return `${base} bg-ctx-crit`;

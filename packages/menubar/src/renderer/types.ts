@@ -31,6 +31,8 @@ export interface SessionRow {
   completionPct: number;
   costUsd: number | null;
   turns: number | null;
+  toolCount: number;
+  totalTokens: number | null;
   model: string | null;
   contextPct: number | null;
   bashStartedAt: number | null;
@@ -69,8 +71,10 @@ export interface DashboardConfig {
     lastAction: boolean;
     compactPaths: boolean;
     cost: boolean;
+    doneFooter: boolean;
   };
   staleSessionMinutes: number;
+  maxHeight: number;
   notifications: boolean;
   notificationSound: boolean;
 }

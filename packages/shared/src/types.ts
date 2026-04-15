@@ -32,6 +32,8 @@ export interface Session {
   changedFiles: number | null;
   costUsd: number | null;
   turns: number | null;         // number of user turns in transcript
+  toolCount: number;            // total pre-tool events fired this session
+  totalTokens: number | null;   // cumulative input + output tokens across all turns
   model: string | null;
   contextPct: number | null;
   bashStartedAt: number | null; // epoch ms when a Bash tool started (for stuck detection)
@@ -60,6 +62,7 @@ export interface DashboardConfig {
     doneFooter: boolean;
   };
   staleSessionMinutes: number;
+  maxHeight: number;
   theme: 'dark' | 'light';
   notifications: boolean;
   notificationSound: boolean;
@@ -78,9 +81,10 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     subagents: true,
     lastAction: true,
     compactPaths: true,
-    doneFooter: false,
+    doneFooter: true,
   },
   staleSessionMinutes: 30,
+  maxHeight: 700,
   theme: 'dark',
   notifications: true,
   notificationSound: true,

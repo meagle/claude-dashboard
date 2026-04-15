@@ -9,6 +9,7 @@ interface SettingsPanelProps {
 
 interface FormState {
   staleMinutes: number;
+  maxHeight: number;
   gitBranch: boolean;
   changedFiles: boolean;
   subagents: boolean;
@@ -22,13 +23,14 @@ interface FormState {
 
 const DEFAULTS: FormState = {
   staleMinutes: 30,
+  maxHeight: 700,
   gitBranch: true,
   changedFiles: true,
   subagents: true,
   lastAction: true,
   compactPaths: true,
   cost: false,
-  doneFooter: false,
+  doneFooter: true,
   notifications: true,
   notificationSound: true,
 };
@@ -57,18 +59,42 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
     ipcRenderer.invoke('get-config').then((config: DashboardConfig) => {
       setForm({
         staleMinutes: config.staleSessionMinutes ?? 30,
+        maxHeight:    config.maxHeight            ?? 700,
         gitBranch:    config.columns?.gitBranch    ?? true,
         changedFiles: config.columns?.changedFiles  ?? true,
         subagents:    config.columns?.subagents     ?? true,
         lastAction:   config.columns?.lastAction    ?? true,
         compactPaths: config.columns?.compactPaths  ?? true,
         cost:         config.columns?.cost          ?? false,
-        doneFooter:   config.columns?.doneFooter    ?? false,
+        doneFooter:   config.columns?.doneFooter    ?? true,
         notifications:     config.notifications      ?? true,
         notificationSound: config.notificationSound  ?? true,
       });
     });
   }, []);
+
+  const buildPayload = (f: FormState) => ({
+    staleSessionMinutes: Math.max(5, Math.min(480, f.staleMinutes || 30)),
+    maxHeight: Math.max(300, Math.min(2400, f.maxHeight || 700)),
+    notifications: f.notifications,
+    notificationSound: f.notificationSound,
+    columns: {
+      gitBranch:    f.gitBranch,
+      changedFiles: f.changedFiles,
+      subagents:    f.subagents,
+      lastAction:   f.lastAction,
+      compactPaths: f.compactPaths,
+      cost:         f.cost,
+      doneFooter:   f.doneFooter,
+    },
+  });
+
+  // Toggle changes save immediately — no need to click Save for boolean settings
+  const setAndSave = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    ipcRenderer.invoke('save-config', buildPayload(next)).catch(() => {});
+  };
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(f => ({ ...f, [key]: value }));
@@ -76,21 +102,7 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
   const handleSave = useCallback(async () => {
     setSaveError(null);
     try {
-      const minutes = Math.max(5, Math.min(480, form.staleMinutes || 30));
-      await ipcRenderer.invoke('save-config', {
-        staleSessionMinutes: minutes,
-        notifications:      form.notifications,
-        notificationSound:  form.notificationSound,
-        columns: {
-          gitBranch:    form.gitBranch,
-          changedFiles: form.changedFiles,
-          subagents:    form.subagents,
-          lastAction:   form.lastAction,
-          compactPaths: form.compactPaths,
-          cost:         form.cost,
-          doneFooter:   form.doneFooter,
-        },
-      });
+      await ipcRenderer.invoke('save-config', buildPayload(form));
       onSave();
     } catch (e: unknown) {
       setSaveError((e as Error)?.message ?? 'Failed to save settings');
@@ -123,49 +135,68 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
         </div>
       </div>
 
+      {/* Max panel height */}
+      <div className="flex justify-between items-start py-[7px]">
+        <div>
+          <div className="text-[13px] text-bright">Max panel height</div>
+          <div className={DESC}>Panel grows to this height before scrolling (px)</div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0 ml-3">
+          <input
+            type="number"
+            id="max-height"
+            min={300}
+            max={2400}
+            value={form.maxHeight}
+            onChange={e => set('maxHeight', parseInt(e.target.value))}
+            className="w-14 bg-edge border border-line text-bright text-[13px] text-center rounded px-1 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+
       <hr className="border-line my-1" />
 
       <div className={ROW}>
         <label htmlFor="show-branch" className={LABEL}>Show git branch</label>
-        <Toggle id="show-branch" checked={form.gitBranch} onChange={v => set('gitBranch', v)} />
+        <Toggle id="show-branch" checked={form.gitBranch} onChange={v => setAndSave('gitBranch', v)} />
       </div>
       <div className={ROW}>
         <label htmlFor="show-git-summary" className={LABEL}>Show git diff summary</label>
-        <Toggle id="show-git-summary" checked={form.changedFiles} onChange={v => set('changedFiles', v)} />
+        <Toggle id="show-git-summary" checked={form.changedFiles} onChange={v => setAndSave('changedFiles', v)} />
       </div>
       <div className={ROW}>
         <label htmlFor="show-subagents" className={LABEL}>Show subagent info</label>
-        <Toggle id="show-subagents" checked={form.subagents} onChange={v => set('subagents', v)} />
+        <Toggle id="show-subagents" checked={form.subagents} onChange={v => setAndSave('subagents', v)} />
       </div>
       <div className={ROW}>
         <label htmlFor="show-model" className={LABEL}>Show model &amp; context</label>
-        <Toggle id="show-model" checked={form.lastAction} onChange={v => set('lastAction', v)} />
+        <Toggle id="show-model" checked={form.lastAction} onChange={v => setAndSave('lastAction', v)} />
       </div>
       <div className={ROW}>
         <label htmlFor="show-compact-paths" className={LABEL}>Compact paths</label>
-        <Toggle id="show-compact-paths" checked={form.compactPaths} onChange={v => set('compactPaths', v)} />
+        <Toggle id="show-compact-paths" checked={form.compactPaths} onChange={v => setAndSave('compactPaths', v)} />
       </div>
       <div className="flex justify-between items-start py-[7px]">
         <div>
           <label htmlFor="show-cost" className={LABEL}>Show session cost</label>
           <div className={DESC}>API billing only — not available on Pro or Max subscriptions</div>
         </div>
-        <Toggle id="show-cost" checked={form.cost} onChange={v => set('cost', v)} />
+        <Toggle id="show-cost" checked={form.cost} onChange={v => setAndSave('cost', v)} />
       </div>
       <div className={ROW}>
         <label htmlFor="show-done-footer" className={LABEL}>Show model &amp; context on done cards</label>
-        <Toggle id="show-done-footer" checked={form.doneFooter} onChange={v => set('doneFooter', v)} />
+        <Toggle id="show-done-footer" checked={form.doneFooter} onChange={v => setAndSave('doneFooter', v)} />
       </div>
 
       <hr className="border-line my-1" />
 
       <div className={ROW}>
         <label htmlFor="show-notifications" className={LABEL}>Notifications</label>
-        <Toggle id="show-notifications" checked={form.notifications} onChange={v => set('notifications', v)} />
+        <Toggle id="show-notifications" checked={form.notifications} onChange={v => setAndSave('notifications', v)} />
       </div>
       <div className={ROW}>
         <label htmlFor="notification-sound" className={LABEL}>Sound alerts</label>
-        <Toggle id="notification-sound" checked={form.notificationSound} onChange={v => set('notificationSound', v)} />
+        <Toggle id="notification-sound" checked={form.notificationSound} onChange={v => setAndSave('notificationSound', v)} />
       </div>
 
       <hr className="border-line my-1" />

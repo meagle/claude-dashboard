@@ -28,6 +28,8 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     changedFiles: null,
     costUsd: null,
     turns: null,
+    toolCount: 0,
+    totalTokens: null,
     model: null,
     contextPct: null,
     bashStartedAt: null,

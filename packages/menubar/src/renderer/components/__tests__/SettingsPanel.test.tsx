@@ -29,7 +29,7 @@ describe('SettingsPanel', () => {
   it('populates form from config on mount', async () => {
     render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} />);
     await waitFor(() => {
-      expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('30');
+      expect((document.getElementById('stale-minutes') as HTMLInputElement).value).toBe('30');
     });
   });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { elapsedStr, agoStr, compactPath, ctxBarClass } from './format';
+import { elapsedStr, agoStr, compactPath, compressBranch, ctxBarClass } from './format';
 
 describe('elapsedStr', () => {
   it('shows 0m for less than a minute', () => {
@@ -62,6 +62,30 @@ describe('compactPath', () => {
 
   it('leaves non-home paths unchanged', () => {
     expect(compactPath('/var/log/app', home)).toBe('/var/log/app');
+  });
+});
+
+describe('compressBranch', () => {
+  it('leaves short labels unchanged', () => {
+    expect(compressBranch('main')).toBe('main');
+    expect(compressBranch('feature/short')).toBe('feature/short');
+  });
+
+  it('compresses prefix segments when label exceeds maxLen', () => {
+    expect(compressBranch('feature/card-layout-polish')).toBe('f/card-layout-polish');
+  });
+
+  it('compresses multiple prefix segments', () => {
+    expect(compressBranch('feat/some/long/branch-name')).toBe('f/s/l/branch-name');
+  });
+
+  it('respects custom maxLen', () => {
+    expect(compressBranch('feat/short', 5)).toBe('f/short');
+    expect(compressBranch('feat/short', 20)).toBe('feat/short');
+  });
+
+  it('does not compress single-segment labels', () => {
+    expect(compressBranch('this-is-a-very-long-branch-name')).toBe('this-is-a-very-long-branch-name');
   });
 });
 

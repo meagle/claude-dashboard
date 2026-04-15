@@ -133,25 +133,43 @@ function updateTray() {
   tray.setToolTip(sessions.length > 0 ? `Claude Sessions: ${sessions.length}` : 'Claude Dashboard');
 }
 
-async function resizeToContent(maxHeight: number, onHeight: (h: number) => void) {
-  if (!popover || popover.isDestroyed()) return;
+async function resizeToContent(win: BrowserWindow, maxHeight: number, onHeight: (h: number) => void) {
+  if (!win || win.isDestroyed()) return;
   try {
-    const h = await popover.webContents.executeJavaScript(
+    // Returns [height, isSettings] — settings is never capped by maxHeight
+    const [h, isSettings] = await win.webContents.executeJavaScript(
       '(function(){' +
       '  var hdr = document.getElementById("header");' +
       '  var sp  = document.getElementById("settings-panel");' +
       '  var hp  = document.getElementById("history-panel");' +
       '  var ses = document.getElementById("sessions");' +
       '  var hh  = hdr ? hdr.offsetHeight : 0;' +
-      '  if (sp) return hh + sp.scrollHeight + 24;' +
-      '  if (hp) return hh + hp.scrollHeight + 24;' +
-      '  return hh + (ses ? ses.scrollHeight : 0) + 24;' +
+      // Settings panel has no flex-1 so scrollHeight is reliable; never cap it
+      '  if (sp) return [hh + sp.scrollHeight + 24, true];' +
+      // For sessions and history: flex-1 stretches the container to fill the window,
+      // so scrollHeight reports the window height rather than the content height.
+      // Sum children directly: gap-4 (16px) for history, gap-1.5 (6px) for sessions,
+      // plus py-1.5 top+bottom padding (12px) for both.
+      '  function contentH(el, gap) {' +
+      '    if (!el) return 0;' +
+      '    var kids = el.children, h = 12, c = 0;' +
+      '    for (var i = 0; i < kids.length; i++) {' +
+      '      var pos = getComputedStyle(kids[i]).position;' +
+      '      if (pos === "absolute" || pos === "fixed") continue;' +
+      '      h += kids[i].offsetHeight + (c > 0 ? gap : 0);' +
+      '      c++;' +
+      '    }' +
+      '    return h;' +
+      '  }' +
+      '  if (hp) return [hh + contentH(hp, 16) + 24, false];' +
+      '  return [hh + contentH(ses, 6) + 24, false];' +
       '})()'
     );
-    const clamped = Math.max(120, Math.min(Math.ceil(h), maxHeight));
+    const cap = isSettings ? 2400 : maxHeight;
+    const clamped = Math.max(120, Math.min(Math.ceil(h), cap));
     onHeight(clamped);
-    const [width] = popover.getSize();
-    popover.setSize(width, clamped);
+    const [width] = win.getSize();
+    win.setSize(width, clamped);
   } catch { /* ignore if popover not ready */ }
 }
 
@@ -257,7 +275,7 @@ function buildSessionsPayload() {
       showModel:      config.columns.lastAction,
       compactPaths:   config.columns.compactPaths ?? true,
       showCost:       config.columns.cost ?? false,
-      showDoneFooter: config.columns.doneFooter ?? false,
+      showDoneFooter: config.columns.doneFooter ?? true,
     },
     home: os.homedir(),
   };
@@ -283,7 +301,7 @@ app.whenReady().then(() => {
     ]));
   });
 
-  const MAX_HEIGHT = 700;
+  let MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700;
   let cachedHeight = MAX_HEIGHT;
 
   popover = new BrowserWindow({
@@ -301,7 +319,12 @@ app.whenReady().then(() => {
     popover.loadFile(path.join(__dirname, 'index.html'));
   }
 
-  const doResize = () => resizeToContent(MAX_HEIGHT, (h) => { cachedHeight = h; });
+  const doResize = (win?: BrowserWindow) => {
+    const target = win ?? popover;
+    if (!target || target.isDestroyed()) return;
+    const isPopover = target === popover;
+    resizeToContent(target, MAX_HEIGHT, (h) => { if (isPopover) cachedHeight = h; });
+  };
 
   // Render sessions as soon as the popover is ready so cachedHeight is known before first click
   popover.webContents.on('did-finish-load', async () => {
@@ -349,6 +372,7 @@ app.whenReady().then(() => {
     };
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
+    MAX_HEIGHT = updated.maxHeight ?? 700;
     updateTray();
     sendSessionsToPopover();
   });
@@ -380,7 +404,10 @@ app.whenReady().then(() => {
     app.quit();
   });
 
-  ipcMain.on('resize-to-fit', () => { setTimeout(doResize, 50); });
+  ipcMain.on('resize-to-fit', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;
+    setTimeout(() => doResize(win), 50);
+  });
 
   ipcMain.on('dismiss-session', (_event, sessionId: string) => {
     const all = readSessions(SESSIONS_FILE);
@@ -396,7 +423,7 @@ app.whenReady().then(() => {
     }
     detachedPanel = new BrowserWindow({
       width: 720,
-      height: 600,
+      height: MAX_HEIGHT,
       minWidth: 685,
       minHeight: 200,
       show: true,
@@ -425,10 +452,22 @@ app.whenReady().then(() => {
 
   const watcher = chokidar.watch([SESSIONS_FILE, CONFIG_FILE], { ignoreInitial: false });
   watcher.on('add', updateTray);
-  watcher.on('change', () => { checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
+  watcher.on('change', () => { MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700; checkNotifications(); updateTray(); sendSessionsToPopover(); setTimeout(doResize, 100); });
 
   updateTray();
   setInterval(refreshGitAhead, 30_000);
+
+  // Catch changes not triggered by file writes: dead processes (idle→done) and stale expiry.
+  // Compare sessionId:status so status changes (not just adds/removes) trigger updates.
+  let lastSessionSnapshot = '';
+  setInterval(() => {
+    const snapshot = getActiveSessions().map(s => `${s.sessionId}:${s.status}`).sort().join(',');
+    if (snapshot !== lastSessionSnapshot) {
+      lastSessionSnapshot = snapshot;
+      sendSessionsToPopover();
+      setTimeout(doResize, 100);
+    }
+  }, 5_000);
 });
 
 app.on('window-all-closed', () => {
