@@ -82,12 +82,7 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 > **First launch:** macOS will block an unsigned app. Right-click → **Open** → **Open** to bypass Gatekeeper. You only need to do this once.
 
-After launching, run the hook installer to wire up Claude Code:
-```bash
-curl -fsSL https://raw.githubusercontent.com/meagle/claude-dashboard/master/scripts/install-hook.sh | bash
-```
-
-> _Don't have `curl`? See [manual hook installation](#manual-hook-installation) below._
+The app automatically installs the hook and wires up `~/.claude/settings.json` on every launch — no separate setup step needed. Each new release also updates the hook automatically when you replace the app and relaunch.
 
 ## Installation from source
 

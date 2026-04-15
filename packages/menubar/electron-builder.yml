@@ -22,6 +22,10 @@ files:
   - "!dist/**/*.map"
   - package.json
 
+extraResources:
+  - from: "../hook/dist/hook.js"
+    to: "hook.js"
+
 directories:
   buildResources: build
   output: release

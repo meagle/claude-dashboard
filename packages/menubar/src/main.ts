@@ -8,9 +8,66 @@ import { readSessions, writeSessions, pruneStaleSessions, appendHistory, readHis
 import { focusTerminal } from './focusTerminal';
 import { getTrayLabel } from './trayIcon';
 
-const SESSIONS_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
-const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
-const HISTORY_FILE  = path.join(os.homedir(), '.config', 'claude-dashboard', 'history.json');
+const DASHBOARD_DIR  = path.join(os.homedir(), '.config', 'claude-dashboard');
+const SESSIONS_FILE  = path.join(DASHBOARD_DIR, 'sessions.json');
+const CONFIG_FILE    = path.join(DASHBOARD_DIR, 'config.json');
+const HISTORY_FILE   = path.join(DASHBOARD_DIR, 'history.json');
+const HOOK_DEST      = path.join(DASHBOARD_DIR, 'hook.js');
+const SETTINGS_FILE  = path.join(os.homedir(), '.claude', 'settings.json');
+
+function installHook(): void {
+  try {
+    // Locate the bundled hook.js — next to the executable when packaged, in the
+    // hook package dist/ when running from source.
+    const bundledHook = app.isPackaged
+      ? path.join(process.resourcesPath, 'hook.js')
+      : path.join(__dirname, '../../hook/dist/hook.js');
+
+    if (!fs.existsSync(bundledHook)) return;
+
+    // Always overwrite — ensures a new DMG release delivers the updated hook.
+    fs.mkdirSync(DASHBOARD_DIR, { recursive: true });
+    fs.copyFileSync(bundledHook, HOOK_DEST);
+
+    // Patch ~/.claude/settings.json idempotently.
+    if (!fs.existsSync(SETTINGS_FILE)) {
+      fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+      fs.writeFileSync(SETTINGS_FILE, '{}');
+    }
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    settings.hooks = settings.hooks ?? {};
+
+    function mergeHook(event: string, arg: string) {
+      const entry = {
+        matcher: '',
+        hooks: [{ type: 'command', command: `node ~/.config/claude-dashboard/hook.js ${arg}` }],
+      };
+      const existing: unknown[] = settings.hooks[event] ?? [];
+      settings.hooks[event] = [
+        ...existing.filter((h: unknown) => {
+          const hook = h as Record<string, unknown>;
+          if (typeof hook.command === 'string' && hook.command.includes('dashboard/hook.js')) return false;
+          if (Array.isArray(hook.hooks) && hook.hooks.some((i: unknown) => {
+            const item = i as Record<string, unknown>;
+            return typeof item.command === 'string' && item.command.includes('dashboard/hook.js');
+          })) return false;
+          return true;
+        }),
+        entry,
+      ];
+    }
+
+    mergeHook('UserPromptSubmit', 'user-prompt');
+    mergeHook('PreToolUse',       'pre-tool');
+    mergeHook('PostToolUse',      'post-tool');
+    mergeHook('Stop',             'stop');
+    mergeHook('Notification',     'notification');
+
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+  } catch {
+    // Non-fatal — dashboard still works, user just won't receive hook events.
+  }
+}
 
 const isDev = process.env.NODE_ENV === 'development' || !fs.existsSync(path.join(__dirname, 'index.html'));
 
@@ -213,6 +270,8 @@ function sendSessionsToPopover() {
 }
 
 app.whenReady().then(() => {
+  installHook();
+
   // Hide from dock — this is a menu bar only app
   if (app.dock) app.dock.hide();
 
