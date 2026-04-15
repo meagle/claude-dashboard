@@ -51,6 +51,7 @@ function Toggle({ id, checked, onChange }: { id: string; checked: boolean; onCha
 export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
 
   useEffect(() => {
     ipcRenderer.invoke('get-config').then((config: DashboardConfig) => {
@@ -178,6 +179,37 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
       >
         Save
       </button>
+
+      <hr className="border-line mt-3 mb-2" />
+
+      {!confirmUninstall ? (
+        <button
+          onClick={() => setConfirmUninstall(true)}
+          className="w-full py-1.5 bg-transparent text-[#888] text-[12px] rounded cursor-pointer border border-line hover:border-[#e06060] hover:text-[#e06060] transition-colors duration-150"
+        >
+          Uninstall Claude Dashboard…
+        </button>
+      ) : (
+        <div className="rounded border border-[#e06060] px-3 py-2.5">
+          <div className="text-[12px] text-[#e06060] mb-2">
+            This will remove the hooks from <span className="font-mono">~/.claude/settings.json</span> and quit. Then drag Claude Dashboard from /Applications to the Trash.
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => ipcRenderer.invoke('uninstall')}
+              className="flex-1 py-1 bg-[#e06060] text-base text-[12px] font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
+            >
+              Confirm Uninstall
+            </button>
+            <button
+              onClick={() => setConfirmUninstall(false)}
+              className="flex-1 py-1 bg-transparent text-soft text-[12px] rounded cursor-pointer border border-line hover:border-soft transition-colors duration-150"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

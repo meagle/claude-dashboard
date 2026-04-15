@@ -68,14 +68,30 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 ## Requirements
 
-- Node.js 18+
 - macOS
 - Claude Code installed
+- Node.js 18+ _(source install only)_
 
-## Installation
+## Download
+
+**[Download the latest release →](https://github.com/meagle/claude-dashboard/releases/latest)**
+
+1. Download `Claude Dashboard-x.x.x-arm64.dmg`
+2. Open the DMG and drag **Claude Dashboard** to `/Applications`
+3. Launch Claude Dashboard from `/Applications`
+
+> **First launch:** macOS will block the unsigned app. If you see "damaged and can't be opened", run this in Terminal then launch normally:
+> ```bash
+> xattr -cr "/Applications/Claude Dashboard.app"
+> ```
+> On older macOS you may instead see an "unidentified developer" warning — right-click → **Open** → **Open** bypasses that. Either way, you only need to do this once.
+
+The app automatically installs the hook and wires up `~/.claude/settings.json` on every launch — no separate setup step needed. Each new release also updates the hook automatically when you replace the app and relaunch.
+
+## Installation from source
 
 ```bash
-git clone <this-repo> claude-dashboard
+git clone https://github.com/meagle/claude-dashboard claude-dashboard
 cd claude-dashboard
 bash scripts/install.sh
 ```

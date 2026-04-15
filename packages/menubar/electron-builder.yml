@@ -1,6 +1,7 @@
 appId: com.meagle.claude-dashboard
 productName: Claude Dashboard
 copyright: Copyright © 2026
+electronVersion: "30.5.1"
 
 mac:
   category: public.app-category.developer-tools
@@ -20,6 +21,10 @@ files:
   - dist/**/*
   - "!dist/**/*.map"
   - package.json
+
+extraResources:
+  - from: "../hook/dist/hook.js"
+    to: "hook.js"
 
 directories:
   buildResources: build
