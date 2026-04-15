@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeGuid, focusTerminal } from '../focusTerminal';
+import { sanitizeGuid, focusTerminal, findParentApp } from '../focusTerminal';
 
 describe('sanitizeGuid', () => {
   it('extracts the part after the colon', () => {
@@ -29,6 +29,16 @@ describe('sanitizeGuid', () => {
 
   it('preserves allowed characters: alphanumeric, hyphen, underscore', () => {
     expect(sanitizeGuid('ABC-123_xyz')).toBe('ABC-123_xyz');
+  });
+});
+
+describe('findParentApp', () => {
+  it('returns null for pid 0', () => {
+    expect(findParentApp(0)).toBeNull();
+  });
+
+  it('returns null for a nonsense pid', () => {
+    expect(findParentApp(999999999)).toBeNull();
   });
 });
 
