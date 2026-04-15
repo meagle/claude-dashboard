@@ -27,15 +27,5 @@ export function Badge({
     badge = <span className="shrink-0 text-2xl leading-none text-badge-idle">○</span>;
   }
 
-  return (
-    <>
-      {badge}
-      {errorState && (
-        <span className="font-bold text-badge-loop">
-          {" "}
-          LOOP{loopTool ? ` 🔧 ${loopTool} ×${loopCount}` : ""}
-        </span>
-      )}
-    </>
-  );
+  return <>{badge}</>;
 }

@@ -68,7 +68,10 @@ describe('SessionCard — done', () => {
 describe('SessionCard — active', () => {
   it('does not show dismiss button', () => {
     renderCard({ status: 'active' });
-    expect(screen.queryByTitle('Dismiss')).not.toBeInTheDocument();
+    // Button is always rendered for layout consistency but invisible on non-done cards
+    const btn = screen.queryByTitle('Dismiss');
+    expect(btn).toBeInTheDocument();
+    expect(btn!.className).toContain('invisible');
   });
 
   it('shows current tool as stream row', () => {
@@ -129,14 +132,14 @@ describe('SessionCard — copy path', () => {
     const { onCopyPath } = renderCard({
       workingDir: '/Users/alice/code/myproject',
     });
-    fireEvent.click(screen.getByTitle('Click to copy full path'));
+    fireEvent.click(screen.getByTitle('Copy: /Users/alice/code/myproject'));
     expect(onCopyPath).toHaveBeenCalledWith('/Users/alice/code/myproject');
   });
 
-  it('shows "copied!" flash after clicking path', async () => {
+  it('shows ✓ flash after clicking copy icon', async () => {
     renderCard({ workingDir: '/Users/alice/code/myproject' });
-    fireEvent.click(screen.getByTitle('Click to copy full path'));
-    expect(screen.getByText('copied!')).toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('Copy: /Users/alice/code/myproject'));
+    expect(screen.getByText('✓')).toBeInTheDocument();
   });
 });
 

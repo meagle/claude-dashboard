@@ -1,5 +1,18 @@
 import React from 'react';
 
+const CLOCK_ICON = (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
+    <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
+  </svg>
+);
+
+const HOME_ICON = (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6-.707.707L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.063-.354-6-6zM8 2.707l5 5V13.5a.5.5 0 0 1-.5.5H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4H3.5a.5.5 0 0 1-.5-.5V7.707l5-5z"/>
+  </svg>
+);
+
 const PIN_ICON = (
   <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
     <path d="M9.828.722a.5.5 0 0 1 .354.146l4.95 4.95a.5.5 0 0 1 0 .707c-.48.48-1.072.588-1.503.588-.177 0-.335-.018-.46-.039l-3.134 3.134a5.927 5.927 0 0 1 .16 1.013c.046.702-.032 1.687-.72 2.375a.5.5 0 0 1-.707 0l-2.829-2.828-3.182 3.182c-.195.195-1.219.902-1.414.707-.195-.195.512-1.22.707-1.414l3.182-3.182-2.828-2.829a.5.5 0 0 1 0-.707c.688-.688 1.673-.767 2.375-.72a5.922 5.922 0 0 1 1.013.16l3.134-3.133a2.772 2.772 0 0 1-.04-.461c0-.43.108-1.022.589-1.503a.5.5 0 0 1 .353-.146z" />
@@ -49,7 +62,7 @@ export function Header({
           className={`${BTN} ${isHistoryOpen ? 'text-accent' : 'hover:text-bright'}`}
           onClick={onHistoryToggle}
         >
-          {isHistoryOpen ? '🏠' : '🕐'}
+          {isHistoryOpen ? HOME_ICON : CLOCK_ICON}
         </button>
         <button
           title="Settings"

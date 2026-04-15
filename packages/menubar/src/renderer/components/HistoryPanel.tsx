@@ -21,6 +21,15 @@ function formatCost(costUsd: number | null): string | null {
   return `$${costUsd.toFixed(2)}`;
 }
 
+function formatTools(toolCount: number): string | null {
+  return toolCount > 0 ? `${toolCount} tools` : null;
+}
+
+function formatTokens(totalTokens: number | null): string | null {
+  if (totalTokens == null) return null;
+  return totalTokens >= 1000 ? `${Math.round(totalTokens / 1000)}k tok` : `${totalTokens} tok`;
+}
+
 function dayLabel(date: Date, today: Date): string {
   const todayStr = today.toDateString();
   const yesterday = new Date(today);
@@ -75,11 +84,13 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
   const [pathCopied, setPathCopied] = useState(false);
 
   const turns = formatTurns(s.turns);
+  const tools = formatTools(s.toolCount);
   const cost = showCost ? formatCost(s.costUsd) : null;
+  const tokens = showCost ? formatTokens(s.totalTokens) : null;
   const model = shortModel(s.model);
   const prompt = s.currentTask ?? s.lastPrompt;
   const answer = s.lastMessage
-    ? s.lastMessage.length > 80 ? s.lastMessage.slice(0, 80) + '…' : s.lastMessage
+    ? s.lastMessage.length > 160 ? s.lastMessage.slice(0, 160) + '…' : s.lastMessage
     : null;
   const pathStr = compactPath(s.workingDir, home);
 
@@ -96,6 +107,8 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
       <div className="flex items-baseline gap-2.5 mb-[3px] leading-[1.4]">
         <span className="font-bold text-brighter text-[13px]">{s.dirName}</span>
         {turns && <span className="text-soft text-[13px] px-2">{turns}</span>}
+        {tools && <span className="text-faint text-[13px]">{tools}</span>}
+        {tokens && <span className="text-faint text-[13px]">{tokens}</span>}
         {cost && <span className="text-soft text-[13px]">{cost}</span>}
         {model && <span className="text-faint text-[13px]">{model}</span>}
       </div>

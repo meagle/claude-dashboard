@@ -23,6 +23,8 @@ export function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
     completionPct: 0,
     costUsd: null,
     turns: null,
+    toolCount: 0,
+    totalTokens: null,
     model: null,
     contextPct: null,
     bashStartedAt: null,

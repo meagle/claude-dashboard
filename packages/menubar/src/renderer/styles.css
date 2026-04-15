@@ -36,8 +36,8 @@
   /* Badge text */
   --color-badge-active: #3fb950;
   --color-badge-waiting: #d97706;
-  --color-badge-done: #555555;
-  --color-badge-idle: #444444;
+  --color-badge-done: #888888;
+  --color-badge-idle: #777777;
   --color-badge-loop: #c75050;
 
   /* Model badge */

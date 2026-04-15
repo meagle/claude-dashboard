@@ -16,6 +16,22 @@ const os     = require('os');
 const { spawn } = require('child_process');
 
 const SESSIONS_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
+const CONFIG_FILE   = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
+
+// Suppress notifications for the duration of the demo
+let configBackup = null;
+try { configBackup = fs.readFileSync(CONFIG_FILE, 'utf8'); } catch {}
+try {
+  const cfg = configBackup ? JSON.parse(configBackup) : {};
+  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ ...cfg, notifications: false, notificationSound: false }, null, 2));
+} catch {}
+
+function restoreConfig() {
+  try {
+    if (configBackup !== null) fs.writeFileSync(CONFIG_FILE, configBackup);
+    else fs.unlinkSync(CONFIG_FILE);
+  } catch {}
+}
 
 // Spawn background processes with "claude" in the script path so isAlive() passes
 const WORKER_SCRIPT = '/tmp/claude-dashboard-demo-worker.js';
@@ -63,10 +79,13 @@ function session(overrides) {
     changedFiles:   null,
     costUsd:        null,
     turns:          1,
+    toolCount:      overrides.toolCount   ?? 0,
+    totalTokens:    overrides.totalTokens ?? null,
     model:          overrides.model ?? 'Sonnet 4.6',
     contextPct:     overrides.contextPct ?? 18,
     bashStartedAt:  null,
     gitSummary:     overrides.gitSummary ?? null,
+    gitAhead:       overrides.gitAhead   ?? null,
     transcriptPath: null,
     partialResponse: null,
     errorState:     false,
@@ -99,6 +118,7 @@ async function run() {
     workers.forEach(w => w.kill());
     if (backup !== null) fs.writeFileSync(SESSIONS_FILE, backup);
     else try { fs.unlinkSync(SESSIONS_FILE); } catch {}
+    restoreConfig();
     console.log('\n✅  Demo stopped. Sessions restored.');
     process.exit(0);
   });
@@ -115,7 +135,7 @@ async function run() {
       { id: 't3', subject: 'Update tests',                 status: 'pending' },
     ],
     gitSummary: '4 files +82 -31',
-    contextPct: 22, age: 90_000, turnAge: 12_000,
+    contextPct: 22, age: 90_000, turnAge: 12_000, toolCount: 14,
     extra: { currentTool: 'Read', lastToolSummary: 'packages/hook/src/hook.ts' },
   });
   write([s1]);
@@ -128,7 +148,7 @@ async function run() {
     prompt: 'Add rate limiting middleware to all endpoints',
     task: 'Add rate limiting middleware',
     gitSummary: '2 files +44 -3',
-    contextPct: 11, age: 45_000, turnAge: 8_000,
+    contextPct: 11, age: 45_000, turnAge: 8_000, toolCount: 7,
     extra: { currentTool: 'Bash', lastToolSummary: 'npm test -- --grep rate' },
   });
   write([s1, s2]);
@@ -141,7 +161,7 @@ async function run() {
     prompt: 'Migrate Stripe integration to v2 API',
     task: 'Migrate Stripe integration to v2',
     gitSummary: '7 files +210 -88',
-    contextPct: 35, age: 20_000, turnAge: 4_000,
+    contextPct: 35, age: 20_000, turnAge: 4_000, toolCount: 4,
     extra: {
       currentTool: 'WebFetch',
       lastToolSummary: 'https://stripe.com/docs/api/v2',
@@ -186,6 +206,7 @@ async function run() {
     turnStartedAt: Date.now(),
     lastActivity: Date.now(),
     contextPct: 28,
+    toolCount: 22,
     tasks: [
       { id: 't1', subject: 'Read existing hook code',      status: 'completed' },
       { id: 't2', subject: 'Add streaming response field', status: 'completed' },
@@ -205,6 +226,9 @@ async function run() {
     lastMessage: 'Migration complete. All Stripe v2 endpoints wired up and tested.',
     lastActivity: Date.now(),
     gitSummary: '9 files +287 -102',
+    gitAhead: 3,
+    toolCount: 19,
+    totalTokens: 84000,
   };
   write([s1_resume, s2_input, s3_done]);
   await sleep(2500);
@@ -220,6 +244,8 @@ async function run() {
     costUsd: 0.0312,
     turns: 8,
     contextPct: 31,
+    toolCount: 31,
+    totalTokens: 142000,
     tasks: [
       { id: 't1', subject: 'Read existing hook code',      status: 'completed' },
       { id: 't2', subject: 'Add streaming response field', status: 'completed' },
@@ -240,6 +266,8 @@ async function run() {
     costUsd: 0.0189,
     turns: 5,
     contextPct: 14,
+    toolCount: 12,
+    totalTokens: 51000,
     gitSummary: '3 files +61 -3',
   };
   write([s1_done, s2_done, s3_done]);
@@ -248,10 +276,21 @@ async function run() {
   // Clear all cards
   write([]);
   workers.forEach(w => w.kill());
-  // Restore original sessions
   if (backup !== null) fs.writeFileSync(SESSIONS_FILE, backup);
   else try { fs.unlinkSync(SESSIONS_FILE); } catch {}
+  restoreConfig();
   console.log('\n🎬  Done — stop recording!');
+  console.log(`
+To convert your recording to a GIF with ffmpeg:
+
+  # High quality, 800px wide, 20fps
+  ffmpeg -i input.mov -vf "fps=20,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=256[p];[s1][p]paletteuse=dither=bayer" -loop 0 output.gif
+
+  # Smaller file size (~400px wide, 15fps)
+  ffmpeg -i input.mov -vf "fps=15,scale=400:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer" -loop 0 output-small.gif
+
+Replace "input.mov" with your actual recording filename.
+`);
 }
 
 run().catch(console.error);

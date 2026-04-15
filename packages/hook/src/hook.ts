@@ -123,6 +123,7 @@ interface TranscriptStats {
   contextPct: number | null;
   turns: number | null;
   costUsd: number | null;
+  totalTokens: number | null;
 }
 
 function readLastAssistantStats(transcriptPath: string): TranscriptStats {
@@ -136,6 +137,7 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
     let contextPct: number | null = null;
     let turns = 0;
     let costUsd = 0;
+    let cumulativeTokens = 0;
     let foundAssistant = false;
 
     for (let i = lines.length - 1; i >= 0; i--) {
@@ -149,26 +151,37 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
             for (const block of blocks) {
               if (block?.type === 'text' && typeof block.text === 'string') {
                 const t = block.text.trim().replace(/\s+/g, ' ');
-                text = t.length > 120 ? t.slice(0, 120) + '…' : t;
+                text = t.length > 240 ? t.slice(0, 240) + '…' : t;
                 break;
               }
             }
           }
           const modelId: string | null = typeof msg?.model === 'string' ? msg.model : null;
           const u = msg?.usage ?? {};
-          const totalTokens =
+          const lastTurnTokens =
             (typeof u.input_tokens                === 'number' ? u.input_tokens                : 0) +
             (typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0) +
             (typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0);
-          contextPct = modelId && totalTokens > 0
-            ? Math.min(100, Math.round((totalTokens / modelContextWindow(modelId)) * 100))
+          contextPct = modelId && lastTurnTokens > 0
+            ? Math.min(100, Math.round((lastTurnTokens / modelContextWindow(modelId)) * 100))
             : null;
           model = modelId ? modelDisplayName(modelId) : null;
         }
-        // Count turns and accumulate cost over entire transcript
-        if (entry.type === 'user') turns++;
+        // Count turns: only actual user text messages, not tool_result entries
+        // (tool results are also stored as type:'user' in the transcript)
+        if (entry.type === 'user') {
+          const content = entry.message?.content;
+          const isUserText = Array.isArray(content)
+            ? content.some((b: unknown) => (b as Record<string, unknown>)?.type === 'text')
+            : typeof content === 'string' && content.length > 0;
+          if (isUserText) turns++;
+        }
         if (entry.type === 'assistant' && entry.message?.usage && entry.message?.model) {
           costUsd += calcTurnCost(entry.message.usage as Record<string, unknown>, entry.message.model as string);
+          const u = entry.message.usage as Record<string, unknown>;
+          cumulativeTokens +=
+            (typeof u.input_tokens  === 'number' ? u.input_tokens  : 0) +
+            (typeof u.output_tokens === 'number' ? u.output_tokens : 0);
         }
       } catch { /* malformed line, skip */ }
     }
@@ -179,9 +192,10 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
       contextPct,
       turns: turns > 0 ? turns : null,
       costUsd: costUsd > 0 ? Math.round(costUsd * 10000) / 10000 : null,
+      totalTokens: cumulativeTokens > 0 ? cumulativeTokens : null,
     };
   } catch { /* file unreadable */ }
-  return { text: null, model: null, contextPct: null, turns: null, costUsd: null };
+  return { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
 }
 
 // The transcript may be written concurrently with the Stop hook firing.
@@ -197,7 +211,7 @@ function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
     }
   }
-  return { text: null, model: null, contextPct: null, turns: null, costUsd: null };
+  return { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
 }
 
 function toolSummary(toolName: string, input: Record<string, unknown>): string | null {
@@ -299,7 +313,7 @@ function readPartialResponse(transcriptPath: string): string | null {
             for (const block of blocks) {
               if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
                 const t = block.text.trim().replace(/\s+/g, ' ');
-                return t.length > 120 ? t.slice(0, 120) + '…' : t;
+                return t.length > 240 ? t.slice(0, 240) + '…' : t;
               }
             }
           }
@@ -336,6 +350,8 @@ function makeNewSession(event: { sessionId: string; pid: number; termSessionId: 
     changedFiles: null,
     costUsd: null,
     turns: null,
+    toolCount: 0,
+    totalTokens: null,
     model: null,
     contextPct: null,
     bashStartedAt: null,
@@ -380,7 +396,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // so read it here to capture the previous turn's response + model/context/cost stats.
     const stats = event.transcriptPath
       ? readLastAssistantStats(event.transcriptPath)
-      : { text: null, model: null, contextPct: null, turns: null, costUsd: null };
+      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
     // Refresh branch/worktree on each turn in case session was created before worktree was set up
     const freshBranch   = getGitBranch(event.workingDir);
     const freshWorktree = getWorktreeName(event.workingDir);
@@ -400,6 +416,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       ...(stats.contextPct !== null ? { contextPct: stats.contextPct } : {}),
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
+      ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
     };
   } else if (event.type === 'pre-tool') {
     let loopTool = session.loopTool;
@@ -411,7 +428,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       loopCount = 1;
     }
     const newErrorState = loopCount >= LOOP_THRESHOLD ? true : session.errorState;
-    session = { ...session, loopTool, loopCount, errorState: newErrorState };
+    session = { ...session, loopTool, loopCount, errorState: newErrorState, toolCount: session.toolCount + 1 };
 
     // Read partial assistant text from transcript (what Claude wrote before calling this tool).
     // Ignore if it matches lastMessage — that means the transcript hasn't been updated yet
@@ -488,7 +505,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
   } else if (event.type === 'stop') {
     const stats = event.transcriptPath
       ? readLastAssistantStatsWithRetry(event.transcriptPath, session.lastMessage)
-      : { text: null, model: null, contextPct: null, turns: null, costUsd: null };
+      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
     const gitSummary = getGitSummary(event.workingDir);
     const gitAhead = getGitAhead(event.workingDir);
     session = {
@@ -503,6 +520,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       ...(stats.contextPct !== null ? { contextPct: stats.contextPct } : {}),
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
+      ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
       ...(gitSummary ? { gitSummary } : {}),
       ...(gitAhead !== null ? { gitAhead } : {}),
     };
