@@ -355,6 +355,31 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-history', () => readHistory(HISTORY_FILE));
 
+  ipcMain.handle('uninstall', () => {
+    try {
+      if (fs.existsSync(SETTINGS_FILE)) {
+        const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+        if (settings.hooks) {
+          for (const event of Object.keys(settings.hooks)) {
+            settings.hooks[event] = (settings.hooks[event] as unknown[]).filter((h: unknown) => {
+              const hook = h as Record<string, unknown>;
+              if (typeof hook.command === 'string' && hook.command.includes('dashboard/hook.js')) return false;
+              if (Array.isArray(hook.hooks) && hook.hooks.some((i: unknown) => {
+                const item = i as Record<string, unknown>;
+                return typeof item.command === 'string' && item.command.includes('dashboard/hook.js');
+              })) return false;
+              return true;
+            });
+            if ((settings.hooks[event] as unknown[]).length === 0) delete settings.hooks[event];
+          }
+          if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+        }
+        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+      }
+    } catch { }
+    app.quit();
+  });
+
   ipcMain.on('resize-to-fit', () => { setTimeout(doResize, 50); });
 
   ipcMain.on('dismiss-session', (_event, sessionId: string) => {
