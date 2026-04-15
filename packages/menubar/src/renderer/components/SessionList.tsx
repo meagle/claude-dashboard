@@ -1,4 +1,5 @@
 import React, { useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ipcRenderer, clipboard } from '../utils/electron';
 import { SessionRow, CardConfig } from '../types';
 import { SessionCard } from './SessionCard';
@@ -37,19 +38,27 @@ export function SessionList({ sessions, cardConfig, home }: SessionListProps) {
   }
 
   return (
-    <>
-      {sessions.map((session, idx) => (
-        <SessionCard
+    <AnimatePresence mode="popLayout" initial={false}>
+      {sessions.map((session) => (
+        <motion.div
           key={session.sessionId}
-          session={session}
-          cardConfig={cardConfig}
-          home={home}
-          isNew={newSessionIds.has(session.sessionId)}
-          onFocus={handleFocus}
-          onDismiss={handleDismiss}
-          onCopyPath={handleCopyPath}
-        />
+          layout
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10, transition: { duration: 0.3 } }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+        >
+          <SessionCard
+            session={session}
+            cardConfig={cardConfig}
+            home={home}
+            isNew={newSessionIds.has(session.sessionId)}
+            onFocus={handleFocus}
+            onDismiss={handleDismiss}
+            onCopyPath={handleCopyPath}
+          />
+        </motion.div>
       ))}
-    </>
+    </AnimatePresence>
   );
 }
