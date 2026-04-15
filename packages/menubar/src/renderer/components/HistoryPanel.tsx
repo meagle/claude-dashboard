@@ -38,10 +38,10 @@ interface DayGroup {
 
 function groupByDay(sessions: HistoryRow[], showCost: boolean): DayGroup[] {
   const today = new Date();
-  const sorted = [...sessions].sort((a, b) => b.startedAt - a.startedAt);
+  const sorted = [...sessions].sort((a, b) => b.lastActivity - a.lastActivity);
   const map = new Map<string, HistoryRow[]>();
   for (const s of sorted) {
-    const date = new Date(s.startedAt);
+    const date = new Date(s.lastActivity);
     const key = date.toDateString();
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(s);
