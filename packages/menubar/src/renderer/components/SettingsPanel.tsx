@@ -192,7 +192,7 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
       ) : (
         <div className="rounded border border-[#e06060] px-3 py-2.5">
           <div className="text-[12px] text-[#e06060] mb-2">
-            This will remove the hooks from <span className="font-mono">~/.claude/settings.json</span> and quit.
+            This will remove the hooks from <span className="font-mono">~/.claude/settings.json</span> and quit. Then drag Claude Dashboard from /Applications to the Trash.
           </div>
           <div className="flex gap-2">
             <button
