@@ -15,6 +15,7 @@
     "@claude-dashboard/shared": "*",
     "@tailwindcss/vite": "^4.2.2",
     "chokidar": "^3.6.0",
+    "framer-motion": "^12.38.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwindcss": "^4.2.2"
