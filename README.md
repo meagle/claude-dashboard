@@ -60,7 +60,9 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 **Worktree indicator:** When Claude is running inside a [git worktree](https://git-scm.com/docs/git-worktree) (including sessions spawned by Claude Code's Agent tool with `isolation: "worktree"`), a 🌿 icon appears after the branch name on the card — e.g. `main 🌿 stripe-v2`. The worktree name is the directory basename of the linked worktree.
 
-**Loop detection:** If the same tool fires 5+ times in a row with no task state change, the session is flagged with a `LOOP` badge.
+**Loop detection:** If the same tool fires 5+ times in a row with no task state change, the card shows `↳ 🔧 ToolName ×N loop` in the tool row.
+
+**Task list progress:** When Claude uses the `TodoWrite`/`TodoRead` tools to manage a task list, the card shows a progress row — e.g. `Tasks: ✅ 2  🔄 1  ⏳ 1` — reflecting completed, in-progress, and pending items. This updates live as Claude works through the list.
 
 **Session history:** When a session expires past the stale timeout, it is archived to `~/.config/claude-dashboard/history.json` before being removed from the dashboard. The history panel (`🕐` button) shows the last 30 days grouped by day, with per-day session count and cost totals.
 

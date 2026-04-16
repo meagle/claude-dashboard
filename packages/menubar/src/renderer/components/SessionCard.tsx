@@ -178,8 +178,8 @@ export function SessionCard({
               ? <span key="git" className="text-git text-sm whitespace-nowrap">git {gitLabel}</span>
               : <span key="git" className="text-fainter text-sm whitespace-nowrap">no changes</span>
           ) : null,
-          s.turns != null && s.turns > 0 ? <span key="turns" className="text-faint text-sm whitespace-nowrap">{s.turns} turns</span> : null,
           s.toolCount > 0               ? <span key="tools" className="text-faint text-sm whitespace-nowrap">{s.toolCount} tools</span> : null,
+          s.turns != null && s.turns > 0 ? <span key="turns" className="text-faint text-sm whitespace-nowrap">{s.turns} turns</span> : null,
         ].filter(Boolean) as React.ReactNode[];
         return row2Items.length > 0 ? (
           <div className={`flex items-baseline justify-between mt-3 mb-3 ${INDENT}`}>

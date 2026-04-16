@@ -50,20 +50,24 @@
   --color-ctx-track: #252525;
 
   /* Flash-complete animation (newly-done card) */
-  --animate-flash: flash-complete 0.7s ease 3;
+  --animate-flash: flash-complete 2.1s ease forwards;
 
   @keyframes flash-complete {
     0% {
       border-color: #3a8a3a;
       box-shadow: 0 0 8px rgba(58, 138, 58, 0.5);
     }
-    50% {
+    20% {
       border-color: #5cb85c;
       box-shadow: 0 0 14px rgba(92, 184, 92, 0.8);
     }
-    100% {
+    60% {
       border-color: #3a8a3a;
       box-shadow: 0 0 8px rgba(58, 138, 58, 0.5);
+    }
+    100% {
+      border-color: #252525;
+      box-shadow: none;
     }
   }
 }
