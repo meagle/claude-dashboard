@@ -48,3 +48,34 @@ describe('SessionList', () => {
     expect(card!.className).toContain('animate-flash');
   });
 });
+
+describe('SessionList compact mode', () => {
+  it('renders column header row in compact mode', () => {
+    const sessions = [makeSession({ sessionId: 'a', dirName: 'alpha' })];
+    render(
+      <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" compactMode />
+    );
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Project')).toBeInTheDocument();
+    expect(screen.getByText('Task')).toBeInTheDocument();
+    expect(screen.getByText('Tool')).toBeInTheDocument();
+    expect(screen.getByText('Progress')).toBeInTheDocument();
+  });
+
+  it('renders dirName and status label in compact mode', () => {
+    const sessions = [makeSession({ sessionId: 'a', dirName: 'my-project', status: 'active' })];
+    render(
+      <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" compactMode />
+    );
+    expect(screen.getByText('my-project')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+  });
+
+  it('does not render data-session cards in compact mode', () => {
+    const sessions = [makeSession({ sessionId: 'a', dirName: 'alpha' })];
+    const { container } = render(
+      <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" compactMode />
+    );
+    expect(container.querySelectorAll('[data-session]')).toHaveLength(0);
+  });
+});

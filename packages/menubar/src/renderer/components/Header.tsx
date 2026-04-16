@@ -39,15 +39,29 @@ const POPOUT_ICON = (
   </svg>
 );
 
+const LIST_ICON = (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+  </svg>
+);
+
+const CARD_ICON = (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h11A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-11A1.5 1.5 0 0 1 1 5.5v-3zm1 0v3a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-11a.5.5 0 0 0-.5.5zm-1 7A1.5 1.5 0 0 1 2.5 8h11A1.5 1.5 0 0 1 15 9.5v3A1.5 1.5 0 0 1 13.5 14h-11A1.5 1.5 0 0 1 1 12.5v-3zm1 0v3a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-3a.5.5 0 0 0-.5-.5h-11a.5.5 0 0 0-.5.5z"/>
+  </svg>
+);
+
 const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150 focus:outline-none';
 
 interface HeaderProps {
   isDetached: boolean;
   isSettingsOpen: boolean;
   isHistoryOpen: boolean;
+  isCompact: boolean;
   alwaysOnTop: boolean;
   onSettingsToggle: () => void;
   onHistoryToggle: () => void;
+  onCompactToggle: () => void;
   onPopout: () => void;
   onPinToggle: () => void;
   onClose: () => void;
@@ -57,9 +71,11 @@ export function Header({
   isDetached,
   isSettingsOpen,
   isHistoryOpen,
+  isCompact,
   alwaysOnTop,
   onSettingsToggle,
   onHistoryToggle,
+  onCompactToggle,
   onPopout,
   onPinToggle,
   onClose,
@@ -77,6 +93,13 @@ export function Header({
             {POPOUT_ICON}
           </button>
         )}
+        <button
+          title={isCompact ? 'Switch to card view' : 'Switch to compact view'}
+          className={`${BTN} ${isCompact ? 'text-accent' : 'hover:text-bright'}`}
+          onClick={onCompactToggle}
+        >
+          {isCompact ? CARD_ICON : LIST_ICON}
+        </button>
         <button
           title={isHistoryOpen ? 'Back to sessions' : 'Session history'}
           className={`${BTN} ${isHistoryOpen ? 'text-accent' : 'hover:text-bright'}`}

@@ -58,6 +58,9 @@ export function App() {
   const { sessions, cardConfig, home } = useSessions();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [compactMode, setCompactMode] = useState(
+    () => localStorage.getItem('compactMode') === 'true'
+  );
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
   const isDetached = window.location.hash === "#detached";
 
@@ -96,6 +99,17 @@ export function App() {
     setSettingsOpen(false);
   };
 
+  const handleCompactToggle = () => setCompactMode((o) => {
+    const next = !o;
+    localStorage.setItem('compactMode', String(next));
+    ipcRenderer.send('set-compact-mode', next);
+    return next;
+  });
+
+  useEffect(() => {
+    ipcRenderer.send('set-compact-mode', compactMode);
+  }, []);
+
   const handlePopout = () => ipcRenderer.send("open-detached-panel");
 
   const handlePinToggle = async () => {
@@ -112,9 +126,11 @@ export function App() {
         isDetached={isDetached}
         isSettingsOpen={settingsOpen}
         isHistoryOpen={historyOpen}
+        isCompact={compactMode}
         alwaysOnTop={alwaysOnTop}
         onSettingsToggle={handleSettingsToggle}
         onHistoryToggle={handleHistoryToggle}
+        onCompactToggle={handleCompactToggle}
         onPopout={handlePopout}
         onPinToggle={handlePinToggle}
         onClose={handleClose}
@@ -133,12 +149,13 @@ export function App() {
       ) : (
         <div
           id="sessions"
-          className="flex flex-col gap-1.5 px-2 py-1.5 overflow-y-auto flex-1 min-h-0"
+          className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${compactMode ? 'overflow-x-hidden' : 'gap-1.5 px-2 py-1.5'}`}
         >
           <SessionList
             sessions={sessions}
             cardConfig={cardConfig}
             home={home}
+            compactMode={compactMode}
           />
         </div>
       )}

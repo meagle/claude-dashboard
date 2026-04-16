@@ -8,6 +8,9 @@ import { readSessions, writeSessions, pruneStaleSessions, appendHistory, readHis
 import { focusTerminal } from './focusTerminal';
 import { getTrayLabel } from './trayIcon';
 
+const MIN_WIDTH_CARD    = 835;
+const MIN_WIDTH_COMPACT = 630;
+let currentMinWidth     = MIN_WIDTH_CARD;
 const DASHBOARD_DIR  = path.join(os.homedir(), '.config', 'claude-dashboard');
 const SESSIONS_FILE  = path.join(DASHBOARD_DIR, 'sessions.json');
 const CONFIG_FILE    = path.join(DASHBOARD_DIR, 'config.json');
@@ -169,7 +172,7 @@ async function resizeToContent(win: BrowserWindow, maxHeight: number, onHeight: 
     const clamped = Math.max(120, Math.min(Math.ceil(h), cap));
     onHeight(clamped);
     const [width] = win.getSize();
-    win.setSize(width, clamped);
+    win.setSize(Math.max(width, currentMinWidth), clamped);
   } catch { /* ignore if popover not ready */ }
 }
 
@@ -328,8 +331,9 @@ app.whenReady().then(() => {
   let cachedHeight = MAX_HEIGHT;
 
   popover = new BrowserWindow({
-    width: 700,
+    width: currentMinWidth,
     height: MAX_HEIGHT,
+    minWidth: currentMinWidth,
     show: false,
     frame: false,
     resizable: true,
@@ -341,6 +345,10 @@ app.whenReady().then(() => {
   } else {
     popover.loadFile(path.join(__dirname, 'index.html'));
   }
+
+  popover.on('will-resize', (event, newBounds) => {
+    if (newBounds.width < currentMinWidth) event.preventDefault();
+  });
 
   const doResize = (win?: BrowserWindow) => {
     const target = win ?? popover;
@@ -445,9 +453,9 @@ app.whenReady().then(() => {
       return;
     }
     detachedPanel = new BrowserWindow({
-      width: 720,
+      width: currentMinWidth,
       height: MAX_HEIGHT,
-      minWidth: 685,
+      minWidth: currentMinWidth,
       minHeight: 200,
       show: true,
       frame: false,
@@ -460,6 +468,9 @@ app.whenReady().then(() => {
     } else {
       detachedPanel.loadFile(path.join(__dirname, 'index.html'), { hash: 'detached' });
     }
+    detachedPanel.on('will-resize', (event, newBounds) => {
+      if (newBounds.width < currentMinWidth) event.preventDefault();
+    });
     detachedPanel.webContents.on('did-finish-load', () => {
       if (detachedPanel && !detachedPanel.isDestroyed()) {
         detachedPanel.webContents.send('sessions-update', buildSessionsPayload());
@@ -471,6 +482,14 @@ app.whenReady().then(() => {
   ipcMain.handle('set-always-on-top', (event, value: boolean) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     win?.setAlwaysOnTop(value);
+  });
+
+  ipcMain.on('set-compact-mode', (_event, compact: boolean) => {
+    currentMinWidth = compact ? MIN_WIDTH_COMPACT : MIN_WIDTH_CARD;
+    popover?.setMinimumSize(currentMinWidth, 200);
+    if (detachedPanel && !detachedPanel.isDestroyed()) {
+      detachedPanel.setMinimumSize(currentMinWidth, 200);
+    }
   });
 
   // Debounced git refresh: coalesce rapid chokidar ticks into one git query

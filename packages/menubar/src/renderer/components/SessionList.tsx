@@ -3,14 +3,16 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ipcRenderer, clipboard } from '../utils/electron';
 import { SessionRow, CardConfig } from '../types';
 import { SessionCard } from './SessionCard';
+import { CompactSessionRow } from './CompactSessionRow';
 
 interface SessionListProps {
   sessions: SessionRow[];
   cardConfig: CardConfig;
   home: string;
+  compactMode?: boolean;
 }
 
-export function SessionList({ sessions, cardConfig, home }: SessionListProps) {
+export function SessionList({ sessions, cardConfig, home, compactMode = false }: SessionListProps) {
   const prevNonDoneIds = useRef<Set<string>>(new Set());
 
   const newSessionIds = new Set<string>();
@@ -37,6 +39,32 @@ export function SessionList({ sessions, cardConfig, home }: SessionListProps) {
 
   if (sessions.length === 0) {
     return <div className="text-faint text-[13px] text-center py-8">No active Claude sessions</div>;
+  }
+
+  if (compactMode) {
+    return (
+      <div className="flex flex-col">
+        <div
+          className="grid items-center gap-2 px-3 py-1 border-b border-edge text-fainter text-[11px] uppercase tracking-wider bg-base shrink-0"
+          style={{ gridTemplateColumns: '20px 130px 1fr 65px 80px' }}
+        >
+          <span></span>
+          <span>Project</span>
+          <span>Task</span>
+          <span>Context %</span>
+          <span>Time</span>
+        </div>
+        {sessions.map((session) => (
+          <CompactSessionRow
+            key={session.sessionId}
+            session={session}
+            cardConfig={cardConfig}
+            home={home}
+            onFocus={handleFocus}
+          />
+        ))}
+      </div>
+    );
   }
 
   return (
