@@ -181,7 +181,11 @@ export function SessionCard({
               {compressBranch(branchLabel)}
             </span>
           ) : null,
-          gitLabel    ? <span key="git"    className="text-git text-sm whitespace-nowrap">git {gitLabel}</span> : null,
+          cfg.showGitSummary ? (
+            gitLabel
+              ? <span key="git" className="text-git text-sm whitespace-nowrap">git {gitLabel}</span>
+              : <span key="git" className="text-fainter text-sm whitespace-nowrap">no changes</span>
+          ) : null,
           s.turns != null && s.turns > 0 ? <span key="turns" className="text-faint text-sm whitespace-nowrap">{s.turns} turns</span> : null,
           s.toolCount > 0               ? <span key="tools" className="text-faint text-sm whitespace-nowrap">{s.toolCount} tools</span> : null,
         ].filter(Boolean) as React.ReactNode[];
