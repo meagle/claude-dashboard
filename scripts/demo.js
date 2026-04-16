@@ -156,7 +156,7 @@ async function run() {
     id: 1,
     dir: "claude-dashboard",
     branch: "master",
-    prompt: "Refactor the hook to support streaming responses",
+    prompt: "Refactor the hook to support streaming responses — the current implementation buffers the full response before writing to sessions.json, which means the card doesn't update until the turn completes",
     task: "Refactor hook to support streaming",
     tasks: [
       { id: "t1", subject: "Read existing hook code", status: "completed" },
@@ -186,7 +186,7 @@ async function run() {
     id: 2,
     dir: "api-service",
     branch: "feature/auth",
-    prompt: "Add rate limiting middleware to all endpoints",
+    prompt: "Add rate limiting middleware to all endpoints — use a sliding window algorithm, 100 req/min per IP, return 429 with Retry-After header",
     task: "Add rate limiting middleware",
     gitSummary: "2 files +44 -3",
     contextPct: 11,
@@ -205,7 +205,7 @@ async function run() {
     dir: "payments-service",
     branch: "main",
     worktree: "stripe-v2",
-    prompt: "Migrate Stripe integration to v2 API",
+    prompt: "Migrate Stripe integration to v2 API — update all payment intents, refunds, and webhook handlers. Make sure we handle the new idempotency key format",
     task: "Migrate Stripe integration to v2",
     gitSummary: "7 files +210 -88",
     contextPct: 35,
@@ -216,7 +216,7 @@ async function run() {
       currentTool: "WebFetch",
       lastToolSummary: "https://stripe.com/docs/api/v2",
       partialResponse:
-        "The Stripe v2 API uses a different authentication flow…",
+        "The Stripe v2 API uses a different authentication flow. Instead of passing the secret key directly, you now create a scoped session token first. I'll update the client initialisation, then work through each endpoint — payment intents need the new confirm_at parameter, and refunds now require an explicit reason code…",
     },
   });
   write([s1, s2, s3]);
@@ -242,7 +242,7 @@ async function run() {
     status: "waiting_input",
     currentTool: null,
     lastMessage:
-      "Should I apply rate limiting to internal health-check endpoints too?",
+      "Should I apply rate limiting to internal health-check endpoints too? They're called every 30s by the load balancer so they'd burn through the 100 req/min budget pretty fast.",
     lastActivity: Date.now(),
   };
   write([s1_perm, s2_input, s3]);
@@ -296,7 +296,7 @@ async function run() {
     currentTool: null,
     partialResponse: null,
     lastMessage:
-      "Migration complete. All Stripe v2 endpoints wired up and tested.",
+      "Migration complete. Updated payment intents, refunds, and webhook handlers to v2. The new idempotency key format uses a UUID prefix — existing keys in the DB are still valid. All 23 integration tests passing.",
     lastActivity: Date.now(),
     gitSummary: "9 files +287 -102",
     gitAhead: 3,
@@ -312,7 +312,7 @@ async function run() {
     ...s1_resume,
     status: "done",
     currentTool: null,
-    lastMessage: "Streaming support added. All 47 tests passing.",
+    lastMessage: "Done. Added partialResponse field to Session, hook now writes it on every PostToolUse event, and clears it on Stop. The renderer polls this field to show the streaming preview. All 47 tests passing.",
     lastActivity: Date.now(),
     costUsd: 0.0312,
     turns: 8,
@@ -339,7 +339,7 @@ async function run() {
     status: "done",
     currentTool: null,
     lastMessage:
-      "Rate limiting applied to all public endpoints. Health checks excluded.",
+      "Rate limiting applied to all public endpoints using a sliding window counter in Redis. Health checks excluded via path allowlist. Added integration tests for the 429 response and Retry-After header.",
     lastActivity: Date.now(),
     costUsd: 0.0189,
     turns: 5,
