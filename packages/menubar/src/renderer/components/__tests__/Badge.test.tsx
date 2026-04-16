@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { Badge } from '../Badge';
 
 let base: { lastActivity: number };
@@ -14,34 +14,35 @@ beforeEach(() => {
 });
 
 describe('Badge', () => {
-  it('renders ACTIVE badge with filled circle', () => {
+  it('renders ACTIVE badge with filled SVG circle', () => {
     const { container } = render(<Badge status="active" {...base} />);
-    expect(container.querySelector('span')?.textContent).toBe('●');
+    expect(container.querySelector('circle')).not.toBeNull();
+    expect(container.querySelector('circle')?.getAttribute('fill')).toBe('currentColor');
   });
 
-  it('renders PERMISSION badge with filled circle', () => {
+  it('renders PERMISSION badge with filled SVG circle', () => {
     const { container } = render(<Badge status="waiting_permission" {...base} />);
-    expect(container.querySelector('span')?.textContent).toBe('●');
+    expect(container.querySelector('circle')?.getAttribute('fill')).toBe('currentColor');
   });
 
-  it('renders INPUT badge with filled circle', () => {
+  it('renders INPUT badge with filled SVG circle', () => {
     const { container } = render(<Badge status="waiting_input" {...base} />);
-    expect(container.querySelector('span')?.textContent).toBe('●');
+    expect(container.querySelector('circle')?.getAttribute('fill')).toBe('currentColor');
   });
 
-  it('renders IDLE badge with hollow circle', () => {
+  it('renders IDLE badge with hollow SVG circle', () => {
     const { container } = render(<Badge status="idle" {...base} />);
-    expect(container.querySelector('span')?.textContent).toBe('○');
+    expect(container.querySelector('circle')?.getAttribute('fill')).toBe('none');
   });
 
-  it('renders DONE badge with filled circle', () => {
+  it('renders DONE badge with filled SVG circle', () => {
     const { container } = render(<Badge status="done" {...base} />);
-    expect(container.querySelector('span')?.textContent).toBe('●');
+    expect(container.querySelector('circle')?.getAttribute('fill')).toBe('currentColor');
   });
 
   it('renders only the circle (LOOP is rendered by SessionCard, not Badge)', () => {
     const { container } = render(<Badge status="active" {...base} />);
-    expect(container.querySelector('span')?.textContent).toBe('●');
+    expect(container.querySelector('circle')).not.toBeNull();
     expect(container.textContent).not.toContain('LOOP');
   });
 });
