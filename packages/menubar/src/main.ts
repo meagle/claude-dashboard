@@ -298,6 +298,7 @@ function buildSessionsPayload() {
       compactPaths:   config.columns.compactPaths ?? true,
       showCost:       config.columns.cost ?? false,
       showDoneFooter: config.columns.doneFooter ?? true,
+      theme:          config.theme ?? 'light',
     },
     home: os.homedir(),
   };

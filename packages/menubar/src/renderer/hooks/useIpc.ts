@@ -15,6 +15,8 @@ const DEFAULT_CARD_CONFIG: CardConfig = {
   showModel: true,
   compactPaths: true,
   showCost: false,
+  showDoneFooter: true,
+  theme: 'light',
 };
 
 export function useSessions(): SessionsPayload {

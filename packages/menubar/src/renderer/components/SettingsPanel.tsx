@@ -5,11 +5,13 @@ import { DashboardConfig } from '../types';
 interface SettingsPanelProps {
   onSave: () => void;
   onCancel: () => void;
+  onThemeChange: (theme: 'light' | 'dark') => void;
 }
 
 interface FormState {
   staleMinutes: number;
   maxHeight: number;
+  theme: 'light' | 'dark';
   gitBranch: boolean;
   changedFiles: boolean;
   subagents: boolean;
@@ -24,6 +26,7 @@ interface FormState {
 const DEFAULTS: FormState = {
   staleMinutes: 30,
   maxHeight: 700,
+  theme: 'light',
   gitBranch: true,
   changedFiles: true,
   subagents: true,
@@ -50,7 +53,7 @@ function Toggle({ id, checked, onChange }: { id: string; checked: boolean; onCha
   );
 }
 
-export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
+export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanelProps) {
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmUninstall, setConfirmUninstall] = useState(false);
@@ -60,6 +63,7 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
       setForm({
         staleMinutes: config.staleSessionMinutes ?? 30,
         maxHeight:    config.maxHeight            ?? 700,
+        theme:        config.theme               ?? 'light',
         gitBranch:    config.columns?.gitBranch    ?? true,
         changedFiles: config.columns?.changedFiles  ?? true,
         subagents:    config.columns?.subagents     ?? true,
@@ -76,6 +80,7 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
   const buildPayload = (f: FormState) => ({
     staleSessionMinutes: Math.max(5, Math.min(480, f.staleMinutes || 30)),
     maxHeight: Math.max(300, Math.min(2400, f.maxHeight || 700)),
+    theme: f.theme,
     notifications: f.notifications,
     notificationSound: f.notificationSound,
     columns: {
@@ -151,6 +156,26 @@ export function SettingsPanel({ onSave, onCancel }: SettingsPanelProps) {
             onChange={e => set('maxHeight', parseInt(e.target.value))}
             className="w-14 bg-edge border border-line text-bright text-[13px] text-center rounded px-1 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:border-accent"
           />
+        </div>
+      </div>
+
+      {/* Theme */}
+      <div className="flex justify-between items-center py-[7px]">
+        <div className="text-[13px] text-bright">Theme</div>
+        <div className="flex rounded overflow-hidden border border-line shrink-0">
+          {(['light', 'dark'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => { setAndSave('theme', t); onThemeChange(t); }}
+              className={`px-3 py-0.5 text-[12px] cursor-pointer border-none transition-colors duration-150 ${
+                form.theme === t
+                  ? 'bg-accent text-base font-bold'
+                  : 'bg-edge text-soft hover:text-bright'
+              }`}
+            >
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 

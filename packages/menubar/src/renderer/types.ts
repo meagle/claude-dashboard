@@ -61,6 +61,7 @@ export interface CardConfig {
   compactPaths: boolean;
   showCost: boolean;
   showDoneFooter: boolean;
+  theme: 'light' | 'dark';
 }
 
 export interface DashboardConfig {

@@ -63,7 +63,7 @@ export interface DashboardConfig {
   };
   staleSessionMinutes: number;
   maxHeight: number;
-  theme: 'dark' | 'light';
+  theme: 'light' | 'dark';
   notifications: boolean;
   notificationSound: boolean;
 }
@@ -85,7 +85,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
   },
   staleSessionMinutes: 30,
   maxHeight: 700,
-  theme: 'dark',
+  theme: 'light',
   notifications: true,
   notificationSound: true,
 };

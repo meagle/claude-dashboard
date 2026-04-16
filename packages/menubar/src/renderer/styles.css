@@ -5,20 +5,20 @@
   --font-mono: "Menlo", "Monaco", "Courier New", monospace;
 
   /* Background / surface */
-  --color-base: #141414;
-  --color-surface: #1e1e1e;
-  --color-line: #252525;
-  --color-edge: #2a2a2a;
+  --color-base: #1e1e1e;
+  --color-surface: #303030;
+  --color-line: #3a3a3a;
+  --color-edge: #474747;
 
   /* Text */
-  --color-body: #d4d4d4;
-  --color-bright: #e0e0e0;
-  --color-brighter: #e8e8e8;
-  --color-soft: #888888;
-  --color-dim: #777777;
-  --color-faint: #555555;
-  --color-fainter: #444444;
-  --color-path: #7a7a7a;
+  --color-body: #e2e2e2;
+  --color-bright: #ebebeb;
+  --color-brighter: #f2f2f2;
+  --color-soft: #aaaaaa;
+  --color-dim: #999999;
+  --color-faint: #808080;
+  --color-fainter: #6a6a6a;
+  --color-path: #888888;
 
   /* Accent */
   --color-accent: #5acce0;
@@ -47,7 +47,7 @@
   --color-ctx-fill: #2a6a2a;
   --color-ctx-warn: #7a4a00;
   --color-ctx-crit: #7a1a1a;
-  --color-ctx-track: #252525;
+  --color-ctx-track: #3a3a3a;
 
   /* Flash-complete animation (newly-done card) */
   --animate-flash: flash-complete 2.1s ease forwards;
@@ -66,11 +66,12 @@
       box-shadow: 0 0 8px rgba(58, 138, 58, 0.5);
     }
     100% {
-      border-color: #252525;
+      border-color: var(--color-line);
       box-shadow: none;
     }
   }
 }
+
 
 @layer base {
   *,

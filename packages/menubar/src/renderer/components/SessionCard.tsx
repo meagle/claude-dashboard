@@ -112,7 +112,7 @@ export function SessionCard({
           ? "border-line"
           : "border-edge";
 
-  const cardCls = `border rounded-md px-[11px] pt-2 pb-[7px] cursor-pointer transition-colors duration-150 hover:bg-surface ${cardBorder}`;
+  const cardCls = `border rounded-md px-[11px] pt-2 pb-[7px] cursor-pointer bg-surface transition-colors duration-150 hover:brightness-110 ${cardBorder}`;
 
   // Indent for sub-rows — matches badge wrapper width (w-6) + gap-2
   const INDENT = "pl-8 pr-5";

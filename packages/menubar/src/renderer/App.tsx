@@ -6,12 +6,65 @@ import { SessionList } from './components/SessionList';
 import { SettingsPanel } from './components/SettingsPanel';
 import { HistoryPanel } from './components/HistoryPanel';
 
+export function applyTheme(theme: 'light' | 'dark') {
+  let styleEl = document.getElementById('theme-vars') as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = 'theme-vars';
+    document.head.appendChild(styleEl);
+  }
+  if (theme === 'dark') {
+    styleEl.textContent = `
+      :root, :host {
+        --color-base: #141414;
+        --color-surface: #141414;
+        --color-line: #252525;
+        --color-edge: #2a2a2a;
+        --color-body: #d4d4d4;
+        --color-bright: #e0e0e0;
+        --color-brighter: #e8e8e8;
+        --color-soft: #888888;
+        --color-dim: #777777;
+        --color-faint: #555555;
+        --color-fainter: #444444;
+        --color-path: #7a7a7a;
+        --color-ctx-track: #252525;
+        --color-accent: #5acce0;
+        --color-active-border: #238636;
+        --color-waiting-border: #b45309;
+        --color-branch: #4a8a4a;
+        --color-git: #7a7a7a;
+        --color-tool: #9a5dc0;
+        --color-alert: #c07800;
+        --color-badge-active: #3fb950;
+        --color-badge-waiting: #d97706;
+        --color-badge-done: #888888;
+        --color-badge-idle: #777777;
+        --color-badge-loop: #c75050;
+        --color-model-bg: #0a3a42;
+        --color-ctx-fill: #2a6a2a;
+        --color-ctx-warn: #7a4a00;
+        --color-ctx-crit: #7a1a1a;
+      }
+    `;
+  } else {
+    styleEl.textContent = '';
+  }
+}
+
 export function App() {
   const { sessions, cardConfig, home } = useSessions();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
   const isDetached = window.location.hash === '#detached';
+
+  // Apply saved theme on mount
+  useEffect(() => {
+    ipcRenderer.invoke('get-config').then((cfg: { theme?: string }) => {
+      applyTheme((cfg.theme ?? 'light') as 'light' | 'dark');
+    });
+  }, []);
 
   // Resize the window to fit content after every render
   const frameRef = useRef<number | null>(null);
@@ -68,6 +121,7 @@ export function App() {
         <SettingsPanel
           onSave={() => { setSettingsOpen(false); ipcRenderer.send('resize-to-fit'); }}
           onCancel={() => setSettingsOpen(false)}
+          onThemeChange={applyTheme}
         />
       ) : historyOpen ? (
         <HistoryPanel showCost={cardConfig.showCost} home={home} />
