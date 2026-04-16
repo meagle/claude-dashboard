@@ -151,7 +151,7 @@ async function run() {
   });
 
   // ── Step 1: First session appears ──────────────────────────────────────────
-  console.log("Step 1/9 — First session starts (active)");
+  console.log("Step 1/10 — First session starts (active)");
   const s1 = session({
     id: 1,
     dir: "claude-dashboard",
@@ -181,7 +181,7 @@ async function run() {
   await sleep(2500);
 
   // ── Step 2: Second session appears ─────────────────────────────────────────
-  console.log("Step 2/9 — Second session starts (active)");
+  console.log("Step 2/10 — Second session starts (active)");
   const s2 = session({
     id: 2,
     dir: "api-service",
@@ -199,7 +199,7 @@ async function run() {
   await sleep(2500);
 
   // ── Step 3: Worktree session appears ───────────────────────────────────────
-  console.log("Step 3/9 — Worktree session appears");
+  console.log("Step 3/10 — Worktree session appears");
   const s3 = session({
     id: 3,
     dir: "payments-service",
@@ -223,7 +223,7 @@ async function run() {
   await sleep(2500);
 
   // ── Step 4: Session 1 hits a permission dialog ─────────────────────────────
-  console.log("Step 4/9 — Session 1 waiting for permission");
+  console.log("Step 4/10 — Session 1 waiting for permission");
   const s1_perm = {
     ...s1,
     status: "waiting_permission",
@@ -236,7 +236,7 @@ async function run() {
   await sleep(3000);
 
   // ── Step 5: Session 2 asks a question ──────────────────────────────────────
-  console.log("Step 5/9 — Session 2 waiting for input");
+  console.log("Step 5/10 — Session 2 waiting for input");
   const s2_input = {
     ...s2,
     status: "waiting_input",
@@ -249,7 +249,7 @@ async function run() {
   await sleep(3000);
 
   // ── Step 6: Session 1 resumes (permission granted) ─────────────────────────
-  console.log("Step 6/9 — Session 1 resumes after permission granted");
+  console.log("Step 6/10 — Session 1 resumes after permission granted");
   const s1_resume = {
     ...s1,
     status: "active",
@@ -272,8 +272,24 @@ async function run() {
   write([s1_resume, s2_input, s3]);
   await sleep(2500);
 
-  // ── Step 7: Worktree session finishes ──────────────────────────────────────
-  console.log("Step 7/9 — Worktree session done");
+  // ── Step 7: Session 3 enters a loop ───────────────────────────────────────
+  console.log("Step 7/10 — Session 3 stuck in loop");
+  const s3_loop = {
+    ...s3,
+    status: "active",
+    currentTool: "Bash",
+    lastToolSummary: "stripe-v2/migrate.sh",
+    errorState: true,
+    loopTool: "Bash",
+    loopCount: 4,
+    lastActivity: Date.now(),
+    toolCount: 14,
+  };
+  write([s1_resume, s2_input, s3_loop]);
+  await sleep(3000);
+
+  // ── Step 8: Worktree session recovers and finishes ─────────────────────────
+  console.log("Step 8/10 — Worktree session done");
   const s3_done = {
     ...s3,
     status: "done",
@@ -291,7 +307,7 @@ async function run() {
   await sleep(2500);
 
   // ── Step 8: Session 1 finishes ─────────────────────────────────────────────
-  console.log("Step 8/9 — Session 1 done");
+  console.log("Step 9/10 — Session 1 done");
   const s1_done = {
     ...s1_resume,
     status: "done",
@@ -317,7 +333,7 @@ async function run() {
   await sleep(2500);
 
   // ── Step 9: Session 2 finishes ─────────────────────────────────────────────
-  console.log("Step 9/9 — Session 2 done");
+  console.log("Step 10/10 — Session 2 done");
   const s2_done = {
     ...s2_input,
     status: "done",
