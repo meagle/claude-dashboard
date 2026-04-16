@@ -28,7 +28,7 @@
   --color-waiting-border: #b45309;
 
   /* Semantic */
-  --color-branch: #4a8a4a;
+  --color-branch: #0ef00e;
   --color-git: #aaaaaa;
   --color-tool: #9a5dc0;
   --color-alert: #c07800;
@@ -44,10 +44,10 @@
   --color-model-bg: #0a3a42;
 
   /* Context bar */
-  --color-ctx-fill: #2a6a2a;
-  --color-ctx-warn: #7a4a00;
-  --color-ctx-crit: #7a1a1a;
-  --color-ctx-track: #3a3a3a;
+  --color-ctx-fill: #00c200;
+  --color-ctx-warn: #cc6e00;
+  --color-ctx-crit: #b50505;
+  --color-ctx-track: #888888;
 
   /* UI text sizes */
   --text-ui: 13px;
@@ -91,7 +91,6 @@
     }
   }
 }
-
 
 @layer base {
   *,
