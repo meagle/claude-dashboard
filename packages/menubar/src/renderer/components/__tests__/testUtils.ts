@@ -29,6 +29,7 @@ export function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
     contextPct: null,
     bashStartedAt: null,
     gitSummary: null,
+    gitAhead: null,
     transcriptPath: null,
     partialResponse: null,
     errorState: false,
@@ -49,4 +50,6 @@ export const defaultCardConfig: CardConfig = {
   showModel: true,
   compactPaths: true,
   showCost: false,
+  showDoneFooter: true,
+  theme: 'light',
 };

@@ -27,14 +27,14 @@ beforeEach(() => {
 
 describe('SettingsPanel', () => {
   it('populates form from config on mount', async () => {
-    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} />);
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => {
       expect((document.getElementById('stale-minutes') as HTMLInputElement).value).toBe('30');
     });
   });
 
   it('reflects config toggle states', async () => {
-    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} />);
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => {
       const subagentsToggle = screen.getByRole('checkbox', { name: /subagent/i }) as HTMLInputElement;
       expect(subagentsToggle.checked).toBe(false);
@@ -46,7 +46,7 @@ describe('SettingsPanel', () => {
       if (channel === 'get-config') return Promise.resolve(mockConfig);
       return Promise.reject(new Error('disk full'));
     });
-    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} />);
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => screen.getByText('Save'));
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => {
@@ -60,7 +60,7 @@ describe('SettingsPanel', () => {
       if (channel === 'get-config') return Promise.resolve(mockConfig);
       return Promise.reject(new Error('permission denied'));
     });
-    render(<SettingsPanel onSave={onSave} onCancel={vi.fn()} />);
+    render(<SettingsPanel onSave={onSave} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => screen.getByText('Save'));
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => screen.getByText('permission denied'));
@@ -69,7 +69,7 @@ describe('SettingsPanel', () => {
 
   it('calls save-config with updated value when toggled and saved', async () => {
     const onSave = vi.fn();
-    render(<SettingsPanel onSave={onSave} onCancel={vi.fn()} />);
+    render(<SettingsPanel onSave={onSave} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => screen.getByText('Save'));
 
     // Toggle subagents on

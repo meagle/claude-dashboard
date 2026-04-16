@@ -3,16 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { Badge } from '../Badge';
 
-let base: { lastActivity: number; errorState: boolean; loopTool: string | null; loopCount: number };
+let base: { lastActivity: number };
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-01-01T12:00:00Z'));
   base = {
     lastActivity: Date.now() - 5 * 60_000,
-    errorState: false,
-    loopTool: null,
-    loopCount: 0,
   };
 });
 
@@ -42,8 +39,8 @@ describe('Badge', () => {
     expect(container.querySelector('span')?.textContent).toBe('●');
   });
 
-  it('renders only the circle when errorState is true (LOOP is rendered by SessionCard)', () => {
-    const { container } = render(<Badge status="active" {...base} errorState={true} loopTool="Bash" loopCount={6} />);
+  it('renders only the circle (LOOP is rendered by SessionCard, not Badge)', () => {
+    const { container } = render(<Badge status="active" {...base} />);
     expect(container.querySelector('span')?.textContent).toBe('●');
     expect(container.textContent).not.toContain('LOOP');
   });

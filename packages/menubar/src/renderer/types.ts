@@ -76,6 +76,7 @@ export interface DashboardConfig {
   };
   staleSessionMinutes: number;
   maxHeight: number;
+  theme: 'light' | 'dark';
   notifications: boolean;
   notificationSound: boolean;
 }
