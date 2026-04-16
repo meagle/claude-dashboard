@@ -90,19 +90,19 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
   };
 
   return (
-    <div className="border border-line rounded-md px-[11px] pt-2 pb-[7px] opacity-75 hover:opacity-100 transition-opacity duration-150">
+    <div className="border border-line rounded-md px-3 pt-2 pb-1.75 opacity-75 hover:opacity-100 transition-opacity duration-150">
       {/* Top row: dir name + metadata */}
-      <div className="flex items-baseline gap-2.5 mb-[3px] leading-[1.4]">
-        <span className="font-bold text-brighter text-[13px]">{s.dirName}</span>
-        {turns && <span className="text-soft text-[13px] px-2">{turns}</span>}
-        {tools && <span className="text-faint text-[13px]">{tools}</span>}
-        {tokens && <span className="text-faint text-[13px]">{tokens}</span>}
-        {cost && <span className="text-soft text-[13px]">{cost}</span>}
-        {model && <span className="text-faint text-[13px]">{model}</span>}
+      <div className="flex items-baseline gap-2.5 mb-1 leading-card">
+        <span className="font-bold text-brighter text-ui">{s.dirName}</span>
+        {turns && <span className="text-soft text-ui px-2">{turns}</span>}
+        {tools && <span className="text-faint text-ui">{tools}</span>}
+        {tokens && <span className="text-faint text-ui">{tokens}</span>}
+        {cost && <span className="text-soft text-ui">{cost}</span>}
+        {model && <span className="text-faint text-ui">{model}</span>}
       </div>
       {/* Path row */}
       <div
-        className="inline-flex items-center min-w-0 pr-2 mb-[5px] cursor-pointer group/path"
+        className="inline-flex items-center min-w-0 pr-2 mb-1 cursor-pointer group/path"
         title="Click to copy full path"
         onClick={handleCopyPath}
       >
@@ -115,16 +115,16 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
       </div>
       {/* Prompt + answer */}
       {prompt && (
-        <div className="text-sm text-[#c0c0c0] mt-1 break-words">
+        <div className="text-sm text-prompt mt-1 break-words">
           📋 {prompt}
         </div>
       )}
       {answer ? (
-        <div className="text-sm text-soft break-words pl-[14px] mt-0.5">
+        <div className="text-sm text-soft break-words pl-3.5 mt-0.5">
           ↳ {answer}
         </div>
       ) : prompt ? (
-        <div className="text-sm text-git pl-[14px] mt-0.5">✅ Completed</div>
+        <div className="text-sm text-git pl-3.5 mt-0.5">✅ Completed</div>
       ) : null}
     </div>
   );

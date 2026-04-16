@@ -16,8 +16,8 @@
   --color-brighter: #f2f2f2;
   --color-soft: #aaaaaa;
   --color-dim: #999999;
-  --color-faint: #808080;
-  --color-fainter: #6a6a6a;
+  --color-faint: #aaaaaa;
+  --color-fainter: #808080;
   --color-path: #888888;
 
   /* Accent */
@@ -29,7 +29,7 @@
 
   /* Semantic */
   --color-branch: #4a8a4a;
-  --color-git: #7a7a7a;
+  --color-git: #aaaaaa;
   --color-tool: #9a5dc0;
   --color-alert: #c07800;
 
@@ -48,6 +48,26 @@
   --color-ctx-warn: #7a4a00;
   --color-ctx-crit: #7a1a1a;
   --color-ctx-track: #3a3a3a;
+
+  /* UI text sizes */
+  --text-ui: 13px;
+  --text-ui-sm: 12px;
+
+  /* Line height */
+  --line-height-card: 1.4;
+
+  /* Custom spacing */
+  --spacing-1\.25: 5px;
+  --spacing-1\.75: 7px;
+
+  /* Custom border radius */
+  --radius-badge: 3px;
+  --radius-ctx: 2px;
+
+  /* Semantic colors */
+  --color-prompt: #c0c0c0;
+  --color-danger: #e06060;
+  --color-flash-start: #3a8a3a;
 
   /* Flash-complete animation (newly-done card) */
   --animate-flash: flash-complete 2.1s ease forwards;
@@ -118,5 +138,16 @@
   body.detached #header button,
   body.detached #header span {
     -webkit-app-region: no-drag;
+  }
+}
+
+@layer utilities {
+  /* Number inputs without spin buttons */
+  .no-spinners {
+    appearance: textfield;
+  }
+  .no-spinners::-webkit-outer-spin-button,
+  .no-spinners::-webkit-inner-spin-button {
+    appearance: none;
   }
 }

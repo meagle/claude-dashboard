@@ -114,16 +114,16 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
     }
   }, [form, onSave]);
 
-  const ROW = 'flex justify-between items-center py-[7px]';
-  const LABEL = 'text-[13px] text-bright cursor-pointer';
-  const DESC = 'text-[12px] text-faint mt-0.5';
+  const ROW = 'flex justify-between items-center py-1.75';
+  const LABEL = 'text-ui text-bright cursor-pointer';
+  const DESC = 'text-ui-sm text-faint mt-0.5';
 
   return (
     <div id="settings-panel" className="px-3 pt-2 pb-3">
       {/* Stale timeout */}
-      <div className="flex justify-between items-start py-[7px]">
+      <div className="flex justify-between items-start py-1.75">
         <div>
-          <div className="text-[13px] text-bright">Stale session timeout</div>
+          <div className="text-ui text-bright">Stale session timeout</div>
           <div className={DESC}>Hide sessions with no activity after this long</div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-3">
@@ -134,16 +134,16 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
             max={480}
             value={form.staleMinutes}
             onChange={e => set('staleMinutes', parseInt(e.target.value) || 30)}
-            className="w-12 bg-edge border border-line text-bright text-[13px] text-center rounded px-1 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:border-accent"
+            className="w-12 bg-edge border border-line text-bright text-ui text-center rounded px-1 py-0.5 no-spinners focus:outline-none focus:border-accent"
           />
-          <span className="text-faint text-[13px]">min</span>
+          <span className="text-faint text-ui">min</span>
         </div>
       </div>
 
       {/* Max panel height */}
-      <div className="flex justify-between items-start py-[7px]">
+      <div className="flex justify-between items-start py-1.75">
         <div>
-          <div className="text-[13px] text-bright">Max panel height</div>
+          <div className="text-ui text-bright">Max panel height</div>
           <div className={DESC}>Panel grows to this height before scrolling (px)</div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-3">
@@ -154,20 +154,20 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
             max={2400}
             value={form.maxHeight}
             onChange={e => set('maxHeight', parseInt(e.target.value))}
-            className="w-14 bg-edge border border-line text-bright text-[13px] text-center rounded px-1 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:border-accent"
+            className="w-14 bg-edge border border-line text-bright text-ui text-center rounded px-1 py-0.5 no-spinners focus:outline-none focus:border-accent"
           />
         </div>
       </div>
 
       {/* Theme */}
-      <div className="flex justify-between items-center py-[7px]">
-        <div className="text-[13px] text-bright">Theme</div>
+      <div className="flex justify-between items-center py-1.75">
+        <div className="text-ui text-bright">Theme</div>
         <div className="flex rounded overflow-hidden border border-line shrink-0">
           {(['light', 'dark'] as const).map(t => (
             <button
               key={t}
               onClick={() => { setAndSave('theme', t); onThemeChange(t); }}
-              className={`px-3 py-0.5 text-[12px] cursor-pointer border-none transition-colors duration-150 ${
+              className={`px-3 py-0.5 text-ui-sm cursor-pointer border-none transition-colors duration-150 ${
                 form.theme === t
                   ? 'bg-accent text-base font-bold'
                   : 'bg-edge text-soft hover:text-bright'
@@ -201,7 +201,7 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
         <label htmlFor="show-compact-paths" className={LABEL}>Compact paths</label>
         <Toggle id="show-compact-paths" checked={form.compactPaths} onChange={v => setAndSave('compactPaths', v)} />
       </div>
-      <div className="flex justify-between items-start py-[7px]">
+      <div className="flex justify-between items-start py-1.75">
         <div>
           <label htmlFor="show-cost" className={LABEL}>Show session cost</label>
           <div className={DESC}>API billing only — not available on Pro or Max subscriptions</div>
@@ -227,11 +227,11 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       <hr className="border-line my-1" />
 
       {saveError && (
-        <div className="text-[12px] text-[#e06060] mt-1 mb-1">{saveError}</div>
+        <div className="text-ui-sm text-danger mt-1 mb-1">{saveError}</div>
       )}
       <button
         onClick={handleSave}
-        className="w-full mt-1.5 py-1.5 bg-accent text-base text-[13px] font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
+        className="w-full mt-1.5 py-1.5 bg-accent text-base text-ui font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
       >
         Save
       </button>
@@ -241,25 +241,25 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       {!confirmUninstall ? (
         <button
           onClick={() => setConfirmUninstall(true)}
-          className="w-full py-1.5 bg-transparent text-[#888] text-[12px] rounded cursor-pointer border border-line hover:border-[#e06060] hover:text-[#e06060] transition-colors duration-150"
+          className="w-full py-1.5 bg-transparent text-dim text-ui-sm rounded cursor-pointer border border-line hover:border-danger hover:text-danger transition-colors duration-150"
         >
           Uninstall Claude Dashboard…
         </button>
       ) : (
-        <div className="rounded border border-[#e06060] px-3 py-2.5">
-          <div className="text-[12px] text-[#e06060] mb-2">
+        <div className="rounded border border-danger px-3 py-2.5">
+          <div className="text-ui-sm text-danger mb-2">
             This will remove the hooks from <span className="font-mono">~/.claude/settings.json</span> and quit. Then drag Claude Dashboard from /Applications to the Trash.
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => ipcRenderer.invoke('uninstall')}
-              className="flex-1 py-1 bg-[#e06060] text-base text-[12px] font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
+              className="flex-1 py-1 bg-danger text-base text-ui-sm font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
             >
               Confirm Uninstall
             </button>
             <button
               onClick={() => setConfirmUninstall(false)}
-              className="flex-1 py-1 bg-transparent text-soft text-[12px] rounded cursor-pointer border border-line hover:border-soft transition-colors duration-150"
+              className="flex-1 py-1 bg-transparent text-soft text-ui-sm rounded cursor-pointer border border-line hover:border-soft transition-colors duration-150"
             >
               Cancel
             </button>

@@ -2,12 +2,25 @@ import React, { useState, useEffect } from "react";
 import { SessionRow, CardConfig } from "../types";
 import { Badge } from "./Badge";
 import { ContextBar } from "./ContextBar";
-import { elapsedStr, agoStr, compressBranch, formatTokens } from "../utils/format";
+import {
+  elapsedStr,
+  agoStr,
+  compressBranch,
+  formatTokens,
+} from "../utils/format";
 import { COPY_ICON } from "./icons";
 
 const BRANCH_ICON = (
-  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor"
-    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    viewBox="0 0 24 24"
+    width="13"
+    height="13"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <line x1="6" y1="3" x2="6" y2="15" />
     <circle cx="18" cy="6" r="3" />
     <circle cx="6" cy="18" r="3" />
@@ -89,7 +102,9 @@ export function SessionCard({
     : "";
 
   const gitParts = cfg.showGitSummary
-    ? [s.gitSummary, s.gitAhead != null ? `↑${s.gitAhead}` : null].filter(Boolean)
+    ? [s.gitSummary, s.gitAhead != null ? `↑${s.gitAhead}` : null].filter(
+        Boolean,
+      )
     : [];
   const gitLabel = gitParts.join("  ");
   const timeLabel = isDone ? agoStr(s.lastActivity) : elapsedStr(turnMs);
@@ -103,7 +118,7 @@ export function SessionCard({
 
   // Card border + state classes
   const cardBorder = isFlashing
-    ? "border-[#3a8a3a] animate-flash"
+    ? "border-flash-start animate-flash"
     : isWaiting
       ? "border-waiting-border"
       : isActive
@@ -112,7 +127,7 @@ export function SessionCard({
           ? "border-line"
           : "border-edge";
 
-  const cardCls = `border rounded-md px-[11px] pt-2 pb-[7px] cursor-pointer bg-surface transition-colors duration-150 hover:brightness-110 ${cardBorder}`;
+  const cardCls = `border rounded-md px-3 pt-2 pb-1.75 cursor-pointer bg-surface transition-colors duration-150 hover:brightness-110 ${cardBorder}`;
 
   // Indent for sub-rows — matches badge wrapper width (w-6) + gap-2
   const INDENT = "pl-8 pr-5";
@@ -120,14 +135,11 @@ export function SessionCard({
   const RESPONSE_INDENT = "pl-12 pr-5";
 
   const header = (
-    <div className="flex flex-col gap-0.5 mb-2 leading-[1.4]">
+    <div className="flex flex-col gap-0.5 mb-2 leading-card">
       {/* Top row: badge + dirname + elapsed (right-aligned) + dismiss (done) */}
       <div className="flex items-center gap-2">
         <span className="w-6 shrink-0 flex items-center">
-          <Badge
-            status={s.status}
-            lastActivity={s.lastActivity}
-          />
+          <Badge status={s.status} lastActivity={s.lastActivity} />
         </span>
         <span className="flex items-center gap-2 shrink min-w-0 overflow-hidden">
           <span className="font-bold text-brighter overflow-hidden text-ellipsis whitespace-nowrap">
@@ -138,9 +150,13 @@ export function SessionCard({
             title={`Copy: ${s.workingDir}`}
             onClick={handleCopyPath}
           >
-            {pathCopied
-              ? <span className="text-accent text-[11px] leading-none">✓</span>
-              : <span className="text-soft hover:text-accent inline-flex items-center">{COPY_ICON}</span>}
+            {pathCopied ? (
+              <span className="text-accent text-xs leading-none">✓</span>
+            ) : (
+              <span className="text-soft hover:text-accent inline-flex items-center">
+                {COPY_ICON}
+              </span>
+            )}
           </span>
         </span>
         {timeLabel && (
@@ -149,12 +165,14 @@ export function SessionCard({
               {timeLabel}
             </span>
             <span className="pointer-events-none absolute right-0 top-full mt-1 px-2 py-1 bg-surface border border-line text-soft text-[11px] whitespace-nowrap rounded opacity-0 group-hover/time:opacity-100 transition-opacity duration-150 z-10">
-              {isDone ? "Time since session completed" : "Time elapsed in current turn"}
+              {isDone
+                ? "Time since session completed"
+                : "Time elapsed in current turn"}
             </span>
           </span>
         )}
         <button
-          className={`shrink-0 bg-transparent border-none cursor-pointer text-bright text-[13px] leading-none px-0.5 pl-1.5 transition-opacity duration-150 hover:text-[#e06060] ${isDone ? 'opacity-0 group-hover:opacity-100' : 'invisible'}`}
+          className={`shrink-0 bg-transparent border-none cursor-pointer text-bright text-ui leading-none px-0.5 pl-1.5 transition-opacity duration-150 hover:text-danger ${isDone ? "opacity-0 group-hover:opacity-100" : "invisible"}`}
           title="Dismiss"
           onClick={(e) => {
             e.stopPropagation();
@@ -168,21 +186,45 @@ export function SessionCard({
       {(() => {
         const row2Items: React.ReactNode[] = [
           branchLabel ? (
-            <span key="branch" className="text-branch text-sm whitespace-nowrap flex items-center gap-0.5">
-              <span className="text-[#888888] inline-flex items-center">{BRANCH_ICON}</span>
+            <span
+              key="branch"
+              className="text-branch text-sm whitespace-nowrap flex items-center gap-0.5"
+            >
+              <span className="text-path inline-flex items-center">
+                {BRANCH_ICON}
+              </span>
               {compressBranch(branchLabel)}
             </span>
           ) : null,
           cfg.showGitSummary ? (
-            gitLabel
-              ? <span key="git" className="text-git text-sm whitespace-nowrap">git {gitLabel}</span>
-              : <span key="git" className="text-fainter text-sm whitespace-nowrap">no changes</span>
+            gitLabel ? (
+              <span key="git" className="text-git text-sm whitespace-nowrap">
+                git {gitLabel}
+              </span>
+            ) : (
+              <span
+                key="git"
+                className="text-fainter text-sm whitespace-nowrap"
+              >
+                no changes
+              </span>
+            )
           ) : null,
-          s.toolCount > 0               ? <span key="tools" className="text-faint text-sm whitespace-nowrap">{s.toolCount} tools</span> : null,
-          s.turns != null && s.turns > 0 ? <span key="turns" className="text-faint text-sm whitespace-nowrap">{s.turns} turns</span> : null,
+          s.toolCount > 0 ? (
+            <span key="tools" className="text-faint text-sm whitespace-nowrap">
+              {s.toolCount} tools
+            </span>
+          ) : null,
+          s.turns != null && s.turns > 0 ? (
+            <span key="turns" className="text-faint text-sm whitespace-nowrap">
+              {s.turns} turns
+            </span>
+          ) : null,
         ].filter(Boolean) as React.ReactNode[];
         return row2Items.length > 0 ? (
-          <div className={`flex items-baseline justify-between mt-3 mb-3 ${INDENT}`}>
+          <div
+            className={`flex items-baseline justify-between mt-3 mb-3 ${INDENT}`}
+          >
             {row2Items.map((item, i) => (
               <React.Fragment key={i}>
                 {i > 0 && <span className="text-fainter text-xs px-1">·</span>}
@@ -197,20 +239,28 @@ export function SessionCard({
 
   // Shared footer — used by both done and active/waiting/idle cards
   const buildFooter = (showModelContext: boolean) => {
-    const modelBadge = showModelContext && s.model ? (
-      <span className="bg-model-bg text-accent text-[13px] font-bold px-[5px] py-px rounded-[3px] shrink-0">
-        {s.model}
-      </span>
-    ) : null;
-    const contextBar = showModelContext && s.contextPct != null ? (
-      <ContextBar pct={s.contextPct} />
-    ) : null;
-    const costBadge = cfg.showCost && s.costUsd != null ? (
-      <span className="text-soft text-[13px] shrink-0">${s.costUsd.toFixed(4)}</span>
-    ) : null;
-    const tokenBadge = cfg.showCost && s.totalTokens != null ? (
-      <span className="text-soft text-[13px] shrink-0">{formatTokens(s.totalTokens)}</span>
-    ) : null;
+    const modelBadge =
+      showModelContext && s.model ? (
+        <span className="bg-model-bg text-accent text-ui font-bold px-1.25 py-px rounded-badge shrink-0">
+          {s.model}
+        </span>
+      ) : null;
+    const contextBar =
+      showModelContext && s.contextPct != null ? (
+        <ContextBar pct={s.contextPct} />
+      ) : null;
+    const costBadge =
+      cfg.showCost && s.costUsd != null ? (
+        <span className="text-soft text-ui shrink-0">
+          ${s.costUsd.toFixed(4)}
+        </span>
+      ) : null;
+    const tokenBadge =
+      cfg.showCost && s.totalTokens != null ? (
+        <span className="text-soft text-ui shrink-0">
+          {formatTokens(s.totalTokens)}
+        </span>
+      ) : null;
     return modelBadge || contextBar || costBadge || tokenBadge ? (
       <div className={`flex items-center justify-between mt-8 ${INDENT}`}>
         {modelBadge}
@@ -236,17 +286,25 @@ export function SessionCard({
       >
         {header}
         {prompt && (
-          <div className={`text-sm text-[#c0c0c0] mb-1.5 break-words flex items-start gap-1.5 ${INDENT}`}>
-            <span className="shrink-0 mt-px text-brighter leading-none text-lg font-bold">›</span>
+          <div
+            className={`text-sm font-bold text-prompt mb-1.5 break-words flex items-start gap-1.5 ${INDENT}`}
+          >
+            <span className="shrink-0 mt-px text-brighter leading-none text-lg font-bold">
+              ›
+            </span>
             <span>{prompt}</span>
           </div>
         )}
         {answer ? (
-          <div className={`text-sm text-soft break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}>
+          <div
+            className={`text-sm text-soft break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}
+          >
             ↳ {answer}
           </div>
         ) : (
-          <div className={`text-sm text-git whitespace-nowrap overflow-hidden text-ellipsis ${INDENT}`}>
+          <div
+            className={`text-sm text-git whitespace-nowrap overflow-hidden text-ellipsis ${INDENT}`}
+          >
             ✅ Completed
           </div>
         )}
@@ -263,19 +321,26 @@ export function SessionCard({
     const toolName = s.currentTool ?? (s.errorState ? s.loopTool : null);
     if (toolName) {
       streamRow = (
-        <div className={`text-sm break-words mt-0.5 mb-1 ${RESPONSE_INDENT} ${s.errorState ? 'text-badge-loop' : 'text-tool'}`}>
+        <div
+          className={`text-sm break-words mt-0.5 mb-1 ${RESPONSE_INDENT} ${s.errorState ? "text-badge-loop" : "text-tool"}`}
+        >
           ↳ 🔧 {toolName}
           {s.errorState && s.loopCount > 1 && (
             <span className="font-bold"> ×{s.loopCount} loop</span>
           )}
           {s.lastToolSummary && (
-            <span className={s.errorState ? 'opacity-70' : 'text-faint'}> {s.lastToolSummary}</span>
+            <span className={s.errorState ? "opacity-70" : "text-faint"}>
+              {" "}
+              {s.lastToolSummary}
+            </span>
           )}
         </div>
       );
     } else if (s.partialResponse) {
       streamRow = (
-        <div className={`text-sm text-soft break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}>
+        <div
+          className={`text-sm text-soft break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}
+        >
           ↳ {s.partialResponse}
         </div>
       );
@@ -292,7 +357,9 @@ export function SessionCard({
     if (inProgress) counts.push(`🔄 ${inProgress}`);
     if (pending) counts.push(`⏳ ${pending}`);
     tasksRow = (
-      <div className={`flex items-center justify-between mb-1 text-sm text-soft ${INDENT}`}>
+      <div
+        className={`flex items-center justify-between mb-1 text-sm text-soft ${INDENT}`}
+      >
         <span className="shrink-0">Tasks: {counts.join("  ")}</span>
         {s.contextPct != null ? (
           <ContextBar pct={s.contextPct} />
@@ -341,7 +408,9 @@ export function SessionCard({
 
   if (toolParts.length > 0) {
     toolRow = (
-      <div className={`text-sm text-dim whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 ${INDENT}`}>
+      <div
+        className={`text-sm text-dim whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 ${INDENT}`}
+      >
         {toolParts.map((p, i) => (
           <React.Fragment key={i}>
             {i > 0 ? " • " : ""}
@@ -354,7 +423,9 @@ export function SessionCard({
 
   const lastMsgRow =
     !taskText && !toolRow && s.lastMessage && !isActive && !isWaiting ? (
-      <div className={`text-sm text-soft break-words ${INDENT}`}>└ {s.lastMessage}</div>
+      <div className={`text-sm text-soft break-words ${INDENT}`}>
+        └ {s.lastMessage}
+      </div>
     ) : null;
 
   const alerts: React.ReactNode[] = [];
@@ -392,9 +463,17 @@ export function SessionCard({
     >
       {header}
       {taskText && (
-        <div className={`text-sm text-[#c0c0c0] mb-1.5 break-words flex items-start gap-1.5 ${INDENT}`}>
+        <div
+          className={`text-sm font-bold text-prompt mb-1.5 break-words flex items-start gap-1.5 ${INDENT}`}
+        >
           <span className="shrink-0 mt-px flex items-center">
-            {isActive ? CLAUDE_ICON : <span className="text-brighter leading-none text-lg font-bold">›</span>}
+            {isActive ? (
+              CLAUDE_ICON
+            ) : (
+              <span className="text-brighter leading-none text-lg font-bold">
+                ›
+              </span>
+            )}
           </span>
           <span>{taskText}</span>
         </div>
