@@ -3,18 +3,9 @@ import React from "react";
 interface BadgeProps {
   status: string;
   lastActivity: number;
-  errorState: boolean;
-  loopTool: string | null;
-  loopCount: number;
 }
 
-export function Badge({
-  status,
-  lastActivity,
-  errorState,
-  loopTool,
-  loopCount,
-}: BadgeProps) {
+export function Badge({ status, lastActivity }: BadgeProps) {
   let badge: React.ReactNode;
 
   if (status === "done") {

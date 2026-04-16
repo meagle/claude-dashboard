@@ -127,9 +127,6 @@ export function SessionCard({
           <Badge
             status={s.status}
             lastActivity={s.lastActivity}
-            errorState={s.errorState}
-            loopTool={s.loopTool}
-            loopCount={s.loopCount}
           />
         </span>
         <span className="flex items-center gap-2 shrink min-w-0 overflow-hidden">
@@ -146,11 +143,6 @@ export function SessionCard({
               : <span className="text-soft hover:text-accent inline-flex items-center">{COPY_ICON}</span>}
           </span>
         </span>
-        {s.errorState && (
-          <span className="font-bold text-badge-loop text-sm whitespace-nowrap shrink-0">
-            LOOP{s.loopTool ? ` ${s.loopTool} ×${s.loopCount}` : ""}
-          </span>
-        )}
         {timeLabel && (
           <span className="relative ml-auto shrink-0 pl-2 group/time">
             <span className="text-fainter text-sm whitespace-nowrap">
@@ -268,12 +260,16 @@ export function SessionCard({
 
   let streamRow: React.ReactNode = null;
   if (taskText) {
-    if (s.currentTool) {
+    const toolName = s.currentTool ?? (s.errorState ? s.loopTool : null);
+    if (toolName) {
       streamRow = (
-        <div className={`text-sm text-tool break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}>
-          ↳ 🔧 {s.currentTool}
+        <div className={`text-sm break-words mt-0.5 mb-1 ${RESPONSE_INDENT} ${s.errorState ? 'text-badge-loop' : 'text-tool'}`}>
+          ↳ 🔧 {toolName}
+          {s.errorState && s.loopCount > 1 && (
+            <span className="font-bold"> ×{s.loopCount} loop</span>
+          )}
           {s.lastToolSummary && (
-            <span className="text-faint"> {s.lastToolSummary}</span>
+            <span className={s.errorState ? 'opacity-70' : 'text-faint'}> {s.lastToolSummary}</span>
           )}
         </div>
       );
