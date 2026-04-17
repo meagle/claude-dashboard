@@ -34,10 +34,10 @@
   --color-alert: #c07800;
 
   /* Badge text */
-  --color-badge-active: #3fb950;
-  --color-badge-waiting: #d97706;
-  --color-badge-done: #888888;
-  --color-badge-idle: #777777;
+  --color-badge-active: #4ade70;
+  --color-badge-waiting: #fbbf24;
+  --color-badge-done: #a0a0a0;
+  --color-badge-idle: #888888;
   --color-badge-loop: #c75050;
 
   /* Model badge */
