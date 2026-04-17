@@ -55,20 +55,18 @@ describe('SessionList compact mode', () => {
     render(
       <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" compactMode />
     );
-    expect(screen.getByText('Status')).toBeInTheDocument();
     expect(screen.getByText('Project')).toBeInTheDocument();
     expect(screen.getByText('Task')).toBeInTheDocument();
-    expect(screen.getByText('Tool')).toBeInTheDocument();
-    expect(screen.getByText('Progress')).toBeInTheDocument();
+    expect(screen.getByText('Context %')).toBeInTheDocument();
+    expect(screen.getByText('Time')).toBeInTheDocument();
   });
 
-  it('renders dirName and status label in compact mode', () => {
+  it('renders dirName in compact mode', () => {
     const sessions = [makeSession({ sessionId: 'a', dirName: 'my-project', status: 'active' })];
     render(
       <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" compactMode />
     );
     expect(screen.getByText('my-project')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('does not render data-session cards in compact mode', () => {

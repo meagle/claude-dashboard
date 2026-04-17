@@ -28,7 +28,9 @@ interface CompactSessionRowProps {
 
 export function CompactSessionRow({ session: s, cardConfig: cfg, onFocus }: CompactSessionRowProps) {
   const isDone = s.status === 'done';
-  const taskText = s.currentTask ?? s.lastPrompt ?? '';
+  const taskText = isDone
+    ? (s.lastMessage ?? s.lastPrompt ?? '')
+    : (s.currentTask ?? s.lastPrompt ?? '');
   const branchRaw = cfg.showBranch
     ? [
         s.branch,
@@ -44,12 +46,12 @@ export function CompactSessionRow({ session: s, cardConfig: cfg, onFocus }: Comp
 
   return (
     <div
-      className="grid items-center gap-2 px-3 py-1.5 border-b border-line cursor-pointer bg-surface hover:brightness-110 transition-colors duration-150 overflow-hidden"
+      className="grid items-start gap-2 px-3 py-1.5 border-b border-line cursor-pointer bg-surface hover:brightness-110 transition-colors duration-150 overflow-hidden"
       style={{ gridTemplateColumns: '20px 130px 1fr 65px 80px' }}
       onClick={() => onFocus(s.pid, s.termSessionId)}
     >
       {/* STATUS DOT (no label) */}
-      <span className="flex items-center justify-center">
+      <span className="flex items-center justify-center mt-[3px]">
         <Badge status={s.status} lastActivity={s.lastActivity} size="sm" />
       </span>
 
@@ -65,7 +67,7 @@ export function CompactSessionRow({ session: s, cardConfig: cfg, onFocus }: Comp
       </span>
 
       {/* TASK */}
-      <span className="text-ui text-soft overflow-hidden text-ellipsis whitespace-nowrap">{taskText}</span>
+      <span className="text-ui text-soft overflow-hidden line-clamp-2">{taskText}</span>
 
       {/* CONTEXT % */}
       <span className="flex items-center gap-1 min-w-0">

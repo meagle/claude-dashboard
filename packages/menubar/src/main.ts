@@ -10,7 +10,10 @@ import { getTrayLabel } from './trayIcon';
 
 const MIN_WIDTH_CARD    = 835;
 const MIN_WIDTH_COMPACT = 630;
-let currentMinWidth     = MIN_WIDTH_CARD;
+const MIN_HEIGHT_CARD    = 200;
+const MIN_HEIGHT_COMPACT = 80;
+let currentMinWidth  = MIN_WIDTH_CARD;
+let currentIsCompact = false;
 const DASHBOARD_DIR  = path.join(os.homedir(), '.config', 'claude-dashboard');
 const SESSIONS_FILE  = path.join(DASHBOARD_DIR, 'sessions.json');
 const CONFIG_FILE    = path.join(DASHBOARD_DIR, 'config.json');
@@ -31,6 +34,7 @@ function installHook(): void {
     // Always overwrite — ensures a new DMG release delivers the updated hook.
     fs.mkdirSync(DASHBOARD_DIR, { recursive: true });
     fs.copyFileSync(bundledHook, HOOK_DEST);
+    fs.chmodSync(HOOK_DEST, 0o644);
 
     // Patch ~/.claude/settings.json idempotently.
     if (!fs.existsSync(SETTINGS_FILE)) {
@@ -169,7 +173,8 @@ async function resizeToContent(win: BrowserWindow, maxHeight: number, onHeight: 
       '})()'
     );
     const cap = isSettings ? 2400 : maxHeight;
-    const clamped = Math.max(120, Math.min(Math.ceil(h), cap));
+    const floor = currentIsCompact ? 60 : 120;
+    const clamped = Math.max(floor, Math.min(Math.ceil(h), cap));
     onHeight(clamped);
     const [width] = win.getSize();
     win.setSize(Math.max(width, currentMinWidth), clamped);
@@ -485,10 +490,12 @@ app.whenReady().then(() => {
   });
 
   ipcMain.on('set-compact-mode', (_event, compact: boolean) => {
-    currentMinWidth = compact ? MIN_WIDTH_COMPACT : MIN_WIDTH_CARD;
-    popover?.setMinimumSize(currentMinWidth, 200);
+    currentIsCompact = compact;
+    currentMinWidth  = compact ? MIN_WIDTH_COMPACT : MIN_WIDTH_CARD;
+    const minH = compact ? MIN_HEIGHT_COMPACT : MIN_HEIGHT_CARD;
+    popover?.setMinimumSize(currentMinWidth, minH);
     if (detachedPanel && !detachedPanel.isDestroyed()) {
-      detachedPanel.setMinimumSize(currentMinWidth, 200);
+      detachedPanel.setMinimumSize(currentMinWidth, minH);
     }
   });
 

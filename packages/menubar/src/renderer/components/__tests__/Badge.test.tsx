@@ -45,4 +45,39 @@ describe('Badge', () => {
     expect(container.querySelector('circle')).not.toBeNull();
     expect(container.textContent).not.toContain('LOOP');
   });
+
+  it('applies pulse animation to active badge', () => {
+    const { container } = render(<Badge status="active" {...base} />);
+    expect(container.querySelector('span')!.className).toContain('animate-status-pulse');
+  });
+
+  it('applies pulse animation to waiting_permission badge', () => {
+    const { container } = render(<Badge status="waiting_permission" {...base} />);
+    expect(container.querySelector('span')!.className).toContain('animate-status-pulse');
+  });
+
+  it('applies pulse animation to waiting_input badge', () => {
+    const { container } = render(<Badge status="waiting_input" {...base} />);
+    expect(container.querySelector('span')!.className).toContain('animate-status-pulse');
+  });
+
+  it('does not apply pulse animation to done badge', () => {
+    const { container } = render(<Badge status="done" {...base} />);
+    expect(container.querySelector('span')!.className).not.toContain('animate-status-pulse');
+  });
+
+  it('does not apply pulse animation to idle badge', () => {
+    const { container } = render(<Badge status="idle" {...base} />);
+    expect(container.querySelector('span')!.className).not.toContain('animate-status-pulse');
+  });
+
+  it('renders smaller SVG when size is sm', () => {
+    const { container } = render(<Badge status="active" size="sm" {...base} />);
+    expect(container.querySelector('svg')!.getAttribute('width')).toBe('12');
+  });
+
+  it('renders default (md) size SVG when size not specified', () => {
+    const { container } = render(<Badge status="active" {...base} />);
+    expect(container.querySelector('svg')!.getAttribute('width')).toBe('20');
+  });
 });

@@ -158,10 +158,13 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
           }
           const modelId: string | null = typeof msg?.model === 'string' ? msg.model : null;
           const u = msg?.usage ?? {};
+          const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
+          const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+          // When both are non-zero, cache_creation includes the old cached content (overlap).
+          // Use Math.max to avoid double-counting the overlapping portion.
           const lastTurnTokens =
-            (typeof u.input_tokens                === 'number' ? u.input_tokens                : 0) +
-            (typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0) +
-            (typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0);
+            (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
+            Math.max(cacheRead, cacheCreate);
           contextPct = modelId && lastTurnTokens > 0
             ? Math.min(100, Math.round((lastTurnTokens / modelContextWindow(modelId)) * 100))
             : null;

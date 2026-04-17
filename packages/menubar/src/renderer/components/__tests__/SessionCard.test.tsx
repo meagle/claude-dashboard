@@ -150,3 +150,100 @@ describe('SessionCard — focus', () => {
     expect(onFocus).toHaveBeenCalledWith(session.pid, session.termSessionId);
   });
 });
+
+describe('SessionCard — context bar', () => {
+  it('shows context bar when contextPct is set and showModel is true', () => {
+    const { container } = renderCard({ model: 'Sonnet 4.6', contextPct: 42 }, { showModel: true });
+    expect(screen.getByText('42%')).toBeInTheDocument();
+    expect(container.querySelector('[style*="width: 42%"]')).not.toBeNull();
+  });
+
+  it('does not show context bar when contextPct is null', () => {
+    renderCard({ model: 'Sonnet 4.6', contextPct: null }, { showModel: true });
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+  });
+
+  it('does not show context bar when showModel is false', () => {
+    renderCard({ model: 'Sonnet 4.6', contextPct: 50 }, { showModel: false });
+    expect(screen.queryByText('50%')).not.toBeInTheDocument();
+  });
+
+  it('shows model badge when model is set and showModel is true', () => {
+    renderCard({ status: 'done', model: 'Sonnet 4.6' }, { showModel: true, showDoneFooter: true });
+    expect(screen.getByText('Sonnet 4.6')).toBeInTheDocument();
+  });
+});
+
+describe('SessionCard — idle state', () => {
+  it('shows last tool with ago time when session is idle with a lastTool', () => {
+    renderCard({
+      status: 'idle',
+      lastTool: 'Bash',
+      lastToolAt: Date.now() - 120000,
+    });
+    expect(screen.getByText(/🔧 Bash/)).toBeInTheDocument();
+    expect(screen.getByText(/2m ago/)).toBeInTheDocument();
+  });
+
+  it('shows last message when idle and no tool running', () => {
+    renderCard({
+      status: 'idle',
+      lastMessage: 'I finished the task.',
+    });
+    expect(screen.getByText(/I finished the task\./)).toBeInTheDocument();
+  });
+});
+
+describe('SessionCard — loop detection', () => {
+  it('shows loop count when errorState is true', () => {
+    renderCard({
+      status: 'active',
+      lastPrompt: 'Do something',
+      currentTool: 'Bash',
+      errorState: true,
+      loopTool: 'Bash',
+      loopCount: 6,
+    });
+    expect(screen.getByText(/×6 loop/)).toBeInTheDocument();
+  });
+});
+
+describe('SessionCard — branch and git', () => {
+  it('shows branch when showBranch is true', () => {
+    renderCard({ branch: 'feature/auth', status: 'active', lastPrompt: 'task' }, { showBranch: true });
+    expect(screen.getByText('feature/auth')).toBeInTheDocument();
+  });
+
+  it('hides branch when showBranch is false', () => {
+    renderCard({ branch: 'feature/auth', status: 'active', lastPrompt: 'task' }, { showBranch: false });
+    expect(screen.queryByText('feature/auth')).not.toBeInTheDocument();
+  });
+
+  it('shows git summary when showGitSummary is true', () => {
+    renderCard({ gitSummary: '3 files +42 -7', status: 'active', lastPrompt: 'task' }, { showGitSummary: true });
+    expect(screen.getByText(/3 files/)).toBeInTheDocument();
+  });
+});
+
+describe('SessionCard — flash animation', () => {
+  it('applies flash animation when isNew is true', () => {
+    const session = makeSession({ sessionId: 'a', status: 'done' });
+    const { container } = render(
+      <SessionCard
+        session={session}
+        cardConfig={defaultCardConfig}
+        home={HOME}
+        isNew={true}
+        onFocus={vi.fn()}
+        onDismiss={vi.fn()}
+        onCopyPath={vi.fn()}
+      />
+    );
+    expect(container.querySelector('[data-session]')!.className).toContain('animate-flash');
+  });
+
+  it('does not apply flash animation when isNew is false', () => {
+    const { container } = renderCard({ status: 'done' });
+    expect(container.querySelector('[data-session]')!.className).not.toContain('animate-flash');
+  });
+});
