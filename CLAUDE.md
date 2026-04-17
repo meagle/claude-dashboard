@@ -98,3 +98,11 @@ Written by hook, read by main process. Each entry is a `Session` object (see `pa
 
 ### Commits and pushes
 - Never commit or push automatically. Always ask first, e.g. "Ready to commit and push — want me to go ahead?"
+
+### Creating releases
+When creating a GitHub release:
+1. Bump the version in `packages/menubar/package.json`
+2. Commit and push the version bump
+3. Build the DMG: `cd packages/menubar && npm run dist` — output lands in `./release/` at the repo root
+4. Create the GitHub release: `gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."`
+5. Upload the DMG: `gh release upload vX.Y.Z "./release/Claude Dashboard-X.Y.Z-arm64.dmg"`
