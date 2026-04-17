@@ -52,6 +52,18 @@ describe('CompactSessionRow — content', () => {
     expect(screen.queryByText('Old prompt')).not.toBeInTheDocument();
   });
 
+  it('shows partialResponse when active with no currentTool', () => {
+    renderRow({ status: 'active', partialResponse: 'I will help with that', lastPrompt: 'Do something', currentTool: null });
+    expect(screen.getByText('I will help with that')).toBeInTheDocument();
+    expect(screen.queryByText('Do something')).not.toBeInTheDocument();
+  });
+
+  it('does not show partialResponse when currentTool is set', () => {
+    renderRow({ status: 'active', partialResponse: 'I will help', lastPrompt: 'Do something', currentTool: 'Bash' });
+    expect(screen.getByText('Do something')).toBeInTheDocument();
+    expect(screen.queryByText('I will help')).not.toBeInTheDocument();
+  });
+
   it('shows lastMessage instead of prompt when done', () => {
     renderRow({ status: 'done', lastPrompt: 'Write a test', lastMessage: 'Here is the test.' });
     expect(screen.getByText('Here is the test.')).toBeInTheDocument();

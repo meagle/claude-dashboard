@@ -14,12 +14,34 @@ const MIN_HEIGHT_CARD    = 200;
 const MIN_HEIGHT_COMPACT = 80;
 let currentMinWidth  = MIN_WIDTH_CARD;
 let currentIsCompact = false;
-const DASHBOARD_DIR  = path.join(os.homedir(), '.config', 'claude-dashboard');
-const SESSIONS_FILE  = path.join(DASHBOARD_DIR, 'sessions.json');
-const CONFIG_FILE    = path.join(DASHBOARD_DIR, 'config.json');
-const HISTORY_FILE   = path.join(DASHBOARD_DIR, 'history.json');
-const HOOK_DEST      = path.join(DASHBOARD_DIR, 'hook.js');
-const SETTINGS_FILE  = path.join(os.homedir(), '.claude', 'settings.json');
+let isProgrammaticResize = false;
+const DASHBOARD_DIR    = path.join(os.homedir(), '.config', 'claude-dashboard');
+const SESSIONS_FILE    = path.join(DASHBOARD_DIR, 'sessions.json');
+const CONFIG_FILE      = path.join(DASHBOARD_DIR, 'config.json');
+const HISTORY_FILE     = path.join(DASHBOARD_DIR, 'history.json');
+const HOOK_DEST        = path.join(DASHBOARD_DIR, 'hook.js');
+const WINDOW_STATE_FILE = path.join(DASHBOARD_DIR, 'window-state.json');
+const SETTINGS_FILE    = path.join(os.homedir(), '.claude', 'settings.json');
+
+interface WindowState {
+  cardWidth: number;
+  compactWidth: number;
+  panelX?: number;
+  panelY?: number;
+  panelWidth?: number;
+  panelHeight?: number;
+}
+
+function readWindowState(): WindowState {
+  try { return { cardWidth: MIN_WIDTH_CARD, compactWidth: MIN_WIDTH_COMPACT, ...JSON.parse(fs.readFileSync(WINDOW_STATE_FILE, 'utf8')) }; }
+  catch { return { cardWidth: MIN_WIDTH_CARD, compactWidth: MIN_WIDTH_COMPACT }; }
+}
+
+function writeWindowState(state: WindowState): void {
+  try { fs.writeFileSync(WINDOW_STATE_FILE, JSON.stringify(state)); } catch { /* ignore */ }
+}
+
+const windowState = readWindowState();
 
 function installHook(): void {
   try {
@@ -177,7 +199,9 @@ async function resizeToContent(win: BrowserWindow, maxHeight: number, onHeight: 
     const clamped = Math.max(floor, Math.min(Math.ceil(h), cap));
     onHeight(clamped);
     const [width] = win.getSize();
+    isProgrammaticResize = true;
     win.setSize(Math.max(width, currentMinWidth), clamped);
+    isProgrammaticResize = false;
   } catch { /* ignore if popover not ready */ }
 }
 
@@ -355,6 +379,19 @@ app.whenReady().then(() => {
     if (newBounds.width < currentMinWidth) event.preventDefault();
   });
 
+  let resizeSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  popover.on('resize', () => {
+    if (isProgrammaticResize) return;
+    if (resizeSaveTimer) clearTimeout(resizeSaveTimer);
+    resizeSaveTimer = setTimeout(() => {
+      if (!popover || popover.isDestroyed()) return;
+      const [w] = popover.getSize();
+      if (currentIsCompact) windowState.compactWidth = w;
+      else windowState.cardWidth = w;
+      writeWindowState(windowState);
+    }, 500);
+  });
+
   const doResize = (win?: BrowserWindow) => {
     const target = win ?? popover;
     if (!target || target.isDestroyed()) return;
@@ -375,13 +412,16 @@ app.whenReady().then(() => {
       popover.hide();
     } else {
       const bounds = tray!.getBounds();
+      const preferredWidth = currentIsCompact ? windowState.compactWidth : windowState.cardWidth;
       // Pre-size to cached height before showing to avoid flash of full-height window
+      isProgrammaticResize = true;
       popover.setBounds({
-        x: Math.round(bounds.x - 350 + bounds.width / 2),
+        x: Math.round(bounds.x - Math.round(preferredWidth / 2) + bounds.width / 2),
         y: Math.round(bounds.y + bounds.height),
-        width: 700,
+        width: preferredWidth,
         height: cachedHeight,
       });
+      isProgrammaticResize = false;
       sendSessionsToPopover();
       popover.show();
       popover.focus();
@@ -457,11 +497,16 @@ app.whenReady().then(() => {
       detachedPanel.focus();
       return;
     }
+    const panelW = windowState.panelWidth  ?? currentMinWidth;
+    const panelH = windowState.panelHeight ?? MAX_HEIGHT;
     detachedPanel = new BrowserWindow({
-      width: currentMinWidth,
-      height: MAX_HEIGHT,
+      width: panelW,
+      height: panelH,
+      ...(windowState.panelX != null && windowState.panelY != null
+        ? { x: windowState.panelX, y: windowState.panelY }
+        : {}),
       minWidth: currentMinWidth,
-      minHeight: 200,
+      minHeight: MIN_HEIGHT_COMPACT,
       show: true,
       frame: false,
       resizable: true,
@@ -476,6 +521,22 @@ app.whenReady().then(() => {
     detachedPanel.on('will-resize', (event, newBounds) => {
       if (newBounds.width < currentMinWidth) event.preventDefault();
     });
+
+    let panelSaveTimer: ReturnType<typeof setTimeout> | null = null;
+    const savePanelBounds = () => {
+      if (panelSaveTimer) clearTimeout(panelSaveTimer);
+      panelSaveTimer = setTimeout(() => {
+        if (!detachedPanel || detachedPanel.isDestroyed()) return;
+        const [x, y]   = detachedPanel.getPosition();
+        const [w, h]   = detachedPanel.getSize();
+        windowState.panelX = x; windowState.panelY = y;
+        windowState.panelWidth = w; windowState.panelHeight = h;
+        writeWindowState(windowState);
+      }, 500);
+    };
+    detachedPanel.on('resize', () => { if (!isProgrammaticResize) savePanelBounds(); });
+    detachedPanel.on('move',   savePanelBounds);
+
     detachedPanel.webContents.on('did-finish-load', () => {
       if (detachedPanel && !detachedPanel.isDestroyed()) {
         detachedPanel.webContents.send('sessions-update', buildSessionsPayload());
@@ -492,11 +553,16 @@ app.whenReady().then(() => {
   ipcMain.on('set-compact-mode', (_event, compact: boolean) => {
     currentIsCompact = compact;
     currentMinWidth  = compact ? MIN_WIDTH_COMPACT : MIN_WIDTH_CARD;
-    const minH = compact ? MIN_HEIGHT_COMPACT : MIN_HEIGHT_CARD;
-    popover?.setMinimumSize(currentMinWidth, minH);
-    if (detachedPanel && !detachedPanel.isDestroyed()) {
-      detachedPanel.setMinimumSize(currentMinWidth, minH);
+    const minH    = compact ? MIN_HEIGHT_COMPACT : MIN_HEIGHT_CARD;
+    const targetW = compact ? windowState.compactWidth : windowState.cardWidth;
+    isProgrammaticResize = true;
+    for (const win of [popover, detachedPanel]) {
+      if (!win || win.isDestroyed()) continue;
+      win.setMinimumSize(currentMinWidth, minH);
+      const [, h] = win.getSize();
+      win.setSize(targetW, h);
     }
+    isProgrammaticResize = false;
   });
 
   // Debounced git refresh: coalesce rapid chokidar ticks into one git query

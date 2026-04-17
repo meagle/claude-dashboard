@@ -27,10 +27,11 @@ interface CompactSessionRowProps {
 }
 
 export function CompactSessionRow({ session: s, cardConfig: cfg, onFocus }: CompactSessionRowProps) {
-  const isDone = s.status === 'done';
+  const isDone   = s.status === 'done';
+  const isActive = s.status === 'active';
   const taskText = isDone
     ? (s.lastMessage ?? s.lastPrompt ?? '')
-    : (s.currentTask ?? s.lastPrompt ?? '');
+    : (s.currentTask ?? (isActive && !s.currentTool ? s.partialResponse : null) ?? s.lastPrompt ?? '');
   const branchRaw = cfg.showBranch
     ? [
         s.branch,
