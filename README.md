@@ -14,6 +14,7 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - Click the path on a card to copy the full path to the clipboard
 - Hover a done card to reveal the `✕` dismiss button and clear it from the list
 - Pop out a standalone always-on-top panel with the `⧉` button
+- Toggle **compact mode** (dense table rows) vs **card view** with the layout button in the header
 - Click `🕐` to open the session history panel — a 30-day log of completed sessions grouped by day with cost totals
 
 **Tray icon** shows the highest-priority state across all sessions:
@@ -126,9 +127,25 @@ npm start -w packages/menubar
 
 Right-click the tray icon to quit.
 
+## Compact mode
+
+Click the compact/card toggle button in the header to switch between **card view** and **compact view**.
+
+In compact view each session is a single dense row in a scrollable table:
+
+| Column | Description |
+|--------|-------------|
+| Status dot | Pulsing = active/waiting, hollow = idle, solid = done |
+| Project | Directory name + git branch |
+| Task | Active prompt (up to 2 lines); done sessions show the last response instead |
+| Context % | Color-coded: green < 60%, amber 60–79%, red ≥ 80% |
+| Time | Elapsed for active sessions, ago for done sessions |
+
+The compact/card preference is remembered across sessions and synced between the popover and the standalone panel.
+
 ## Standalone panel
 
-Click `⧉` in the popover header to open a persistent floating panel. It receives the same live updates as the popover and stays visible regardless of what you click. Use the pin button (red = always on top, gray = normal window) to toggle whether it floats above all other windows.
+Click `⧉` in the popover header to open a persistent floating panel. It receives the same live updates as the popover and stays visible regardless of what you click. Use the pin button to toggle whether it floats above all other windows — a **filled pin** means always-on-top is enabled, an **outline pin** means it is a normal window.
 
 ## Session history
 
