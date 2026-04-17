@@ -110,6 +110,14 @@ export function App() {
     ipcRenderer.send('set-compact-mode', compactMode);
   }, []);
 
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key === 'compactMode') setCompactMode(e.newValue === 'true');
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, []);
+
   const handlePopout = () => ipcRenderer.send("open-detached-panel");
 
   const handlePinToggle = async () => {
