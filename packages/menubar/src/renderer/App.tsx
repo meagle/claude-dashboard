@@ -147,6 +147,7 @@ export function App() {
         onPopout={handlePopout}
         onPinToggle={handlePinToggle}
         onClose={handleClose}
+        sessions={sessions}
       />
       {settingsOpen ? (
         <SettingsPanel

@@ -9,12 +9,13 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - Each session shows status badge, elapsed/ago time, project name, current task, last tool, git branch, worktree, git diff summary, commits ahead of upstream, model, and context usage
 - Cards are color-coded: green border = active, orange = waiting for permission or input, dim = done
 - Cards are ordered by priority: waiting → active → idle → done, then by most recent activity within each group
-- While Claude is working but hasn't produced output yet, a "Clauding…" animated placeholder appears
+- While Claude is actively generating output, a partial response preview appears on the card in real time
 - Click any card to bring that terminal window into focus
 - Click the path on a card to copy the full path to the clipboard
 - Hover a done card to reveal the `✕` dismiss button and clear it from the list
 - Pop out a standalone always-on-top panel with the `⧉` button
-- Toggle **compact mode** (dense table rows) vs **card view** with the layout button in the header
+- Cycle between **card**, **compact**, and **one-line** view modes with the layout button in the header
+- The header shows live activity pills — active, waiting, and loop counts at a glance
 - Click `🕐` to open the session history panel — a 30-day log of completed sessions grouped by day with cost totals
 
 **Tray icon** shows the highest-priority state across all sessions:
@@ -47,17 +48,25 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 **Statuses:**
 
-| Badge | Status | Meaning |
-|-------|--------|---------|
-| ![](https://img.shields.io/badge/●_ACTIVE-238636?style=flat-square) | `active` | Claude is running |
-| ![](https://img.shields.io/badge/●_PERMISSION-b45309?style=flat-square) | `waiting_permission` | Tool approval needed |
-| ![](https://img.shields.io/badge/●_INPUT-b45309?style=flat-square) | `waiting_input` | Claude asked a question |
-| ![](https://img.shields.io/badge/○_IDLE-444444?style=flat-square) | `idle` | Between tool calls |
-| ![](https://img.shields.io/badge/●_DONE-555555?style=flat-square) | `done` | Session finished |
+| Badge                                                                   | Status               | Meaning                 |
+| ----------------------------------------------------------------------- | -------------------- | ----------------------- |
+| ![](https://img.shields.io/badge/●_ACTIVE-238636?style=flat-square)     | `active`             | Claude is running       |
+| ![](https://img.shields.io/badge/●_PERMISSION-b45309?style=flat-square) | `waiting_permission` | Tool approval needed    |
+| ![](https://img.shields.io/badge/●_INPUT-b45309?style=flat-square)      | `waiting_input`      | Claude asked a question |
+| ![](https://img.shields.io/badge/○_IDLE-444444?style=flat-square)       | `idle`               | Between tool calls      |
+| ![](https://img.shields.io/badge/●_DONE-555555?style=flat-square)       | `done`               | Session finished        |
 
 **Example cards:**
 
-![Example session cards showing all states](docs/status-cards.svg)
+*Compact view* — 2-line rows with branch, task preview, context bar, and elapsed time:
+
+![Compact view](docs/compact.png)
+
+*One-line view* — ultra-dense single-line rows for maximum session density:
+
+![One-line view](docs/oneline.png)
+
+**Partial response preview:** While Claude is generating output, the card shows a live streaming preview of the response before the turn completes. In compact and one-line modes this appears as the task text; in card view it appears as a secondary line beneath the prompt.
 
 **Worktree indicator:** When Claude is running inside a [git worktree](https://git-scm.com/docs/git-worktree) (including sessions spawned by Claude Code's Agent tool with `isolation: "worktree"`), a 🌿 icon appears after the branch name on the card — e.g. `main 🌿 stripe-v2`. The worktree name is the directory basename of the linked worktree.
 
@@ -65,7 +74,7 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 **Task list progress:** When Claude uses the `TodoWrite`/`TodoRead` tools to manage a task list, the card shows a progress row — e.g. `Tasks: ✅ 2  🔄 1  ⏳ 1` — reflecting completed, in-progress, and pending items. This updates live as Claude works through the list.
 
-**Session history:** When a session expires past the stale timeout, it is archived to `~/.config/claude-dashboard/history.json` before being removed from the dashboard. The history panel (`🕐` button) shows the last 30 days grouped by day, with per-day session count and cost totals.
+**Session history:** When a session expires past the stale timeout, it is archived to `~/.config/claude-dashboard/history.json` before being removed from the dashboard. The history panel (`🕐` button) shows the last 30 days grouped by day — click a day header to expand or collapse its sessions. Each day shows the session count and total cost; each session row shows the directory, duration, cost, model, and last prompt/response.
 
 **Stale sessions** (no activity for 30 minutes by default) are pruned automatically — no cleanup needed.
 
@@ -84,9 +93,11 @@ Each session tracks: status, current tool, last prompt and response, task list p
 3. Launch Claude Dashboard from `/Applications`
 
 > **First launch:** macOS will block the unsigned app. If you see "damaged and can't be opened", run this in Terminal then launch normally:
+>
 > ```bash
 > xattr -cr "/Applications/Claude Dashboard.app"
 > ```
+>
 > On older macOS you may instead see an "unidentified developer" warning — right-click → **Open** → **Open** bypasses that. Either way, you only need to do this once.
 
 The app automatically installs the hook and wires up `~/.claude/settings.json` on every launch — no separate setup step needed. Each new release also updates the hook automatically when you replace the app and relaunch.
@@ -102,19 +113,71 @@ bash scripts/install.sh
 That's it — no manual configuration needed. The install script handles everything, including updating `~/.claude/settings.json` so the dashboard automatically observes every Claude session on your machine.
 
 The install script:
+
 1. Builds all packages (`npm run build`)
 2. Copies the compiled hook to `~/.config/claude-dashboard/hook.js`
 3. Merges the five hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves existing hooks)
 
 **What gets added to `~/.claude/settings.json`:**
+
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }] }],
-    "PreToolUse":       [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }] }],
-    "PostToolUse":      [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool" }] }],
-    "Stop":             [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop" }] }],
-    "Notification":     [{ "matcher": "", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js notification" }] }]
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.config/claude-dashboard/hook.js user-prompt"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.config/claude-dashboard/hook.js pre-tool"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.config/claude-dashboard/hook.js post-tool"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.config/claude-dashboard/hook.js stop"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.config/claude-dashboard/hook.js notification"
+          }
+        ]
+      }
+    ]
   }
 }
 ```
@@ -127,29 +190,27 @@ npm start -w packages/menubar
 
 Right-click the tray icon to quit.
 
-## Compact mode
+## View modes
 
-Click the compact/card toggle button in the header to switch between **card view** and **compact view**.
+Click the layout button in the header to cycle through three view modes:
 
-In compact view each session is a single dense row in a scrollable table:
+| Mode | Description |
+|------|-------------|
+| **Card** | Full cards with prompt, tool row, task progress, git info, and context bar |
+| **Compact** | 2-line rows — identity + branch on line 1, task preview + context bar on line 2 |
+| **One-line** | Ultra-dense single-line rows for maximum session density |
 
-| Column | Description |
-|--------|-------------|
-| Status dot | Pulsing = active/waiting, hollow = idle, solid = done |
-| Project | Directory name + git branch |
-| Task | Active prompt (up to 2 lines); done sessions show the last response instead |
-| Context % | Color-coded: green < 60%, amber 60–79%, red ≥ 80% |
-| Time | Elapsed for active sessions, ago for done sessions |
+Each mode shows: status dot, project name, branch pill, worktree pill, task/prompt preview, loop chip, context bar, token count, ⌘-key shortcut, and elapsed time. The compact and one-line views use a fixed-width trailing cluster so context bars and token columns line up vertically across rows.
 
-The compact/card preference is remembered across sessions and synced between the popover and the standalone panel.
+The selected view mode is remembered across sessions and synced between the popover and the standalone panel. Window width is saved per mode so each view can have its own preferred width.
 
 ## Standalone panel
 
-Click `⧉` in the popover header to open a persistent floating panel. It receives the same live updates as the popover and stays visible regardless of what you click. Use the pin button to toggle whether it floats above all other windows — a **filled pin** means always-on-top is enabled, an **outline pin** means it is a normal window.
+Click `⧉` in the popover header to open a persistent floating panel. It receives the same live updates as the popover and stays visible regardless of what you click. Use the pin button to toggle whether it floats above all other windows — a **filled pin** means always-on-top is enabled, an **outline pin** means it is a normal window. The panel remembers its position and size between launches.
 
 ## Session history
 
-Click `🕐` in the popover header to open the history panel. It shows all sessions that have expired from the dashboard over the past 30 days, grouped by day. Each day header shows the session count and total cost (when available). Each session row shows the directory name, duration, cost, model, and a truncated last prompt.
+Click `🕐` in the popover header to open the history panel. It shows all sessions that have expired from the dashboard over the past 30 days, grouped by day. Click any day header to expand or collapse that day's sessions. Each day header shows the session count and total cost; each session row shows the directory name, last prompt, last response, duration, cost, and model.
 
 History is stored at `~/.config/claude-dashboard/history.json` and entries older than 30 days are pruned automatically.
 
@@ -157,18 +218,18 @@ History is stored at `~/.config/claude-dashboard/history.json` and entries older
 
 Click `⚙` in the popover to open the settings panel. Options:
 
-| Setting | Description |
-|---------|-------------|
-| Stale session timeout | Hide sessions with no activity after this many minutes |
-| Notifications | Show macOS notifications when sessions need attention or finish |
-| Sound alerts | Play a system beep on permission/input transitions |
-| Show git branch | Display the current git branch on each card |
-| Show git diff summary | Show changed file count, line diff, and commits ahead of upstream (↑N) |
-| Show subagent info | Show running subagent details |
-| Show model & context | Show model name and context usage bar on active/idle cards |
-| Show model & context on done cards | Show model name and context usage bar on completed cards |
-| Compact paths | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`) |
-| Show session cost | Display the USD cost in the footer of done cards (API billing only) |
+| Setting                            | Description                                                            |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| Stale session timeout              | Hide sessions with no activity after this many minutes                 |
+| Notifications                      | Show macOS notifications when sessions need attention or finish        |
+| Sound alerts                       | Play a system beep on permission/input transitions                     |
+| Show git branch                    | Display the current git branch on each card                            |
+| Show git diff summary              | Show changed file count, line diff, and commits ahead of upstream (↑N) |
+| Show subagent info                 | Show running subagent details                                          |
+| Show model & context               | Show model name and context usage bar on active/idle cards             |
+| Show model & context on done cards | Show model name and context usage bar on completed cards               |
+| Compact paths                      | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`)          |
+| Show session cost                  | Display the USD cost in the footer of done cards (API billing only)    |
 
 Changes take effect immediately — no restart needed.
 
@@ -196,11 +257,13 @@ npm run build     # compile all packages
 ```
 
 After modifying the hook:
+
 ```bash
 npm run build -w packages/hook && cp packages/hook/dist/hook.js ~/.config/claude-dashboard/hook.js
 ```
 
 After modifying the menubar:
+
 ```bash
 npm run build -w packages/menubar
 ```
