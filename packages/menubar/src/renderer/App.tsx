@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ipcRenderer } from "./utils/electron";
 import { useSessions } from "./hooks/useIpc";
-import { Header } from "./components/Header";
+import { Header, ViewMode } from "./components/Header";
 import { SessionList } from "./components/SessionList";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { HistoryPanel } from "./components/HistoryPanel";
@@ -54,12 +54,14 @@ export function applyTheme(theme: "light" | "dark") {
   }
 }
 
+const VIEW_ORDER: ViewMode[] = ["card", "compact", "oneline"];
+
 export function App() {
   const { sessions, cardConfig, home } = useSessions();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [compactMode, setCompactMode] = useState(
-    () => localStorage.getItem('compactMode') === 'true'
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem("viewMode") as ViewMode | null) ?? "card",
   );
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
   const isDetached = window.location.hash === "#detached";
@@ -99,23 +101,26 @@ export function App() {
     setSettingsOpen(false);
   };
 
-  const handleCompactToggle = () => setCompactMode((o) => {
-    const next = !o;
-    localStorage.setItem('compactMode', String(next));
-    ipcRenderer.send('set-compact-mode', next);
-    return next;
-  });
+  const handleViewModeChange = () =>
+    setViewMode((cur) => {
+      const next =
+        VIEW_ORDER[(VIEW_ORDER.indexOf(cur) + 1) % VIEW_ORDER.length];
+      localStorage.setItem("viewMode", next);
+      ipcRenderer.send("set-view-mode", next);
+      return next;
+    });
 
   useEffect(() => {
-    ipcRenderer.send('set-compact-mode', compactMode);
+    ipcRenderer.send("set-view-mode", viewMode);
   }, []);
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key === 'compactMode') setCompactMode(e.newValue === 'true');
+      if (e.key === "viewMode")
+        setViewMode((e.newValue as ViewMode | null) ?? "card");
     };
-    window.addEventListener('storage', handler);
-    return () => window.removeEventListener('storage', handler);
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
   }, []);
 
   const handlePopout = () => ipcRenderer.send("open-detached-panel");
@@ -134,11 +139,11 @@ export function App() {
         isDetached={isDetached}
         isSettingsOpen={settingsOpen}
         isHistoryOpen={historyOpen}
-        isCompact={compactMode}
+        viewMode={viewMode}
         alwaysOnTop={alwaysOnTop}
         onSettingsToggle={handleSettingsToggle}
         onHistoryToggle={handleHistoryToggle}
-        onCompactToggle={handleCompactToggle}
+        onViewModeChange={handleViewModeChange}
         onPopout={handlePopout}
         onPinToggle={handlePinToggle}
         onClose={handleClose}
@@ -157,13 +162,13 @@ export function App() {
       ) : (
         <div
           id="sessions"
-          className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${compactMode ? 'overflow-x-hidden' : 'gap-1.5 px-2 py-1.5'}`}
+          className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${viewMode !== "card" ? "overflow-x-hidden" : "gap-1.5 px-2 py-1.5"}`}
         >
           <SessionList
             sessions={sessions}
             cardConfig={cardConfig}
             home={home}
-            compactMode={compactMode}
+            viewMode={viewMode}
           />
         </div>
       )}

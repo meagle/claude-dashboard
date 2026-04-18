@@ -1,18 +1,18 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Header } from '../Header';
+import { Header, ViewMode } from '../Header';
 
 function makeProps(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
   return {
     isDetached: false,
     isSettingsOpen: false,
     isHistoryOpen: false,
-    isCompact: false,
+    viewMode: 'card' as ViewMode,
     alwaysOnTop: true,
     onSettingsToggle: vi.fn(),
     onHistoryToggle: vi.fn(),
-    onCompactToggle: vi.fn(),
+    onViewModeChange: vi.fn(),
     onPopout: vi.fn(),
     onPinToggle: vi.fn(),
     onClose: vi.fn(),
@@ -23,7 +23,7 @@ function makeProps(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
 describe('Header — popover mode', () => {
   it('renders the title', () => {
     render(<Header {...makeProps()} />);
-    expect(screen.getByText('🤖 Claude Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('Claude')).toBeInTheDocument();
   });
 
   it('shows popout button', () => {
@@ -72,22 +72,27 @@ describe('Header — detached mode', () => {
   });
 });
 
-describe('Header — compact toggle', () => {
-  it('shows "Switch to compact view" when not compact', () => {
-    render(<Header {...makeProps({ isCompact: false })} />);
+describe('Header — view mode toggle', () => {
+  it('shows "Switch to compact view" in card mode', () => {
+    render(<Header {...makeProps({ viewMode: 'card' })} />);
     expect(screen.getByTitle('Switch to compact view')).toBeInTheDocument();
   });
 
-  it('shows "Switch to card view" when compact', () => {
-    render(<Header {...makeProps({ isCompact: true })} />);
+  it('shows "Switch to one-line view" in compact mode', () => {
+    render(<Header {...makeProps({ viewMode: 'compact' })} />);
+    expect(screen.getByTitle('Switch to one-line view')).toBeInTheDocument();
+  });
+
+  it('shows "Switch to card view" in one-line mode', () => {
+    render(<Header {...makeProps({ viewMode: 'oneline' })} />);
     expect(screen.getByTitle('Switch to card view')).toBeInTheDocument();
   });
 
-  it('calls onCompactToggle when compact button is clicked', () => {
+  it('calls onViewModeChange when view mode button is clicked', () => {
     const props = makeProps();
     render(<Header {...props} />);
     fireEvent.click(screen.getByTitle('Switch to compact view'));
-    expect(props.onCompactToggle).toHaveBeenCalledOnce();
+    expect(props.onViewModeChange).toHaveBeenCalledOnce();
   });
 });
 

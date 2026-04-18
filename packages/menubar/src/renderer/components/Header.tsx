@@ -1,4 +1,59 @@
 import React from 'react';
+import { SessionRow } from '../types';
+
+export type ViewMode = 'card' | 'compact' | 'oneline';
+
+/* ─── Brand mark ──────────────────────────────────────────────────────────
+ * A compact "orbit" mark that echoes the cyan→violet gradient used on
+ * context bars, session-key pills, and status dots. Replaces the 🤖 emoji.
+ *
+ *    ╭─╮           outer ring (cyan → violet gradient stroke)
+ *    │ · │         inner nucleus dot (accent)
+ *    ╰─╯
+ *
+ * When any session is actively running we add a soft pulsing ring behind
+ * the mark — mirrors the `animate-status-pulse` used across SessionCard.
+ * ────────────────────────────────────────────────────────────────────── */
+function BrandMark({ pulse }: { pulse: boolean }) {
+  return (
+    <span className="relative inline-flex items-center justify-center w-[18px] h-[18px] shrink-0">
+      {pulse && (
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full animate-status-pulse"
+          style={{
+            background:
+              'radial-gradient(circle, var(--color-accent) 0%, transparent 70%)',
+            opacity: 0.35,
+          }}
+        />
+      )}
+      <svg
+        viewBox="0 0 18 18"
+        width="18"
+        height="18"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden
+      >
+        <defs>
+          <linearGradient id="claude-mark-grad" x1="0" y1="0" x2="18" y2="18" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stopColor="var(--color-accent)" />
+            <stop offset="100%" stopColor="var(--color-tool)" />
+          </linearGradient>
+        </defs>
+        {/* Outer ring */}
+        <circle cx="9" cy="9" r="7" stroke="url(#claude-mark-grad)" strokeWidth="1.5" />
+        {/* Orbit tick (top-right) – a subtle "active" cue */}
+        <circle cx="14.2" cy="4.2" r="1.4" fill="url(#claude-mark-grad)" />
+        {/* Nucleus */}
+        <circle cx="9" cy="9" r="2" fill="url(#claude-mark-grad)" />
+      </svg>
+    </span>
+  );
+}
+
+/* ─── Status icons ──────────────────────────────────────────────────────── */
 
 const CLOCK_ICON = (
   <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -57,39 +112,159 @@ const CARD_ICON = (
   </svg>
 );
 
+// Compact view: pairs of lines (2-line rows)
+const COMPACT_ICON = (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="2" width="14" height="1.5" rx="0.5"/>
+    <rect x="1" y="5" width="9"  height="1.5" rx="0.5"/>
+    <rect x="1" y="9" width="14" height="1.5" rx="0.5"/>
+    <rect x="1" y="12" width="9"  height="1.5" rx="0.5"/>
+  </svg>
+);
+
+// One-line view: evenly-spaced single lines
+const ONELINE_ICON = (
+  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <rect x="1" y="2.5"  width="14" height="1.5" rx="0.5"/>
+    <rect x="1" y="6.25" width="14" height="1.5" rx="0.5"/>
+    <rect x="1" y="10"   width="14" height="1.5" rx="0.5"/>
+    <rect x="1" y="13.5" width="14" height="1.5" rx="0.5"/>
+  </svg>
+);
+
+// Map: current mode → { next-mode icon, tooltip }
+const VIEW_CYCLE: Record<ViewMode, { icon: React.ReactNode; title: string }> = {
+  card:    { icon: COMPACT_ICON,  title: 'Switch to compact view'  },
+  compact: { icon: ONELINE_ICON,  title: 'Switch to one-line view' },
+  oneline: { icon: CARD_ICON,     title: 'Switch to card view'     },
+};
+
 const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150 focus:outline-none';
+
+/* ─── Live activity pills ───────────────────────────────────────────────── */
+
+interface Counts {
+  active: number;
+  waiting: number;
+  error: number;
+  done: number;
+  total: number;
+}
+
+function computeCounts(sessions: SessionRow[] | undefined): Counts {
+  const c: Counts = { active: 0, waiting: 0, error: 0, done: 0, total: 0 };
+  if (!sessions) return c;
+  for (const s of sessions) {
+    c.total++;
+    if (s.errorState) c.error++;
+    else if (s.status === 'active') c.active++;
+    else if (s.status === 'waiting_permission' || s.status === 'waiting_input') c.waiting++;
+    else if (s.status === 'done') c.done++;
+  }
+  return c;
+}
+
+function StatusPill({
+  count, label, colorClass, pulse = false, title,
+}: {
+  count: number;
+  label: string;
+  colorClass: string;
+  pulse?: boolean;
+  title: string;
+}) {
+  if (count === 0) return null;
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge bg-line/40 border border-edge/60 text-[11px] leading-none ${colorClass}`}
+    >
+      <span
+        className={`inline-block w-[6px] h-[6px] rounded-full bg-current ${pulse ? 'animate-status-pulse' : ''}`}
+        aria-hidden
+      />
+      <span className="font-mono tabular-nums font-bold">{count}</span>
+      <span className="text-fainter">{label}</span>
+    </span>
+  );
+}
+
+/* ─── Header ────────────────────────────────────────────────────────────── */
 
 interface HeaderProps {
   isDetached: boolean;
   isSettingsOpen: boolean;
   isHistoryOpen: boolean;
-  isCompact: boolean;
+  viewMode: ViewMode;
   alwaysOnTop: boolean;
   onSettingsToggle: () => void;
   onHistoryToggle: () => void;
-  onCompactToggle: () => void;
+  onViewModeChange: () => void;
   onPopout: () => void;
   onPinToggle: () => void;
   onClose: () => void;
+  /** Optional — when provided, header shows live activity pills. */
+  sessions?: SessionRow[];
 }
 
 export function Header({
   isDetached,
   isSettingsOpen,
   isHistoryOpen,
-  isCompact,
+  viewMode,
   alwaysOnTop,
   onSettingsToggle,
   onHistoryToggle,
-  onCompactToggle,
+  onViewModeChange,
   onPopout,
   onPinToggle,
   onClose,
+  sessions,
 }: HeaderProps) {
+  const counts = computeCounts(sessions);
+  const anyRunning = counts.active + counts.waiting > 0;
+  const cycle = VIEW_CYCLE[viewMode];
+  const isNonCard = viewMode !== 'card';
+
   return (
-    <div id="header" className="flex justify-between items-center px-3 pb-1.5 border-b border-line shrink-0">
-      <span className="font-bold text-bright text-[13px]">🤖 Claude Dashboard</span>
-      <span className="flex items-center gap-2.5">
+    <div
+      id="header"
+      className="flex justify-between items-center px-3 pb-1.5 border-b border-line shrink-0 gap-2"
+    >
+      {/* ── Left: brand mark + wordmark + live activity pills ─────────── */}
+      <span className="flex items-center gap-2 min-w-0">
+        <BrandMark pulse={anyRunning} />
+        <span className="font-bold text-bright text-[13px] tracking-tight">Claude</span>
+
+        {counts.total > 0 && !isHistoryOpen && !isSettingsOpen && (
+          <span className="flex items-center gap-1 ml-1">
+            <span className="text-fainter/70 text-xs">·</span>
+            <StatusPill
+              count={counts.active}
+              label="active"
+              colorClass="text-badge-active"
+              pulse
+              title={`${counts.active} active session${counts.active === 1 ? '' : 's'}`}
+            />
+            <StatusPill
+              count={counts.waiting}
+              label="waiting"
+              colorClass="text-badge-waiting"
+              pulse
+              title={`${counts.waiting} waiting on input or permission`}
+            />
+            <StatusPill
+              count={counts.error}
+              label="loop"
+              colorClass="text-badge-loop"
+              title={`${counts.error} session${counts.error === 1 ? '' : 's'} in a loop`}
+            />
+          </span>
+        )}
+      </span>
+
+      {/* ── Right: functional controls (unchanged) ────────────────────── */}
+      <span className="flex items-center gap-2.5 shrink-0">
         {!isDetached && (
           <button
             title="Open as standalone panel"
@@ -100,11 +275,11 @@ export function Header({
           </button>
         )}
         <button
-          title={isCompact ? 'Switch to card view' : 'Switch to compact view'}
-          className={`${BTN} ${isCompact ? 'text-accent' : 'hover:text-bright'}`}
-          onClick={onCompactToggle}
+          title={cycle.title}
+          className={`${BTN} ${isNonCard ? 'text-accent' : 'hover:text-bright'}`}
+          onClick={onViewModeChange}
         >
-          {isCompact ? CARD_ICON : LIST_ICON}
+          {cycle.icon}
         </button>
         <button
           title={isHistoryOpen ? 'Back to sessions' : 'Session history'}

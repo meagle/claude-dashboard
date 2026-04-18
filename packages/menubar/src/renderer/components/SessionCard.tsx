@@ -10,11 +10,12 @@ import {
 } from "../utils/format";
 import { COPY_ICON } from "./icons";
 
+// ── Inline icons ──────────────────────────────────────────────────────────
 const BRANCH_ICON = (
   <svg
     viewBox="0 0 24 24"
-    width="13"
-    height="13"
+    width="12"
+    height="12"
     fill="none"
     stroke="currentColor"
     strokeWidth="2"
@@ -28,13 +29,44 @@ const BRANCH_ICON = (
   </svg>
 );
 
+const FOLDER_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="12"
+    height="12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+  </svg>
+);
+
+const WORKTREE_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="11"
+    height="11"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 19V5" />
+    <path d="M6 11l6-6 6 6" />
+  </svg>
+);
+
 const CLAUDE_ICON = (
   <svg
     className="animate-pulse shrink-0"
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 512 509.64"
-    width="18"
-    height="18"
+    width="16"
+    height="16"
   >
     <path
       fill="#D77655"
@@ -47,6 +79,97 @@ const CLAUDE_ICON = (
     />
   </svg>
 );
+
+// ── Small helpers ─────────────────────────────────────────────────────────
+
+// Accent-bar color class per status. Uses existing semantic tokens.
+function accentColor(
+  status: SessionRow["status"],
+  errorState: boolean,
+): string {
+  if (errorState) return "bg-badge-loop"; // red
+  if (status === "waiting_permission" || status === "waiting_input")
+    return "bg-badge-waiting"; // amber
+  if (status === "active") return "bg-branch"; // green
+  if (status === "done") return "bg-badge-done"; // neutral
+  return "bg-accent"; // idle → cyan/blue
+}
+
+// Status dot color — same palette as the accent bar.
+function dotColor(status: SessionRow["status"], errorState: boolean): string {
+  if (errorState) return "text-badge-loop";
+  if (status === "waiting_permission" || status === "waiting_input")
+    return "text-badge-waiting";
+  if (status === "active") return "text-badge-active";
+  if (status === "done") return "text-badge-done";
+  return "text-accent";
+}
+
+// Git-change indicators inside the branch pill: ● N (diff dot) + ↑ N (ahead)
+function BranchPill({
+  branch,
+  gitSummary,
+  gitAhead,
+}: {
+  branch: string;
+  gitSummary?: string | null;
+  gitAhead?: number | null;
+}) {
+  // Extract a single "changed files" count from gitSummary if present,
+  // e.g. "3 files +42 -7" → 3. Fallback: show nothing for the diff dot.
+  let changes: number | null = null;
+  if (gitSummary) {
+    const m = gitSummary.match(/(\d+)\s*file/i);
+    if (m) changes = parseInt(m[1], 10);
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-badge bg-line/60 border border-edge/60 text-sm text-bright whitespace-nowrap leading-none">
+      <span className="text-path inline-flex items-center">{BRANCH_ICON}</span>
+      <span className="font-mono">{compressBranch(branch, 28)}</span>
+      {changes != null && (
+        <span className="inline-flex items-center gap-0.5 text-badge-waiting">
+          <span className="text-[8px]">●</span>
+          <span className="font-mono">{changes}</span>
+        </span>
+      )}
+      {gitAhead != null && gitAhead > 0 && (
+        <span className="inline-flex items-center gap-0.5 text-branch font-mono">
+          ↑{gitAhead}
+        </span>
+      )}
+    </span>
+  );
+}
+
+function WorktreePill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-badge bg-tool/15 border border-tool/40 text-sm text-tool whitespace-nowrap leading-none">
+      <span className="inline-flex items-center">{WORKTREE_ICON}</span>
+      <span className="font-mono">{label}</span>
+    </span>
+  );
+}
+
+// "⌘N" session-key pill shown top-right. Derive a stable short index
+// from the pid so mock data renders predictably.
+function sessionKey(pid: number): string {
+  // Trailing digit of the pid keeps things short (1-9). Good enough as a
+  // human-recognisable session number in the UI.
+  const n = (Math.abs(pid) % 9) + 1;
+  return `⌘${n}`;
+}
+
+// Token-count pill shown on the right of the footer bar.
+function TokenChip({ label }: { label: string }) {
+  return (
+    <span className="text-fainter text-ui font-mono whitespace-nowrap shrink-0">
+      {label}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 
 interface SessionCardProps {
   session: SessionRow;
@@ -75,7 +198,7 @@ export function SessionCard({
   const isWaiting =
     s.status === "waiting_permission" || s.status === "waiting_input";
 
-  // Start a one-shot flash when isNew becomes true, then clear after animation (3 × 0.7s)
+  // One-shot flash when a card first arrives / transitions to done.
   useEffect(() => {
     if (!isNew) return;
     setIsFlashing(true);
@@ -88,25 +211,9 @@ export function SessionCard({
       ? Date.now() - s.turnStartedAt
       : Date.now() - s.startedAt;
 
-  const branchLabel = cfg.showBranch
-    ? [
-        s.branch,
-        s.worktree && s.worktree !== s.branch
-          ? `🌿 ${s.worktree}`
-          : s.worktree
-            ? "🌿"
-            : null,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    : "";
+  const worktreeLabel =
+    s.worktree && s.worktree !== s.branch ? s.worktree : null;
 
-  const gitParts = cfg.showGitSummary
-    ? [s.gitSummary, s.gitAhead != null ? `↑${s.gitAhead}` : null].filter(
-        Boolean,
-      )
-    : [];
-  const gitLabel = gitParts.join("  ");
   const timeLabel = isDone ? agoStr(s.lastActivity) : elapsedStr(turnMs);
 
   const handleCopyPath = (e: React.MouseEvent) => {
@@ -116,63 +223,61 @@ export function SessionCard({
     setTimeout(() => setPathCopied(false), 1500);
   };
 
-  // Card border + state classes
-  const cardBorder = isFlashing
-    ? "border-flash-start animate-flash"
-    : isWaiting
-      ? "border-waiting-border"
-      : isActive
-        ? "border-active-border"
-        : isDone
-          ? "border-line"
-          : "border-edge";
+  // Card chrome — rounded, subtle border, relative so the accent bar can
+  // be absolutely positioned on the left edge.
+  const cardCls = [
+    "group relative overflow-hidden",
+    "rounded-lg border border-line/80",
+    "bg-surface/70 backdrop-blur-sm",
+    "pl-4 pr-3 py-3",
+    "cursor-pointer transition-all duration-150",
+    "hover:bg-surface hover:border-edge",
+    isFlashing ? "animate-flash" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  const cardCls = `border rounded-md px-3 pt-2 pb-1.75 cursor-pointer bg-surface transition-colors duration-150 hover:brightness-110 ${cardBorder}`;
+  const accentCls = [
+    "absolute left-0 top-0 bottom-0 w-1",
+    accentColor(s.status, s.errorState),
+    isActive ? "animate-status-pulse" : "",
+  ].join(" ");
 
-  // Indent for sub-rows — matches badge wrapper width (w-6) + gap-2
-  const INDENT = "pl-8 pr-5";
-  // Extra indent for response/stream lines (↳) below the prompt
-  const RESPONSE_INDENT = "pl-12 pr-5";
+  // Primary prompt / task text for this session.
+  const taskText =
+    (isDone
+      ? (s.currentTask ?? s.lastPrompt)
+      : (s.currentTask ?? s.lastPrompt)) ?? null;
+  const answer = isDone ? s.lastMessage : null;
 
-  const header = (
-    <div className="flex flex-col gap-0.5 mb-2 leading-card">
-      {/* Top row: badge + dirname + elapsed (right-aligned) + dismiss (done) */}
-      <div className="flex items-center gap-2">
-        <span className="w-6 shrink-0 flex items-center">
-          <Badge status={s.status} lastActivity={s.lastActivity} />
-        </span>
-        <span className="flex items-center gap-2 shrink min-w-0 overflow-hidden">
-          <span className="font-bold text-brighter overflow-hidden text-ellipsis whitespace-nowrap">
-            {s.dirName}
-          </span>
-          <span
-            className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 cursor-pointer inline-flex items-center"
-            title={`Copy: ${s.workingDir}`}
-            onClick={handleCopyPath}
-          >
-            {pathCopied ? (
-              <span className="text-accent text-xs leading-none">✓</span>
-            ) : (
-              <span className="text-soft hover:text-accent inline-flex items-center">
-                {COPY_ICON}
-              </span>
-            )}
-          </span>
-        </span>
+  // ── Top row: dot + title + ⌘-key pill + dismiss ────────────────────────
+  const topRow = (
+    <div className="flex items-center gap-2 min-w-0">
+      <span className={`shrink-0 ${dotColor(s.status, s.errorState)}`}>
+        <Badge status={s.status} lastActivity={s.lastActivity} size="sm" />
+      </span>
+      <span className="font-bold text-brighter text-[15px] truncate min-w-0 flex-1">
+        {taskText || s.dirName}
+      </span>
+      <span className="shrink-0 inline-flex items-center gap-1.5">
         {timeLabel && (
-          <span className="relative ml-auto shrink-0 pl-2 group/time">
-            <span className="text-fainter text-sm whitespace-nowrap">
-              {timeLabel}
-            </span>
-            <span className="pointer-events-none absolute right-0 top-full mt-1 px-2 py-1 bg-surface border border-line text-soft text-[11px] whitespace-nowrap rounded opacity-0 group-hover/time:opacity-100 transition-opacity duration-150 z-10">
-              {isDone
-                ? "Time since session completed"
-                : "Time elapsed in current turn"}
-            </span>
+          <span className="text-fainter text-ui font-mono whitespace-nowrap">
+            {timeLabel}
           </span>
         )}
+        <span
+          className="inline-flex items-center px-1.5 py-0.5 rounded-badge border border-edge/70 bg-line/40 text-fainter text-ui font-mono leading-none"
+          title="Session shortcut"
+        >
+          {sessionKey(s.pid)}
+        </span>
         <button
-          className={`shrink-0 bg-transparent border-none cursor-pointer text-bright text-ui leading-none px-0.5 pl-1.5 transition-opacity duration-150 hover:text-danger ${isDone ? "opacity-0 group-hover:opacity-100" : "invisible"}`}
+          className={[
+            "bg-transparent border-none cursor-pointer leading-none",
+            "text-fainter hover:text-danger transition-opacity duration-150",
+            "text-ui px-0.5",
+            isDone ? "opacity-0 group-hover:opacity-100" : "invisible",
+          ].join(" ")}
           title="Dismiss"
           onClick={(e) => {
             e.stopPropagation();
@@ -181,172 +286,119 @@ export function SessionCard({
         >
           ✕
         </button>
-      </div>
-      {/* Sub row: branch | git | turns | tools — justify-between with · separators */}
-      {(() => {
-        const row2Items: React.ReactNode[] = [
-          branchLabel ? (
-            <span
-              key="branch"
-              className="text-branch text-sm whitespace-nowrap flex items-center gap-0.5"
-            >
-              <span className="text-path inline-flex items-center">
-                {BRANCH_ICON}
-              </span>
-              {compressBranch(branchLabel)}
-            </span>
-          ) : null,
-          cfg.showGitSummary ? (
-            gitLabel ? (
-              <span key="git" className="text-git text-sm whitespace-nowrap">
-                git {gitLabel}
-              </span>
-            ) : (
-              <span
-                key="git"
-                className="text-fainter text-sm whitespace-nowrap"
-              >
-                no changes
-              </span>
-            )
-          ) : null,
-          s.toolCount > 0 ? (
-            <span key="tools" className="text-faint text-sm whitespace-nowrap">
-              {s.toolCount} tools
-            </span>
-          ) : null,
-          s.turns != null && s.turns > 0 ? (
-            <span key="turns" className="text-faint text-sm whitespace-nowrap">
-              {s.turns} turns
-            </span>
-          ) : null,
-        ].filter(Boolean) as React.ReactNode[];
-        return row2Items.length > 0 ? (
-          <div
-            className={`flex items-baseline justify-between mt-3 mb-3 ${INDENT}`}
-          >
-            {row2Items.map((item, i) => (
-              <React.Fragment key={i}>
-                {i > 0 && <span className="text-fainter text-xs px-1">·</span>}
-                {item}
-              </React.Fragment>
-            ))}
-          </div>
-        ) : null;
-      })()}
+      </span>
     </div>
   );
 
-  // Shared footer — used by both done and active/waiting/idle cards
-  const buildFooter = (showModelContext: boolean) => {
-    const modelBadge =
-      showModelContext && s.model ? (
-        <span className="bg-model-bg text-accent text-ui font-bold px-1.25 py-px rounded-badge shrink-0">
-          {s.model}
+  // ── Meta row: repo · branch-pill · worktree-pill ───────────────────────
+  const metaRow = (
+    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5 text-sm leading-none">
+      <span className="inline-flex items-center gap-1 text-fainter min-w-0">
+        <span className="inline-flex items-center text-path">
+          {FOLDER_ICON}
         </span>
-      ) : null;
-    const contextBar =
-      showModelContext && s.contextPct != null ? (
-        <ContextBar pct={s.contextPct} />
-      ) : null;
-    const costBadge =
-      cfg.showCost && s.costUsd != null ? (
-        <span className="text-soft text-ui shrink-0">
-          ${s.costUsd.toFixed(4)}
+        <span className="font-mono truncate max-w-[160px]" title={s.workingDir}>
+          {s.dirName}
         </span>
-      ) : null;
-    const tokenBadge =
-      cfg.showCost && s.totalTokens != null ? (
-        <span className="text-soft text-ui shrink-0">
-          {formatTokens(s.totalTokens)}
+        <span
+          className="ml-0.5 inline-flex items-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-soft hover:text-accent"
+          title={`Copy: ${s.workingDir}`}
+          onClick={handleCopyPath}
+        >
+          {pathCopied ? (
+            <span className="text-accent text-xs leading-none">✓</span>
+          ) : (
+            COPY_ICON
+          )}
         </span>
-      ) : null;
-    return modelBadge || contextBar || costBadge || tokenBadge ? (
-      <div className={`flex items-center justify-between mt-8 ${INDENT}`}>
-        {modelBadge}
-        {contextBar}
-        {costBadge}
-        {tokenBadge}
+      </span>
+      {cfg.showBranch && s.branch && (
+        <>
+          <span className="text-fainter/60">·</span>
+          <BranchPill
+            branch={s.branch}
+            gitSummary={cfg.showGitSummary ? s.gitSummary : null}
+            gitAhead={cfg.showGitSummary ? s.gitAhead : null}
+          />
+        </>
+      )}
+      {worktreeLabel && <WorktreePill label={worktreeLabel} />}
+      {s.toolCount > 0 && (
+        <>
+          <span className="text-fainter/60">·</span>
+          <span className="text-fainter text-sm font-mono whitespace-nowrap">
+            {s.toolCount} tools
+          </span>
+        </>
+      )}
+      {s.turns != null && s.turns > 0 && (
+        <>
+          <span className="text-fainter/60">·</span>
+          <span className="text-fainter text-sm font-mono whitespace-nowrap">
+            {s.turns} turns
+          </span>
+        </>
+      )}
+    </div>
+  );
+
+  // ── Body panel: quoted prompt preview ──────────────────────────────────
+  const promptPreview = taskText ? (
+    <div className="mt-2.5 rounded-md bg-base/60 border border-line/60 px-2.5 py-2">
+      <div className="flex items-start gap-1.5 text-sm text-prompt leading-card break-words">
+        <span className="shrink-0 text-fainter leading-none text-base font-bold mt-px">
+          ›
+        </span>
+        <span className="min-w-0">{taskText}</span>
       </div>
-    ) : null;
-  };
+      {answer && (
+        <div className="mt-1 pl-4 text-sm text-soft break-words leading-card">
+          <span className="text-fainter mr-1">↳</span>
+          {answer}
+        </div>
+      )}
+    </div>
+  ) : null;
 
-  if (isDone) {
-    const prompt = s.currentTask ?? s.lastPrompt;
-    const answer = s.lastMessage;
-    const doneFooter = buildFooter(cfg.showDoneFooter);
-
-    return (
-      <div
-        className={`group ${cardCls}`}
-        data-pid={s.pid}
-        data-session={s.sessionId}
-        data-term={s.termSessionId ?? ""}
-        onClick={() => onFocus(s.pid, s.termSessionId)}
-      >
-        {header}
-        {prompt && (
-          <div
-            className={`text-sm font-bold text-prompt mb-1.5 break-words flex items-start gap-1.5 ${INDENT}`}
-          >
-            <span className="shrink-0 mt-px text-brighter leading-none text-lg font-bold">
-              ›
-            </span>
-            <span>{prompt}</span>
-          </div>
-        )}
-        {answer ? (
-          <div
-            className={`text-sm text-soft break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}
-          >
-            ↳ {answer}
-          </div>
-        ) : (
-          <div
-            className={`text-sm text-git whitespace-nowrap overflow-hidden text-ellipsis ${INDENT}`}
-          >
-            ✅ Completed
-          </div>
-        )}
-        {doneFooter}
-      </div>
-    );
-  }
-
-  // ── Active / waiting / idle card ──────────────────────────────────────────
-  const taskText = s.currentTask ?? s.lastPrompt;
-
+  // ── Active stream / tool row (only for non-done cards) ─────────────────
   let streamRow: React.ReactNode = null;
-  if (taskText) {
+  if (!isDone && taskText) {
     const toolName = s.currentTool ?? (s.errorState ? s.loopTool : null);
     if (toolName) {
       streamRow = (
         <div
-          className={`text-sm break-words mt-0.5 mb-1 ${RESPONSE_INDENT} ${s.errorState ? "text-badge-loop" : "text-tool"}`}
+          className={`mt-1.5 text-sm flex items-start gap-1.5 break-words ${
+            s.errorState ? "text-badge-loop" : "text-tool"
+          }`}
         >
-          ↳ 🔧 {toolName}
-          {s.errorState && s.loopCount > 1 && (
-            <span className="font-bold"> ×{s.loopCount} loop</span>
-          )}
-          {s.lastToolSummary && (
-            <span className={s.errorState ? "opacity-70" : "text-faint"}>
-              {" "}
-              {s.lastToolSummary}
-            </span>
-          )}
+          <span className="shrink-0">
+            {isActive && !s.errorState ? CLAUDE_ICON : "🔧"}
+          </span>
+          <span className="min-w-0">
+            <span className="font-mono">{toolName}</span>
+            {s.errorState && s.loopCount > 1 && (
+              <span className="font-bold"> ×{s.loopCount} loop</span>
+            )}
+            {s.lastToolSummary && (
+              <span className={s.errorState ? "opacity-70" : "text-faint"}>
+                {" "}
+                {s.lastToolSummary}
+              </span>
+            )}
+          </span>
         </div>
       );
     } else if (s.partialResponse) {
       streamRow = (
-        <div
-          className={`text-sm text-soft break-words mt-0.5 mb-1 ${RESPONSE_INDENT}`}
-        >
-          ↳ {s.partialResponse}
+        <div className="mt-1.5 text-sm text-soft break-words flex items-start gap-1.5">
+          <span className="text-fainter">↳</span>
+          <span className="min-w-0">{s.partialResponse}</span>
         </div>
       );
     }
   }
 
+  // ── Tasks summary (agent checklist) ────────────────────────────────────
   let tasksRow: React.ReactNode = null;
   if (s.tasks && s.tasks.length > 0) {
     const completed = s.tasks.filter((t) => t.status === "completed").length;
@@ -357,9 +409,7 @@ export function SessionCard({
     if (inProgress) counts.push(`🔄 ${inProgress}`);
     if (pending) counts.push(`⏳ ${pending}`);
     tasksRow = (
-      <div
-        className={`flex items-center justify-between mb-1 text-sm text-soft ${INDENT}`}
-      >
+      <div className="flex items-center justify-between mt-2 text-sm text-soft">
         <span className="shrink-0">Tasks: {counts.join("  ")}</span>
         {s.contextPct != null ? (
           <ContextBar pct={s.contextPct} />
@@ -370,64 +420,37 @@ export function SessionCard({
     );
   }
 
-  let toolRow: React.ReactNode = null;
-  const runningAgents = (s.subagents ?? []).filter(
-    (a) => a.status === "running",
-  );
-  const toolParts: React.ReactNode[] = [];
-
-  if (!taskText) {
+  // ── Idle / done state-only tool & message lines ────────────────────────
+  let idleToolRow: React.ReactNode = null;
+  if (!taskText && !isDone) {
     if (s.currentTool) {
-      toolParts.push(
-        <span key="tool" className="text-tool">
-          🔧 {s.currentTool}
+      idleToolRow = (
+        <div className="mt-1.5 text-sm text-tool whitespace-nowrap overflow-hidden text-ellipsis">
+          🔧 <span className="font-mono">{s.currentTool}</span>
           {s.lastToolSummary && (
             <span className="text-faint"> {s.lastToolSummary}</span>
           )}
-        </span>,
+        </div>
       );
     } else if (s.lastTool) {
-      const ago = s.lastToolAt ? ` • ${agoStr(s.lastToolAt)}` : "";
-      toolParts.push(
-        <span key="lasttool">
-          🔧 {s.lastTool}
+      const ago = s.lastToolAt ? ` · ${agoStr(s.lastToolAt)}` : "";
+      idleToolRow = (
+        <div className="mt-1.5 text-sm text-fainter whitespace-nowrap overflow-hidden text-ellipsis">
+          🔧 <span className="font-mono">{s.lastTool}</span>
           {ago}
-        </span>,
+        </div>
+      );
+    } else if (s.lastMessage) {
+      idleToolRow = (
+        <div className="mt-1.5 text-sm text-soft break-words">
+          <span className="text-fainter mr-1">└</span>
+          {s.lastMessage}
+        </div>
       );
     }
   }
 
-  if (cfg.showSubagents && runningAgents.length > 0) {
-    toolParts.push(
-      <span key="agents" className="text-branch">
-        subagents:{" "}
-        {runningAgents.map((a) => `🤖 ${a.type} (running)`).join(", ")}
-      </span>,
-    );
-  }
-
-  if (toolParts.length > 0) {
-    toolRow = (
-      <div
-        className={`text-sm text-dim whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 ${INDENT}`}
-      >
-        {toolParts.map((p, i) => (
-          <React.Fragment key={i}>
-            {i > 0 ? " • " : ""}
-            {p}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-  }
-
-  const lastMsgRow =
-    !taskText && !toolRow && s.lastMessage && !isActive && !isWaiting ? (
-      <div className={`text-sm text-soft break-words ${INDENT}`}>
-        └ {s.lastMessage}
-      </div>
-    ) : null;
-
+  // ── Alerts (waiting / long bash) ───────────────────────────────────────
   const alerts: React.ReactNode[] = [];
   if (isWaiting) {
     const waitMsg =
@@ -436,52 +459,73 @@ export function SessionCard({
         : "⚠ Awaiting answer";
     const idleMins = Math.floor((Date.now() - s.lastActivity) / 60000);
     alerts.push(
-      <div key="wait" className={`text-alert text-sm mb-0.5 ${INDENT}`}>
-        {waitMsg} • {idleMins}m idle
+      <div key="wait" className="mt-2 text-alert text-sm">
+        {waitMsg} · {idleMins}m idle
       </div>,
     );
   }
   if (s.bashStartedAt && Date.now() - s.bashStartedAt > 30_000) {
     const elapsed = Math.floor((Date.now() - s.bashStartedAt) / 60000);
     alerts.push(
-      <div key="bash" className={`text-alert text-sm mb-0.5 ${INDENT}`}>
+      <div key="bash" className="mt-2 text-alert text-sm">
         ⏳ Bash running {elapsed}m…
       </div>,
     );
   }
 
-  // Show context bar only when there's no tasksRow (tasksRow already embeds it)
-  const footer = buildFooter(cfg.showModel && !tasksRow);
+  // ── Footer: gradient token bar ─────────────────────────────────────────
+  const showFooter =
+    (cfg.showModel || cfg.showCost) &&
+    (s.model ||
+      s.contextPct != null ||
+      s.costUsd != null ||
+      s.totalTokens != null);
+
+  const footer = showFooter ? (
+    <div className="mt-2.5 flex items-center gap-2">
+      {s.contextPct != null ? (
+        <div className="flex-1 h-1 rounded-full overflow-hidden bg-line/70">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
+              background:
+                "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+            }}
+          />
+        </div>
+      ) : (
+        <div className="flex-1" />
+      )}
+      {cfg.showModel && s.model && (
+        <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
+          {s.model}
+        </span>
+      )}
+      {cfg.showCost && s.costUsd != null && (
+        <TokenChip label={`$${s.costUsd.toFixed(4)}`} />
+      )}
+      {cfg.showCost && s.totalTokens != null && (
+        <TokenChip label={formatTokens(s.totalTokens) ?? ""} />
+      )}
+    </div>
+  ) : null;
 
   return (
     <div
-      className={`group ${cardCls}`}
+      className={cardCls}
       data-pid={s.pid}
       data-session={s.sessionId}
       data-term={s.termSessionId ?? ""}
       onClick={() => onFocus(s.pid, s.termSessionId)}
     >
-      {header}
-      {taskText && (
-        <div
-          className={`text-sm font-bold text-prompt mb-1.5 break-words flex items-start gap-1.5 ${INDENT}`}
-        >
-          <span className="shrink-0 mt-px flex items-center">
-            {isActive ? (
-              CLAUDE_ICON
-            ) : (
-              <span className="text-brighter leading-none text-lg font-bold">
-                ›
-              </span>
-            )}
-          </span>
-          <span>{taskText}</span>
-        </div>
-      )}
+      <span className={accentCls} aria-hidden="true" />
+      {topRow}
+      {metaRow}
+      {promptPreview}
       {streamRow}
       {tasksRow}
-      {toolRow}
-      {lastMsgRow}
+      {idleToolRow}
       {alerts}
       {footer}
     </div>

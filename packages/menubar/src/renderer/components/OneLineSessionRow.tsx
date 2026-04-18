@@ -8,15 +8,22 @@ import {
 } from "../utils/format";
 
 /* ─────────────────────────────────────────────────────────────────────────
- * CompactSessionRow — 2-line compact layout, matches SessionCard style.
+ * OneLineSessionRow — ultra-dense single-line row.
  *
- *   ▌ ● dirName  ⎇ branch ●N ↑N  ⇡ worktree               8m  ⌘1
- *   ▌     prompt/task preview (1 line)             ──▬── 34%  820k
+ *   ▌ ● dirName  ⎇ branch ●N ↑N  ⇡ worktree   prompt preview…   ──▬── 34%  820k  ⌘1  8m
  *   ^
- *   └─ 2px accent stripe (status-coloured, same palette as the card)
+ *   └─ 2px accent stripe (status-coloured, same palette as SessionCard)
  *
- * Line 1 = identity + status + time / shortcut
- * Line 2 = what the session is doing + context/tokens
+ * Shares the visual language of SessionCard / CompactSessionRow:
+ *   · left accent stripe coloured by status
+ *   · pulsing status dot
+ *   · branch pill with diff-dot + ahead arrow
+ *   · violet worktree pill
+ *   · cyan→violet context gradient bar
+ *   · ⌘N session-key pill, tabular-num elapsed
+ *
+ * Trailing cluster uses fixed widths so context bars & token columns line
+ * up vertically across rows.
  * ────────────────────────────────────────────────────────────────────── */
 
 const BRANCH_ICON = (
@@ -55,7 +62,7 @@ const WORKTREE_ICON = (
   </svg>
 );
 
-// ── Status → colors (mirror SessionCard) ─────────────────────────────────
+// ── Status → colors (mirror SessionCard / CompactSessionRow) ──────────────
 
 function accentColor(
   status: SessionRow["status"],
@@ -96,7 +103,7 @@ function StatusDot({
         pulse ? "animate-status-pulse" : ""
       }`}
     >
-      <svg viewBox="0 0 10 10" width="9" height="9" aria-hidden>
+      <svg viewBox="0 0 10 10" width="8" height="8" aria-hidden>
         {isIdle ? (
           <circle
             cx="5"
@@ -129,9 +136,9 @@ function BranchPill({
     if (m) changes = parseInt(m[1], 10);
   }
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge bg-line/60 border border-edge/60 text-[11px] text-bright whitespace-nowrap leading-none">
+    <span className="inline-flex items-center gap-1 px-1 py-[1px] rounded-badge bg-line/60 border border-edge/60 text-[11px] text-bright whitespace-nowrap leading-none">
       <span className="text-path inline-flex items-center">{BRANCH_ICON}</span>
-      <span className="font-mono">{compressBranch(branch, 22)}</span>
+      <span className="font-mono">{compressBranch(branch, 20)}</span>
       {changes != null && (
         <span className="inline-flex items-center gap-0.5 text-badge-waiting">
           <span className="text-[7px]">●</span>
@@ -149,7 +156,7 @@ function BranchPill({
 
 function WorktreePill({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge bg-tool/15 border border-tool/40 text-[11px] text-tool whitespace-nowrap leading-none font-mono">
+    <span className="inline-flex items-center gap-0.5 px-1 py-[1px] rounded-badge bg-tool/15 border border-tool/40 text-[11px] text-tool whitespace-nowrap leading-none font-mono">
       <span className="inline-flex items-center">{WORKTREE_ICON}</span>
       <span>{compressBranch(label, 14)}</span>
     </span>
@@ -161,18 +168,18 @@ function sessionKey(pid: number): string {
   return `⌘${n}`;
 }
 
-interface CompactSessionRowProps {
+interface OneLineSessionRowProps {
   session: SessionRow;
   cardConfig: CardConfig;
   home: string;
   onFocus: (pid: number, termSessionId: string | null) => void;
 }
 
-export function CompactSessionRow({
+export function OneLineSessionRow({
   session: s,
   cardConfig: cfg,
   onFocus,
-}: CompactSessionRowProps) {
+}: OneLineSessionRowProps) {
   const isDone = s.status === "done";
   const isActive = s.status === "active";
 
@@ -194,18 +201,14 @@ export function CompactSessionRow({
 
   const hasCtx = s.contextPct != null;
 
-  // Indent column under the status dot so line 2 visually hangs under the
-  // project title. Dot ≈ 9px + gap-2 (8px) + accent-stripe lane (3px) ≈ 20px.
-  const LINE2_INDENT = "pl-[20px]";
-
   return (
     <div
-      className="group relative flex flex-col gap-1 pl-3 pr-2.5 py-2 border-b border-line/60 cursor-pointer bg-surface/40 hover:bg-surface transition-colors duration-150 overflow-hidden"
+      className="group relative flex items-center gap-2 pl-3 pr-2 py-1 border-b border-line/60 cursor-pointer bg-surface/40 hover:bg-surface transition-colors duration-150 overflow-hidden"
       onClick={() => onFocus(s.pid, s.termSessionId)}
       data-session={s.sessionId}
       data-pid={s.pid}
     >
-      {/* Left accent stripe — same hue as SessionCard */}
+      {/* Left accent stripe */}
       <span
         className={`absolute left-0 top-0 bottom-0 w-[2px] ${accentColor(s.status, s.errorState)} ${
           isActive ? "animate-status-pulse" : ""
@@ -213,17 +216,16 @@ export function CompactSessionRow({
         aria-hidden="true"
       />
 
-      {/* ── Line 1: status dot · project · branch pill · worktree · (right) time + ⌘N ── */}
-      <div className="flex items-center gap-2 min-w-0">
-        <StatusDot status={s.status} errorState={s.errorState} />
+      <StatusDot status={s.status} errorState={s.errorState} />
 
+      {/* Project + branch cluster */}
+      <span className="flex items-center gap-1.5 min-w-0 shrink-0 max-w-[44%]">
         <span
-          className="font-bold text-brighter text-ui truncate min-w-0 max-w-[38%]"
+          className="font-bold text-brighter text-ui truncate"
           title={s.workingDir}
         >
           {s.dirName}
         </span>
-
         {cfg.showBranch && s.branch && (
           <BranchPill
             branch={s.branch}
@@ -232,62 +234,64 @@ export function CompactSessionRow({
           />
         )}
         {worktreeLabel && <WorktreePill label={worktreeLabel} />}
+      </span>
 
-        {/* Right cluster — time + loop chip + shortcut */}
-        <span className="ml-auto flex items-center gap-2 shrink-0">
-          {s.errorState && s.loopCount > 1 && (
-            <span className="text-[11px] text-badge-loop font-bold font-mono px-1.5 py-[1px] rounded-badge bg-badge-loop/15 border border-badge-loop/40">
-              ×{s.loopCount} loop
-            </span>
+      {taskText && <span className="text-fainter/50 text-xs shrink-0">·</span>}
+
+      {/* Task preview */}
+      <span className="flex-1 min-w-0 text-ui text-soft truncate leading-card">
+        {taskText || <span className="text-fainter italic">idle</span>}
+      </span>
+
+      {/* Loop chip */}
+      {s.errorState && s.loopCount > 1 && (
+        <span className="shrink-0 text-[11px] text-badge-loop font-bold font-mono px-1.5 py-[1px] rounded-badge bg-badge-loop/15 border border-badge-loop/40">
+          ×{s.loopCount} loop
+        </span>
+      )}
+
+      {/* Fixed-width trailing cluster → context bars line up across rows */}
+      <span className="shrink-0 flex items-center gap-2 w-[210px] justify-end">
+        {/* Context bar slot (always same width) */}
+        <span className="flex items-center gap-1.5 w-[86px] shrink-0">
+          {hasCtx ? (
+            <>
+              <span className="w-14 h-1 rounded-full overflow-hidden bg-line/70">
+                <span
+                  className="block h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, Math.max(4, s.contextPct!))}%`,
+                    background:
+                      "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+                  }}
+                />
+              </span>
+              <span className="text-fainter text-[11px] font-mono tabular-nums w-6 text-right">
+                {s.contextPct}%
+              </span>
+            </>
+          ) : (
+            <span aria-hidden />
           )}
-          <span className="text-fainter text-[11px] font-mono tabular-nums whitespace-nowrap">
-            {timeLabel}
-          </span>
-          <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono leading-none">
-            {sessionKey(s.pid)}
-          </span>
-        </span>
-      </div>
-
-      {/* ── Line 2: task preview · (right) context bar + tokens ─────────── */}
-      <div className={`flex items-center gap-2 min-w-0 ${LINE2_INDENT}`}>
-        <span className="flex-1 min-w-0 text-ui text-soft truncate leading-card">
-          {taskText || <span className="text-fainter italic">idle</span>}
         </span>
 
-        {/* Fixed-width trailing cluster so context bars line up across rows */}
-        <span className="shrink-0 flex items-center gap-2 w-[170px] justify-end">
-          {/* Context bar slot — always occupies the same width */}
-          <span className="flex items-center gap-1.5 w-[88px] shrink-0">
-            {hasCtx ? (
-              <>
-                <span className="w-16 h-1 rounded-full overflow-hidden bg-line/70">
-                  <span
-                    className="block h-full rounded-full"
-                    style={{
-                      width: `${Math.min(100, Math.max(4, s.contextPct!))}%`,
-                      background:
-                        "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-                    }}
-                  />
-                </span>
-                <span className="text-fainter text-[11px] font-mono tabular-nums w-6 text-right">
-                  {s.contextPct}%
-                </span>
-              </>
-            ) : (
-              <span aria-hidden />
-            )}
-          </span>
-
-          {/* Tokens — fixed-width, right-aligned */}
-          <span className="text-fainter text-[11px] font-mono tabular-nums w-[70px] text-right whitespace-nowrap">
-            {cfg.showCost && s.totalTokens != null
-              ? formatTokens(s.totalTokens)
-              : ""}
-          </span>
+        {/* Tokens — fixed width */}
+        <span className="text-fainter text-[11px] font-mono tabular-nums w-[52px] text-right whitespace-nowrap">
+          {cfg.showCost && s.totalTokens != null
+            ? formatTokens(s.totalTokens)
+            : ""}
         </span>
-      </div>
+
+        {/* ⌘-key shortcut */}
+        <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono leading-none">
+          {sessionKey(s.pid)}
+        </span>
+
+        {/* Elapsed */}
+        <span className="text-fainter text-[11px] font-mono tabular-nums w-10 text-right whitespace-nowrap">
+          {timeLabel}
+        </span>
+      </span>
     </div>
   );
 }

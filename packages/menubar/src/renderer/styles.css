@@ -73,8 +73,15 @@
   --animate-status-pulse: status-pulse 2.5s ease-in-out infinite;
 
   @keyframes status-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.45; transform: scale(0.8); }
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.8);
+    }
   }
 
   /* Flash-complete animation (newly-done card) */
@@ -118,7 +125,7 @@
     color: var(--color-body);
     margin: 0;
     padding: 6px 0 0;
-    min-width: 630px;
+    min-width: 530px;
     height: 100%;
     overflow: hidden;
     display: flex;

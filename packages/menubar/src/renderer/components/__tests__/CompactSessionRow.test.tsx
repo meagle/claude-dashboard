@@ -98,30 +98,22 @@ describe('CompactSessionRow — time label', () => {
   });
 });
 
-describe('CompactSessionRow — context dot color', () => {
-  it('uses fill color for context < 60%', () => {
+describe('CompactSessionRow — context bar', () => {
+  it('shows context bar and percentage when contextPct is set', () => {
     const { container } = renderRow({ contextPct: 50 });
-    expect(container.querySelector('.text-ctx-fill')).not.toBeNull();
+    expect(container.querySelector('[style*="width: 50%"]')).not.toBeNull();
+    expect(screen.getByText('50%')).toBeInTheDocument();
   });
 
-  it('uses warn color for context between 60% and 79%', () => {
-    const { container } = renderRow({ contextPct: 70 });
-    expect(container.querySelector('.text-ctx-warn')).not.toBeNull();
-  });
-
-  it('uses crit color for context >= 80%', () => {
+  it('shows context bar at crit level', () => {
     const { container } = renderRow({ contextPct: 85 });
-    expect(container.querySelector('.text-ctx-crit')).not.toBeNull();
+    expect(container.querySelector('[style*="width: 85%"]')).not.toBeNull();
+    expect(screen.getByText('85%')).toBeInTheDocument();
   });
 
-  it('uses crit color at exactly 80%', () => {
-    const { container } = renderRow({ contextPct: 80 });
-    expect(container.querySelector('.text-ctx-crit')).not.toBeNull();
-  });
-
-  it('uses warn color at exactly 60%', () => {
-    const { container } = renderRow({ contextPct: 60 });
-    expect(container.querySelector('.text-ctx-warn')).not.toBeNull();
+  it('hides context bar when contextPct is null', () => {
+    renderRow({ contextPct: null });
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
   });
 });
 

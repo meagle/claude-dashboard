@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ipcRenderer, clipboard } from '../utils/electron';
 import { HistoryRow } from '../types';
-import { compactPath, formatTokens } from '../utils/format';
+import { formatTokens } from '../utils/format';
 import { COPY_ICON } from './icons';
 
 function formatTurns(turns: number | null): string | null {
@@ -78,9 +78,8 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
   const model = shortModel(s.model);
   const prompt = s.currentTask ?? s.lastPrompt;
   const answer = s.lastMessage
-    ? s.lastMessage.length > 160 ? s.lastMessage.slice(0, 160) + '…' : s.lastMessage
+    ? s.lastMessage.length > 200 ? s.lastMessage.slice(0, 200) + '…' : s.lastMessage
     : null;
-  const pathStr = compactPath(s.workingDir, home);
 
   const handleCopyPath = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -90,41 +89,40 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
   };
 
   return (
-    <div className="border border-line rounded-md px-3 pt-2 pb-1.75 opacity-75 hover:opacity-100 transition-opacity duration-150">
-      {/* Top row: dir name + metadata */}
-      <div className="flex items-baseline gap-2.5 mb-1 leading-card">
-        <span className="font-bold text-brighter text-ui">{s.dirName}</span>
-        {turns && <span className="text-soft text-ui px-2">{turns}</span>}
-        {tools && <span className="text-faint text-ui">{tools}</span>}
-        {tokens && <span className="text-faint text-ui">{tokens}</span>}
-        {cost && <span className="text-soft text-ui">{cost}</span>}
-        {model && <span className="text-faint text-ui">{model}</span>}
-      </div>
-      {/* Path row */}
-      <div
-        className="inline-flex items-center min-w-0 pr-2 mb-1 cursor-pointer group/path"
-        title="Click to copy full path"
-        onClick={handleCopyPath}
-      >
-        <span className={`text-sm overflow-hidden text-ellipsis whitespace-nowrap min-w-0 ${pathCopied ? 'text-accent' : 'text-path group-hover/path:text-soft'}`}>
-          {pathCopied ? 'copied!' : pathStr}
+    <div className="border border-line rounded-md px-3 pt-2 pb-2 opacity-75 hover:opacity-100 transition-opacity duration-150">
+      {/* Dir name + copy icon */}
+      <div className="flex items-center gap-1.5 mb-1.5 leading-card">
+        <span
+          className="font-bold text-brighter text-[15px] truncate cursor-pointer group/path flex items-center gap-1 min-w-0"
+          title={pathCopied ? 'Copied!' : `Copy: ${s.workingDir}`}
+          onClick={handleCopyPath}
+        >
+          <span className="truncate text-white">{s.dirName}</span>
+          <span className={`shrink-0 inline-flex items-center transition-colors duration-150 ${pathCopied ? 'text-accent' : 'text-faint group-hover/path:text-accent'}`}>
+            {pathCopied ? <span className="text-[11px]">✓</span> : COPY_ICON}
+          </span>
         </span>
-        <span className="shrink-0 text-soft px-1.5 inline-flex items-center leading-none transition-colors duration-150 group-hover/path:text-accent">
-          {COPY_ICON}
+        <span className="flex items-center gap-2 ml-auto shrink-0 text-faint text-ui">
+          {turns && <span className="text-soft">{turns}</span>}
+          {tools && <span>{tools}</span>}
+          {tokens && <span>{tokens}</span>}
+          {cost && <span className="text-soft">{cost}</span>}
+          {model && <span>{model}</span>}
         </span>
       </div>
-      {/* Prompt + answer */}
+      {/* Prompt + answer styled like SessionCard */}
       {prompt && (
-        <div className="text-sm text-prompt mt-1 break-words">
-          📋 {prompt}
+        <div className="text-sm font-bold text-prompt break-words flex items-start gap-1.5 pl-1 mb-1">
+          <span className="shrink-0 mt-px text-brighter leading-none text-lg font-bold">›</span>
+          <span>{prompt}</span>
         </div>
       )}
       {answer ? (
-        <div className="text-sm text-soft break-words pl-3.5 mt-0.5">
+        <div className="text-sm text-soft break-words pl-5 mt-0.5">
           ↳ {answer}
         </div>
       ) : prompt ? (
-        <div className="text-sm text-git pl-3.5 mt-0.5">✅ Completed</div>
+        <div className="text-sm text-git pl-5 mt-0.5">✅ Completed</div>
       ) : null}
     </div>
   );
@@ -137,6 +135,11 @@ interface HistoryPanelProps {
 
 export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    requestAnimationFrame(() => ipcRenderer.send('resize-to-fit'));
+  }, [expanded]);
 
   useEffect(() => {
     ipcRenderer.invoke('get-history').then((rows: HistoryRow[]) => {
@@ -160,22 +163,40 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
 
   const groups = groupByDay(history, showCost);
 
+  const toggle = (label: string) =>
+    setExpanded(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+
   return (
-    <div id="history-panel" className="flex flex-col gap-4 px-2 py-1.5 overflow-y-auto flex-1 min-h-0">
-      {groups.map((group, i) => (
-        <div key={group.label} className={i > 0 ? 'mt-4' : ''}>
-          <div className="flex items-baseline gap-6 px-1 pb-1.5 border-b border-line mb-2">
-            <span className="font-bold text-bright">{group.label}</span>
-            <span className="text-soft">{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
-            {group.totalCost != null && <span className="text-soft">· total {formatCost(group.totalCost)}</span>}
+    <div id="history-panel" className="flex flex-col px-2 py-1.5 overflow-y-auto flex-1 min-h-0">
+      {groups.map((group) => {
+        const open = expanded.has(group.label);
+        return (
+          <div key={group.label}>
+            <button
+              className="w-full grid items-center px-1 py-2 border-b border-line hover:bg-surface transition-colors duration-150 cursor-pointer"
+              style={{ gridTemplateColumns: '16px 1fr 100px 60px 8px', gap: '0 16px' }}
+              onClick={() => toggle(group.label)}
+            >
+              <span className={`text-faint text-[10px] transition-transform duration-150 ${open ? 'rotate-90' : ''}`}>▶</span>
+              <span className="font-bold text-bright text-left">{group.label}</span>
+              <span className="text-soft text-ui text-right">{group.sessions.length} session{group.sessions.length !== 1 ? 's' : ''}</span>
+              <span className="text-faint text-ui text-right">{group.totalCost != null ? formatCost(group.totalCost) : ''}</span>
+              <span />
+            </button>
+            {open && (
+              <div className="flex flex-col gap-1.5 pt-1.5 pb-2">
+                {group.sessions.map((s) => (
+                  <HistoryEntry key={s.sessionId} s={s} showCost={showCost} home={home} />
+                ))}
+              </div>
+            )}
           </div>
-          <div className="flex flex-col gap-1.5">
-            {group.sessions.map((s) => (
-              <HistoryEntry key={s.sessionId} s={s} showCost={showCost} home={home} />
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
