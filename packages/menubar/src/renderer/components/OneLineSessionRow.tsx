@@ -163,10 +163,6 @@ function WorktreePill({ label }: { label: string }) {
   );
 }
 
-function sessionKey(pid: number): string {
-  const n = (Math.abs(pid) % 9) + 1;
-  return `⌘${n}`;
-}
 
 interface OneLineSessionRowProps {
   session: SessionRow;
@@ -282,13 +278,8 @@ export function OneLineSessionRow({
             : ""}
         </span>
 
-        {/* ⌘-key shortcut */}
-        <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono leading-none">
-          {sessionKey(s.pid)}
-        </span>
-
         {/* Elapsed */}
-        <span className="text-fainter text-[11px] font-mono tabular-nums w-10 text-right whitespace-nowrap">
+        <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono tabular-nums leading-none whitespace-nowrap">
           {timeLabel}
         </span>
       </span>

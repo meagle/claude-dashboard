@@ -151,15 +151,6 @@ function WorktreePill({ label }: { label: string }) {
   );
 }
 
-// "⌘N" session-key pill shown top-right. Derive a stable short index
-// from the pid so mock data renders predictably.
-function sessionKey(pid: number): string {
-  // Trailing digit of the pid keeps things short (1-9). Good enough as a
-  // human-recognisable session number in the UI.
-  const n = (Math.abs(pid) % 9) + 1;
-  return `⌘${n}`;
-}
-
 // Token-count pill shown on the right of the footer bar.
 function TokenChip({ label }: { label: string }) {
   return (
@@ -261,16 +252,10 @@ export function SessionCard({
       </span>
       <span className="shrink-0 inline-flex items-center gap-1.5">
         {timeLabel && (
-          <span className="text-fainter text-ui font-mono whitespace-nowrap">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-badge border border-edge/70 bg-line/40 text-fainter text-ui font-mono tabular-nums leading-none whitespace-nowrap">
             {timeLabel}
           </span>
         )}
-        <span
-          className="inline-flex items-center px-1.5 py-0.5 rounded-badge border border-edge/70 bg-line/40 text-fainter text-ui font-mono leading-none"
-          title="Session shortcut"
-        >
-          {sessionKey(s.pid)}
-        </span>
         <button
           className={[
             "bg-transparent border-none cursor-pointer leading-none",

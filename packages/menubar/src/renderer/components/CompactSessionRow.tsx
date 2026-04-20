@@ -156,10 +156,6 @@ function WorktreePill({ label }: { label: string }) {
   );
 }
 
-function sessionKey(pid: number): string {
-  const n = (Math.abs(pid) % 9) + 1;
-  return `⌘${n}`;
-}
 
 interface CompactSessionRowProps {
   session: SessionRow;
@@ -240,11 +236,8 @@ export function CompactSessionRow({
               ×{s.loopCount} loop
             </span>
           )}
-          <span className="text-fainter text-[11px] font-mono tabular-nums whitespace-nowrap">
+          <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono tabular-nums leading-none whitespace-nowrap">
             {timeLabel}
-          </span>
-          <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono leading-none">
-            {sessionKey(s.pid)}
           </span>
         </span>
       </div>
