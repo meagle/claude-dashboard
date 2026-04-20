@@ -474,6 +474,7 @@ app.whenReady().then(() => {
     alwaysOnTop: true,
     webPreferences: { nodeIntegration: true, contextIsolation: false },
   });
+  popover.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   if (isDev) {
     popover.loadURL("http://localhost:5173");
   } else {
