@@ -62,9 +62,14 @@ const LOOP_THRESHOLD = 5;
 const MODEL_CONTEXT_CACHE_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'model-contexts.json');
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 
+// Static table for models with non-standard context windows.
+// Used when the API call is unavailable (no ANTHROPIC_API_KEY in env).
+const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
+  'claude-sonnet-4-6': 1_000_000,
+};
+
 // Returns the context window size for a model ID.
-// Checks disk cache first; on a miss, fetches from the Anthropic API using the
-// inherited ANTHROPIC_API_KEY and persists the result. Falls back to 200k silently.
+// Priority: disk cache → static table → Anthropic API → 200k default.
 function getModelContextWindow(modelId: string): number {
   const fsSync = require('fs') as typeof import('fs');
 
@@ -74,7 +79,10 @@ function getModelContextWindow(modelId: string): number {
     if (typeof disk[modelId] === 'number') return disk[modelId];
   } catch { /* cache missing or corrupt */ }
 
-  // 2. Fetch from Anthropic API using the API key inherited from Claude Code
+  // 2. Static table — reliable fallback when API key is unavailable
+  if (KNOWN_CONTEXT_WINDOWS[modelId] !== undefined) return KNOWN_CONTEXT_WINDOWS[modelId];
+
+  // 3. Fetch from Anthropic API using the API key inherited from Claude Code
   if (process.env.ANTHROPIC_API_KEY) {
     try {
       const raw = execSync(
