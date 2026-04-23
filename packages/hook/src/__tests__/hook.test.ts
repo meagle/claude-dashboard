@@ -208,14 +208,14 @@ describe('processHookEvent — user-prompt', () => {
   it('reads model and contextPct from the previous turn transcript', () => {
     const tp = writeTranscript(dir, [
       userEntry('First prompt'),
-      assistantEntry('First response', 'claude-sonnet-4-6', { input_tokens: 10000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }),
+      assistantEntry('First response', 'claude-haiku-4-5-20251001', { input_tokens: 10000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }),
     ]);
     processHookEvent(
       { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, prompt: 'Second prompt' },
       sessionsFile
     );
     const s = readSessions(sessionsFile)[0];
-    expect(s.model).toBe('Sonnet 4.6');
+    expect(s.model).toBe('Haiku 4.5');
     expect(s.contextPct).toBe(5); // 10000 / 200000 = 5%
   });
 
@@ -259,7 +259,7 @@ describe('processHookEvent — stop with transcript', () => {
   it('reads lastMessage, model, contextPct, and turns from transcript', () => {
     const tp = writeTranscript(dir, [
       userEntry('What is 2+2?'),
-      assistantEntry('The answer is 4.', 'claude-sonnet-4-6', { input_tokens: 20000 }),
+      assistantEntry('The answer is 4.', 'claude-haiku-4-5-20251001', { input_tokens: 20000 }),
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 's1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
@@ -267,29 +267,30 @@ describe('processHookEvent — stop with transcript', () => {
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('The answer is 4.');
-    expect(s.model).toBe('Sonnet 4.6');
+    expect(s.model).toBe('Haiku 4.5');
     expect(s.contextPct).toBe(10); // 20000 / 200000 = 10%
     expect(s.turns).toBe(1);
     expect(s.status).toBe('done');
   });
 
-  it('uses Math.max of cache fields to avoid double-counting when extending a cache', () => {
-    // When extending an existing cache, cache_creation includes the previously-read block,
-    // so the two fields overlap. Math.max avoids double-counting that shared content.
-    // cache_read=130k, cache_creation=110k → max=130k → 130000/200000 = 65%.
+  it('sums all cache fields to get total context in use', () => {
+    // cache_read = tokens served from an existing cache breakpoint (not re-processed)
+    // cache_creation = tokens written to a new cache checkpoint (freshly processed)
+    // Both represent distinct portions of the context window, so we sum them.
+    // inp=0, cache_read=60k, cache_creation=40k → 100000/200000 = 50%.
     const tp = writeTranscript(dir, [
-      userEntry('Continue from yesterday'),
-      assistantEntry('Continuing.', 'claude-sonnet-4-6', {
+      userEntry('Continue'),
+      assistantEntry('Continuing.', 'claude-haiku-4-5-20251001', {
         input_tokens: 0,
-        cache_read_input_tokens: 130000,
-        cache_creation_input_tokens: 110000,
+        cache_read_input_tokens: 60000,
+        cache_creation_input_tokens: 40000,
       }),
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 's2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
       sessionsFile
     );
-    expect(readSessions(sessionsFile)[0].contextPct).toBe(65); // max(130000, 110000) / 200000 = 65%
+    expect(readSessions(sessionsFile)[0].contextPct).toBe(50); // (0 + 60000 + 40000) / 200000 = 50%
   });
 
   it('counts only user text turns (not tool_result entries)', () => {

@@ -59,18 +59,46 @@ export type HookEvent =
 
 const LOOP_THRESHOLD = 5;
 
-// Context window sizes by model family (tokens)
-const MODEL_CONTEXT: Record<string, number> = {
-  'claude-opus':   200_000,
-  'claude-sonnet': 200_000,
-  'claude-haiku':  200_000,
-};
+const MODEL_CONTEXT_CACHE_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'model-contexts.json');
+const DEFAULT_CONTEXT_WINDOW = 200_000;
 
-function modelContextWindow(modelId: string): number {
-  for (const [prefix, size] of Object.entries(MODEL_CONTEXT)) {
-    if (modelId.startsWith(prefix)) return size;
+// Returns the context window size for a model ID.
+// Checks disk cache first; on a miss, fetches from the Anthropic API using the
+// inherited ANTHROPIC_API_KEY and persists the result. Falls back to 200k silently.
+function getModelContextWindow(modelId: string): number {
+  const fsSync = require('fs') as typeof import('fs');
+
+  // 1. Disk cache — context windows never change for a given model ID
+  try {
+    const disk = JSON.parse(fsSync.readFileSync(MODEL_CONTEXT_CACHE_FILE, 'utf8')) as Record<string, number>;
+    if (typeof disk[modelId] === 'number') return disk[modelId];
+  } catch { /* cache missing or corrupt */ }
+
+  // 2. Fetch from Anthropic API using the API key inherited from Claude Code
+  if (process.env.ANTHROPIC_API_KEY) {
+    try {
+      const raw = execSync(
+        `curl -sf --max-time 3 ` +
+        `-H "x-api-key: $ANTHROPIC_API_KEY" ` +
+        `-H "anthropic-version: 2023-06-01" ` +
+        `"https://api.anthropic.com/v1/models/${encodeURIComponent(modelId)}"`,
+        { stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 }
+      ).toString();
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      const cw = typeof data.max_input_tokens === 'number' ? data.max_input_tokens : null;
+      if (cw !== null) {
+        try {
+          let disk: Record<string, number> = {};
+          try { disk = JSON.parse(fsSync.readFileSync(MODEL_CONTEXT_CACHE_FILE, 'utf8')); } catch { /* new file */ }
+          disk[modelId] = cw;
+          fsSync.writeFileSync(MODEL_CONTEXT_CACHE_FILE, JSON.stringify(disk, null, 2));
+        } catch { /* can't write cache, proceed without */ }
+        return cw;
+      }
+    } catch { /* curl unavailable, timeout, or unexpected response */ }
   }
-  return 200_000; // safe default
+
+  return DEFAULT_CONTEXT_WINDOW;
 }
 
 function modelDisplayName(modelId: string): string {
@@ -160,13 +188,14 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
           const u = msg?.usage ?? {};
           const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
           const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
-          // cache_creation often overlaps cache_read (extending a cache writes new tokens
-          // that include the previously-read block). Use Math.max to avoid double-counting.
+          // cache_read = tokens served from an existing cache breakpoint (not re-processed)
+          // cache_creation = tokens written to a new cache checkpoint (freshly processed)
+          // These represent different parts of the context, so sum all three fields.
           const lastTurnTokens =
             (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
-            Math.max(cacheRead, cacheCreate);
+            cacheRead + cacheCreate;
           contextPct = modelId && lastTurnTokens > 0
-            ? Math.min(100, Math.round((lastTurnTokens / modelContextWindow(modelId)) * 100))
+            ? Math.min(100, Math.round((lastTurnTokens / getModelContextWindow(modelId)) * 100))
             : null;
           model = modelId ? modelDisplayName(modelId) : null;
         }
@@ -336,7 +365,7 @@ function readTranscriptTip(transcriptPath: string): { text: string | null; conte
             const cc  = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
             const total = inp + cr + cc;
             if (modelId && total > 0) {
-              contextPct = Math.min(100, Math.round((total / modelContextWindow(modelId)) * 100));
+              contextPct = Math.min(100, Math.round((total / getModelContextWindow(modelId)) * 100));
             }
           }
           if (text !== null && contextPct !== null) break;
