@@ -160,9 +160,11 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
           const u = msg?.usage ?? {};
           const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
           const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+          // cache_creation often overlaps cache_read (extending a cache writes new tokens
+          // that include the previously-read block). Use Math.max to avoid double-counting.
           const lastTurnTokens =
             (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
-            cacheRead + cacheCreate;
+            Math.max(cacheRead, cacheCreate);
           contextPct = modelId && lastTurnTokens > 0
             ? Math.min(100, Math.round((lastTurnTokens / modelContextWindow(modelId)) * 100))
             : null;

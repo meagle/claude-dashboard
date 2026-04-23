@@ -273,23 +273,23 @@ describe('processHookEvent — stop with transcript', () => {
     expect(s.status).toBe('done');
   });
 
-  it('correctly sums all cache token fields for contextPct', () => {
-    // Simulates a post-compaction turn: system-prompt cache (cache_read ≈ 12k) +
-    // new conversation cache (cache_creation ≈ 30k) are two separate breakpoints.
-    // They must be added, not max'd: (0 + 12065 + 30363) / 200000 ≈ 21%.
+  it('uses Math.max of cache fields to avoid double-counting when extending a cache', () => {
+    // When extending an existing cache, cache_creation includes the previously-read block,
+    // so the two fields overlap. Math.max avoids double-counting that shared content.
+    // cache_read=130k, cache_creation=110k → max=130k → 130000/200000 = 65%.
     const tp = writeTranscript(dir, [
       userEntry('Continue from yesterday'),
       assistantEntry('Continuing.', 'claude-sonnet-4-6', {
         input_tokens: 0,
-        cache_read_input_tokens: 12065,
-        cache_creation_input_tokens: 30363,
+        cache_read_input_tokens: 130000,
+        cache_creation_input_tokens: 110000,
       }),
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 's2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
       sessionsFile
     );
-    expect(readSessions(sessionsFile)[0].contextPct).toBe(21); // (12065 + 30363) / 200000 ≈ 21%
+    expect(readSessions(sessionsFile)[0].contextPct).toBe(65); // max(130000, 110000) / 200000 = 65%
   });
 
   it('counts only user text turns (not tool_result entries)', () => {
