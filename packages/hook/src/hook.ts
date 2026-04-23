@@ -160,11 +160,9 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
           const u = msg?.usage ?? {};
           const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
           const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
-          // When both are non-zero, cache_creation includes the old cached content (overlap).
-          // Use Math.max to avoid double-counting the overlapping portion.
           const lastTurnTokens =
             (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
-            Math.max(cacheRead, cacheCreate);
+            cacheRead + cacheCreate;
           contextPct = modelId && lastTurnTokens > 0
             ? Math.min(100, Math.round((lastTurnTokens / modelContextWindow(modelId)) * 100))
             : null;
@@ -303,28 +301,49 @@ function getWorktreeName(cwd: string): string | null {
   }
 }
 
-function readPartialResponse(transcriptPath: string): string | null {
+// Reads the tip of the transcript in one pass: the last assistant's partial text
+// and its context-window percentage (used by the pre-tool handler to catch
+// post-compaction context drops without waiting for a Stop event).
+function readTranscriptTip(transcriptPath: string): { text: string | null; contextPct: number | null } {
   try {
     const fsSync = require('fs') as typeof import('fs');
     const lines = fsSync.readFileSync(transcriptPath, 'utf8').split('\n').filter(Boolean);
+    let text: string | null = null;
+    let contextPct: number | null = null;
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const entry = JSON.parse(lines[i]);
         if (entry.type === 'assistant') {
-          const blocks = entry.message?.content;
-          if (Array.isArray(blocks)) {
-            for (const block of blocks) {
-              if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-                const t = block.text.trim().replace(/\s+/g, ' ');
-                return t.length > 240 ? t.slice(0, 240) + '…' : t;
+          if (text === null) {
+            const blocks = entry.message?.content;
+            if (Array.isArray(blocks)) {
+              for (const block of blocks) {
+                if (block?.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
+                  const t = block.text.trim().replace(/\s+/g, ' ');
+                  text = t.length > 240 ? t.slice(0, 240) + '…' : t;
+                  break;
+                }
               }
             }
           }
+          if (contextPct === null) {
+            const u = entry.message?.usage ?? {};
+            const modelId: string | null = typeof entry.message?.model === 'string' ? entry.message.model : null;
+            const inp = typeof u.input_tokens === 'number' ? u.input_tokens : 0;
+            const cr  = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
+            const cc  = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+            const total = inp + cr + cc;
+            if (modelId && total > 0) {
+              contextPct = Math.min(100, Math.round((total / modelContextWindow(modelId)) * 100));
+            }
+          }
+          if (text !== null && contextPct !== null) break;
         }
       } catch { /* skip */ }
     }
+    return { text, contextPct };
   } catch { /* unreadable */ }
-  return null;
+  return { text: null, contextPct: null };
 }
 
 function makeNewSession(event: { sessionId: string; pid: number; termSessionId: string | null; workingDir: string }): Session {
@@ -433,10 +452,13 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     const newErrorState = loopCount >= LOOP_THRESHOLD ? true : session.errorState;
     session = { ...session, loopTool, loopCount, errorState: newErrorState, toolCount: session.toolCount + 1 };
 
-    // Read partial assistant text from transcript (what Claude wrote before calling this tool).
-    // Ignore if it matches lastMessage — that means the transcript hasn't been updated yet
-    // for this turn and we'd be showing the previous turn's response.
-    const partial = session.transcriptPath ? readPartialResponse(session.transcriptPath) : null;
+    // Read the tip of the transcript: partial assistant text + current contextPct.
+    // One file read serves both. contextPct update here catches post-compaction drops
+    // that occur between turns (before the next Stop or user-prompt event fires).
+    // Ignore partial text if it matches lastMessage — transcript not yet updated this turn.
+    const { text: partial, contextPct: freshContextPct } = session.transcriptPath
+      ? readTranscriptTip(session.transcriptPath)
+      : { text: null, contextPct: null };
     const freshPartial = partial && partial !== session.lastMessage ? partial : null;
 
     session = {
@@ -445,6 +467,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       currentTool: event.toolName,
       lastActivity: now,
       ...(freshPartial ? { partialResponse: freshPartial } : {}),
+      ...(freshContextPct !== null ? { contextPct: freshContextPct } : {}),
       // Track when Bash starts so we can detect stuck commands
       ...(event.toolName === 'Bash' ? { bashStartedAt: now } : {}),
     };
