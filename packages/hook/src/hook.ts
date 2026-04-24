@@ -142,7 +142,7 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const entry = JSON.parse(lines[i]);
-        if (!foundAssistant && entry.type === 'assistant') {
+        if (!foundAssistant && entry.type === 'assistant' && entry.message?.model !== '<synthetic>') {
           foundAssistant = true;
           const msg = entry.message;
           const blocks = msg?.content;
@@ -179,7 +179,7 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
             : typeof content === 'string' && content.length > 0;
           if (isUserText) turns++;
         }
-        if (entry.type === 'assistant' && entry.message?.usage && entry.message?.model) {
+        if (entry.type === 'assistant' && entry.message?.usage && entry.message?.model && entry.message.model !== '<synthetic>') {
           costUsd += calcTurnCost(entry.message.usage as Record<string, unknown>, entry.message.model as string);
           const u = entry.message.usage as Record<string, unknown>;
           cumulativeTokens +=
@@ -315,7 +315,7 @@ function readTranscriptTip(transcriptPath: string): { text: string | null; conte
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const entry = JSON.parse(lines[i]);
-        if (entry.type === 'assistant') {
+        if (entry.type === 'assistant' && entry.message?.model !== '<synthetic>') {
           if (text === null) {
             const blocks = entry.message?.content;
             if (Array.isArray(blocks)) {
