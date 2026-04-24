@@ -59,54 +59,17 @@ export type HookEvent =
 
 const LOOP_THRESHOLD = 5;
 
-const MODEL_CONTEXT_CACHE_FILE = path.join(os.homedir(), '.config', 'claude-dashboard', 'model-contexts.json');
 const DEFAULT_CONTEXT_WINDOW = 200_000;
 
-// Static table for models with non-standard context windows.
-// Used when the API call is unavailable (no ANTHROPIC_API_KEY in env).
+// Only models with non-200k context windows need entries here.
 const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
+  'claude-opus-4-7':   1_000_000,
+  'claude-opus-4-6':   1_000_000,
   'claude-sonnet-4-6': 1_000_000,
 };
 
-// Returns the context window size for a model ID.
-// Priority: disk cache → static table → Anthropic API → 200k default.
 function getModelContextWindow(modelId: string): number {
-  const fsSync = require('fs') as typeof import('fs');
-
-  // 1. Disk cache — context windows never change for a given model ID
-  try {
-    const disk = JSON.parse(fsSync.readFileSync(MODEL_CONTEXT_CACHE_FILE, 'utf8')) as Record<string, number>;
-    if (typeof disk[modelId] === 'number') return disk[modelId];
-  } catch { /* cache missing or corrupt */ }
-
-  // 2. Static table — reliable fallback when API key is unavailable
-  if (KNOWN_CONTEXT_WINDOWS[modelId] !== undefined) return KNOWN_CONTEXT_WINDOWS[modelId];
-
-  // 3. Fetch from Anthropic API using the API key inherited from Claude Code
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const raw = execSync(
-        `curl -sf --max-time 3 ` +
-        `-H "x-api-key: $ANTHROPIC_API_KEY" ` +
-        `-H "anthropic-version: 2023-06-01" ` +
-        `"https://api.anthropic.com/v1/models/${encodeURIComponent(modelId)}"`,
-        { stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 }
-      ).toString();
-      const data = JSON.parse(raw) as Record<string, unknown>;
-      const cw = typeof data.max_input_tokens === 'number' ? data.max_input_tokens : null;
-      if (cw !== null) {
-        try {
-          let disk: Record<string, number> = {};
-          try { disk = JSON.parse(fsSync.readFileSync(MODEL_CONTEXT_CACHE_FILE, 'utf8')); } catch { /* new file */ }
-          disk[modelId] = cw;
-          fsSync.writeFileSync(MODEL_CONTEXT_CACHE_FILE, JSON.stringify(disk, null, 2));
-        } catch { /* can't write cache, proceed without */ }
-        return cw;
-      }
-    } catch { /* curl unavailable, timeout, or unexpected response */ }
-  }
-
-  return DEFAULT_CONTEXT_WINDOW;
+  return KNOWN_CONTEXT_WINDOWS[modelId] ?? DEFAULT_CONTEXT_WINDOW;
 }
 
 function modelDisplayName(modelId: string): string {

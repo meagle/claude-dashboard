@@ -450,15 +450,20 @@ export function SessionCard({
   const footer = showFooter ? (
     <div className="mt-2.5 flex items-center gap-2">
       {s.contextPct != null ? (
-        <div className="flex-1 h-1 rounded-full overflow-hidden bg-line/70">
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
-              background:
-                "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-            }}
-          />
+        <div className="flex-1 flex items-center gap-1.5 min-w-0">
+          <div className="flex-1 h-1 rounded-full overflow-hidden bg-line/70">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
+                background:
+                  "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+              }}
+            />
+          </div>
+          <span className="text-fainter text-[11px] font-mono tabular-nums shrink-0">
+            {s.contextPct}%
+          </span>
         </div>
       ) : (
         <div className="flex-1" />
