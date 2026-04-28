@@ -656,6 +656,7 @@ app.whenReady().then(() => {
         hash: "detached",
       });
     }
+    detachedPanel.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     detachedPanel.on("will-resize", (event, newBounds) => {
       if (newBounds.width < currentMinWidth) event.preventDefault();
     });
@@ -695,6 +696,7 @@ app.whenReady().then(() => {
   ipcMain.handle("set-always-on-top", (event, value: boolean) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     win?.setAlwaysOnTop(value);
+    win?.setVisibleOnAllWorkspaces(value, { visibleOnFullScreen: true });
   });
 
   ipcMain.on("set-view-mode", (_event, mode: ViewMode) => {

@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ipcRenderer } from '../utils/electron';
-import { DashboardConfig } from '../types';
+import React, { useState, useEffect, useCallback } from "react";
+import { ipcRenderer } from "../utils/electron";
+import { DashboardConfig } from "../types";
 
 interface SettingsPanelProps {
   onSave: () => void;
   onCancel: () => void;
-  onThemeChange: (theme: 'light' | 'dark') => void;
+  onThemeChange: (theme: "light" | "dark") => void;
 }
 
 interface FormState {
   staleMinutes: number;
   maxHeight: number;
-  theme: 'light' | 'dark';
+  theme: "light" | "dark";
   gitBranch: boolean;
   changedFiles: boolean;
   subagents: boolean;
@@ -26,7 +26,7 @@ interface FormState {
 const DEFAULTS: FormState = {
   staleMinutes: 30,
   maxHeight: 700,
-  theme: 'light',
+  theme: "light",
   gitBranch: true,
   changedFiles: true,
   subagents: true,
@@ -38,14 +38,25 @@ const DEFAULTS: FormState = {
   notificationSound: true,
 };
 
-function Toggle({ id, checked, onChange }: { id: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  id,
+  checked,
+  onChange,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
-    <label htmlFor={id} className="relative inline-flex items-center cursor-pointer shrink-0">
+    <label
+      htmlFor={id}
+      className="relative inline-flex items-center cursor-pointer shrink-0"
+    >
       <input
         type="checkbox"
         id={id}
         checked={checked}
-        onChange={e => onChange(e.target.checked)}
+        onChange={(e) => onChange(e.target.checked)}
         className="sr-only peer"
       />
       <div className="w-8 h-4 bg-edge rounded-full transition-colors duration-200 peer-checked:bg-accent relative after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-transform after:duration-200 peer-checked:after:translate-x-4" />
@@ -53,26 +64,40 @@ function Toggle({ id, checked, onChange }: { id: string; checked: boolean; onCha
   );
 }
 
-export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanelProps) {
+export function SettingsPanel({
+  onSave,
+  onCancel,
+  onThemeChange,
+}: SettingsPanelProps) {
   const [form, setForm] = useState<FormState>(DEFAULTS);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmUninstall, setConfirmUninstall] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
 
   useEffect(() => {
-    ipcRenderer.invoke('get-config').then((config: DashboardConfig) => {
+    // Pull app version from main process. Falls back to '—' if the
+    // 'get-app-version' handler isn't registered yet.
+    ipcRenderer
+      .invoke("get-app-version")
+      .then((v: string) => setVersion(typeof v === "string" ? v : null))
+      .catch(() => setVersion(null));
+  }, []);
+
+  useEffect(() => {
+    ipcRenderer.invoke("get-config").then((config: DashboardConfig) => {
       setForm({
         staleMinutes: config.staleSessionMinutes ?? 30,
-        maxHeight:    config.maxHeight            ?? 700,
-        theme:        config.theme               ?? 'light',
-        gitBranch:    config.columns?.gitBranch    ?? true,
-        changedFiles: config.columns?.changedFiles  ?? true,
-        subagents:    config.columns?.subagents     ?? true,
-        lastAction:   config.columns?.lastAction    ?? true,
-        compactPaths: config.columns?.compactPaths  ?? true,
-        cost:         config.columns?.cost          ?? false,
-        doneFooter:   config.columns?.doneFooter    ?? true,
-        notifications:     config.notifications      ?? true,
-        notificationSound: config.notificationSound  ?? true,
+        maxHeight: config.maxHeight ?? 700,
+        theme: config.theme ?? "light",
+        gitBranch: config.columns?.gitBranch ?? true,
+        changedFiles: config.columns?.changedFiles ?? true,
+        subagents: config.columns?.subagents ?? true,
+        lastAction: config.columns?.lastAction ?? true,
+        compactPaths: config.columns?.compactPaths ?? true,
+        cost: config.columns?.cost ?? false,
+        doneFooter: config.columns?.doneFooter ?? true,
+        notifications: config.notifications ?? true,
+        notificationSound: config.notificationSound ?? true,
       });
     });
   }, []);
@@ -84,39 +109,42 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
     notifications: f.notifications,
     notificationSound: f.notificationSound,
     columns: {
-      gitBranch:    f.gitBranch,
+      gitBranch: f.gitBranch,
       changedFiles: f.changedFiles,
-      subagents:    f.subagents,
-      lastAction:   f.lastAction,
+      subagents: f.subagents,
+      lastAction: f.lastAction,
       compactPaths: f.compactPaths,
-      cost:         f.cost,
-      doneFooter:   f.doneFooter,
+      cost: f.cost,
+      doneFooter: f.doneFooter,
     },
   });
 
   // Toggle changes save immediately — no need to click Save for boolean settings
-  const setAndSave = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+  const setAndSave = <K extends keyof FormState>(
+    key: K,
+    value: FormState[K],
+  ) => {
     const next = { ...form, [key]: value };
     setForm(next);
-    ipcRenderer.invoke('save-config', buildPayload(next)).catch(() => {});
+    ipcRenderer.invoke("save-config", buildPayload(next)).catch(() => {});
   };
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
-    setForm(f => ({ ...f, [key]: value }));
+    setForm((f) => ({ ...f, [key]: value }));
 
   const handleSave = useCallback(async () => {
     setSaveError(null);
     try {
-      await ipcRenderer.invoke('save-config', buildPayload(form));
+      await ipcRenderer.invoke("save-config", buildPayload(form));
       onSave();
     } catch (e: unknown) {
-      setSaveError((e as Error)?.message ?? 'Failed to save settings');
+      setSaveError((e as Error)?.message ?? "Failed to save settings");
     }
   }, [form, onSave]);
 
-  const ROW = 'flex justify-between items-center py-1.75';
-  const LABEL = 'text-ui text-bright cursor-pointer';
-  const DESC = 'text-ui-sm text-faint mt-0.5';
+  const ROW = "flex justify-between items-center py-1.75";
+  const LABEL = "text-ui text-bright cursor-pointer";
+  const DESC = "text-ui-sm text-faint mt-0.5";
 
   return (
     <div id="settings-panel" className="px-3 pt-2 pb-3">
@@ -124,7 +152,9 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       <div className="flex justify-between items-start py-1.75">
         <div>
           <div className="text-ui text-bright">Stale session timeout</div>
-          <div className={DESC}>Hide sessions with no activity after this long</div>
+          <div className={DESC}>
+            Hide sessions with no activity after this long
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-3">
           <input
@@ -133,7 +163,9 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
             min={5}
             max={480}
             value={form.staleMinutes}
-            onChange={e => set('staleMinutes', parseInt(e.target.value) || 30)}
+            onChange={(e) =>
+              set("staleMinutes", parseInt(e.target.value) || 30)
+            }
             className="w-12 bg-edge border border-line text-bright text-ui text-center rounded px-1 py-0.5 no-spinners focus:outline-none focus:border-accent"
           />
           <span className="text-faint text-ui">min</span>
@@ -144,7 +176,9 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       <div className="flex justify-between items-start py-1.75">
         <div>
           <div className="text-ui text-bright">Max panel height</div>
-          <div className={DESC}>Panel grows to this height before scrolling (px)</div>
+          <div className={DESC}>
+            Panel grows to this height before scrolling (px)
+          </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-3">
           <input
@@ -153,7 +187,7 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
             min={300}
             max={2400}
             value={form.maxHeight}
-            onChange={e => set('maxHeight', parseInt(e.target.value))}
+            onChange={(e) => set("maxHeight", parseInt(e.target.value))}
             className="w-14 bg-edge border border-line text-bright text-ui text-center rounded px-1 py-0.5 no-spinners focus:outline-none focus:border-accent"
           />
         </div>
@@ -163,14 +197,17 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       <div className="flex justify-between items-center py-1.75">
         <div className="text-ui text-bright">Theme</div>
         <div className="flex rounded overflow-hidden border border-line shrink-0">
-          {(['light', 'dark'] as const).map(t => (
+          {(["light", "dark"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => { setAndSave('theme', t); onThemeChange(t); }}
+              onClick={() => {
+                setAndSave("theme", t);
+                onThemeChange(t);
+              }}
               className={`px-3 py-0.5 text-ui-sm cursor-pointer border-none transition-colors duration-150 ${
                 form.theme === t
-                  ? 'bg-accent text-base font-bold'
-                  : 'bg-edge text-soft hover:text-bright'
+                  ? "bg-accent text-base font-bold"
+                  : "bg-edge text-soft hover:text-bright"
               }`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -182,46 +219,102 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       <hr className="border-line my-1" />
 
       <div className={ROW}>
-        <label htmlFor="show-branch" className={LABEL}>Show git branch</label>
-        <Toggle id="show-branch" checked={form.gitBranch} onChange={v => setAndSave('gitBranch', v)} />
+        <label htmlFor="show-branch" className={LABEL}>
+          Show git branch
+        </label>
+        <Toggle
+          id="show-branch"
+          checked={form.gitBranch}
+          onChange={(v) => setAndSave("gitBranch", v)}
+        />
       </div>
       <div className={ROW}>
-        <label htmlFor="show-git-summary" className={LABEL}>Show git diff summary</label>
-        <Toggle id="show-git-summary" checked={form.changedFiles} onChange={v => setAndSave('changedFiles', v)} />
+        <label htmlFor="show-git-summary" className={LABEL}>
+          Show git diff summary
+        </label>
+        <Toggle
+          id="show-git-summary"
+          checked={form.changedFiles}
+          onChange={(v) => setAndSave("changedFiles", v)}
+        />
       </div>
       <div className={ROW}>
-        <label htmlFor="show-subagents" className={LABEL}>Show subagent info</label>
-        <Toggle id="show-subagents" checked={form.subagents} onChange={v => setAndSave('subagents', v)} />
+        <label htmlFor="show-subagents" className={LABEL}>
+          Show subagent info
+        </label>
+        <Toggle
+          id="show-subagents"
+          checked={form.subagents}
+          onChange={(v) => setAndSave("subagents", v)}
+        />
       </div>
       <div className={ROW}>
-        <label htmlFor="show-model" className={LABEL}>Show model &amp; context</label>
-        <Toggle id="show-model" checked={form.lastAction} onChange={v => setAndSave('lastAction', v)} />
+        <label htmlFor="show-model" className={LABEL}>
+          Show model &amp; context
+        </label>
+        <Toggle
+          id="show-model"
+          checked={form.lastAction}
+          onChange={(v) => setAndSave("lastAction", v)}
+        />
       </div>
       <div className={ROW}>
-        <label htmlFor="show-compact-paths" className={LABEL}>Compact paths</label>
-        <Toggle id="show-compact-paths" checked={form.compactPaths} onChange={v => setAndSave('compactPaths', v)} />
+        <label htmlFor="show-compact-paths" className={LABEL}>
+          Compact paths
+        </label>
+        <Toggle
+          id="show-compact-paths"
+          checked={form.compactPaths}
+          onChange={(v) => setAndSave("compactPaths", v)}
+        />
       </div>
       <div className="flex justify-between items-start py-1.75">
         <div>
-          <label htmlFor="show-cost" className={LABEL}>Show session cost</label>
-          <div className={DESC}>API billing only — not available on Pro or Max subscriptions</div>
+          <label htmlFor="show-cost" className={LABEL}>
+            Show session cost
+          </label>
+          <div className={DESC}>
+            API billing only — not available on Pro or Max subscriptions
+          </div>
         </div>
-        <Toggle id="show-cost" checked={form.cost} onChange={v => setAndSave('cost', v)} />
+        <Toggle
+          id="show-cost"
+          checked={form.cost}
+          onChange={(v) => setAndSave("cost", v)}
+        />
       </div>
       <div className={ROW}>
-        <label htmlFor="show-done-footer" className={LABEL}>Show model &amp; context on done cards</label>
-        <Toggle id="show-done-footer" checked={form.doneFooter} onChange={v => setAndSave('doneFooter', v)} />
+        <label htmlFor="show-done-footer" className={LABEL}>
+          Show model &amp; context on done cards
+        </label>
+        <Toggle
+          id="show-done-footer"
+          checked={form.doneFooter}
+          onChange={(v) => setAndSave("doneFooter", v)}
+        />
       </div>
 
       <hr className="border-line my-1" />
 
       <div className={ROW}>
-        <label htmlFor="show-notifications" className={LABEL}>Notifications</label>
-        <Toggle id="show-notifications" checked={form.notifications} onChange={v => setAndSave('notifications', v)} />
+        <label htmlFor="show-notifications" className={LABEL}>
+          Notifications
+        </label>
+        <Toggle
+          id="show-notifications"
+          checked={form.notifications}
+          onChange={(v) => setAndSave("notifications", v)}
+        />
       </div>
       <div className={ROW}>
-        <label htmlFor="notification-sound" className={LABEL}>Sound alerts</label>
-        <Toggle id="notification-sound" checked={form.notificationSound} onChange={v => setAndSave('notificationSound', v)} />
+        <label htmlFor="notification-sound" className={LABEL}>
+          Sound alerts
+        </label>
+        <Toggle
+          id="notification-sound"
+          checked={form.notificationSound}
+          onChange={(v) => setAndSave("notificationSound", v)}
+        />
       </div>
 
       <hr className="border-line my-1" />
@@ -248,11 +341,13 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
       ) : (
         <div className="rounded border border-danger px-3 py-2.5">
           <div className="text-ui-sm text-danger mb-2">
-            This will remove the hooks from <span className="font-mono">~/.claude/settings.json</span> and quit. Then drag Claude Dashboard from /Applications to the Trash.
+            This will remove the hooks from{" "}
+            <span className="font-mono">~/.claude/settings.json</span> and quit.
+            Then drag Claude Dashboard from /Applications to the Trash.
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => ipcRenderer.invoke('uninstall')}
+              onClick={() => ipcRenderer.invoke("uninstall")}
               className="flex-1 py-1 bg-danger text-base text-ui-sm font-bold rounded cursor-pointer border-none hover:opacity-90 transition-opacity duration-150"
             >
               Confirm Uninstall
@@ -266,6 +361,16 @@ export function SettingsPanel({ onSave, onCancel, onThemeChange }: SettingsPanel
           </div>
         </div>
       )}
+
+      {/* About footer — release version */}
+      <div className="mt-3 pt-2.5 border-t border-line/60 flex items-center justify-end text-ui-sm">
+        <span
+          className="text-fainter font-mono tabular-nums"
+          title="Release version"
+        >
+          {version ? `v${version}` : "—"}
+        </span>
+      </div>
     </div>
   );
 }
