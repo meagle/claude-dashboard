@@ -259,7 +259,20 @@ async function resizeToContent(
         "    }" +
         "    return h;" +
         "  }" +
-        "  if (hp) return [hh + contentH(hp, 16) + 24, false];" +
+        // History panel children use flex-1/overflow-y:auto so offsetHeight just
+        // reflects the current window allocation. scrollHeight gives the real
+        // content height even when the element is squashed or stretched by flex.
+        "  function contentScrollH(el) {" +
+        "    if (!el) return 0;" +
+        "    var kids = el.children, h = 12, c = 0;" +
+        "    for (var i = 0; i < kids.length; i++) {" +
+        "      var pos = getComputedStyle(kids[i]).position;" +
+        '      if (pos === "absolute" || pos === "fixed") continue;' +
+        "      h += kids[i].scrollHeight + (c > 0 ? 8 : 0); c++;" +
+        "    }" +
+        "    return h;" +
+        "  }" +
+        "  if (hp) return [hh + contentScrollH(hp) + 24, false];" +
         "  return [hh + contentH(ses, 6) + 24, false];" +
         "})()",
     );

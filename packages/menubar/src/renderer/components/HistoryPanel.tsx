@@ -1,91 +1,61 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { ipcRenderer, clipboard } from "../utils/electron";
-import { HistoryRow } from "../types";
-import { compactPath, formatTokens } from "../utils/format";
-import { COPY_ICON } from "./icons";
+import React, { useEffect, useMemo, useState } from 'react';
+import { ipcRenderer, clipboard } from '../utils/electron';
+import { HistoryRow } from '../types';
+import { compactPath, formatTokens } from '../utils/format';
+import { COPY_ICON } from './icons';
+import { HistoryCharts, HistoryChartsFilter, shortModel } from './HistoryCharts';
 
 /* ─── Inline icons matching the SessionCard SVG vocabulary ─────────────── */
 
 const TURN_ICON = (
-  <svg
-    viewBox="0 0 16 16"
-    width="10"
-    height="10"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
+  <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M2 8a6 6 0 1 1 1.76 4.24" />
     <path d="M2 13v-3h3" />
   </svg>
 );
 
 const TOOL_ICON = (
-  <svg
-    viewBox="0 0 16 16"
-    width="10"
-    height="10"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
+  <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M9.5 2.5a3 3 0 0 1 3.9 3.9l-7.4 7.4-2.6.6.6-2.6 7.4-7.4z" />
     <path d="M11 4l1 1" />
   </svg>
 );
 
 const SEARCH_ICON = (
-  <svg
-    viewBox="0 0 16 16"
-    width="12"
-    height="12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
+  <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <circle cx="7" cy="7" r="5" />
     <path d="M11 11l3 3" />
   </svg>
 );
 
 const CARET_DOWN = (
-  <svg
-    viewBox="0 0 12 12"
-    width="9"
-    height="9"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.75"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
+  <svg viewBox="0 0 12 12" width="9" height="9" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M3 4.5l3 3 3-3" />
   </svg>
 );
 
 const CHEVRON = (
-  <svg
-    viewBox="0 0 12 12"
-    width="10"
-    height="10"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
+  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M4 3l3 3-3 3" />
+  </svg>
+);
+
+const LIST_ICON = (
+  <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" aria-hidden>
+    <path d="M3 4h8M3 7h8M3 10h8" />
+  </svg>
+);
+
+const CHART_ICON = (
+  <svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor"
+    strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M3 11V7M6.5 11V4M10 11V8.5" />
   </svg>
 );
 
@@ -93,7 +63,7 @@ const CHEVRON = (
 
 function formatTurns(turns: number | null): string | null {
   if (turns == null || turns <= 0) return null;
-  return turns === 1 ? "1 turn" : `${turns} turns`;
+  return turns === 1 ? '1 turn' : `${turns} turns`;
 }
 
 function formatCost(costUsd: number | null): string | null {
@@ -109,39 +79,35 @@ function dayLabel(date: Date, today: Date): string {
   const todayStr = today.toDateString();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === todayStr) return "Today";
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  if (date.toDateString() === todayStr) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' });
 }
 
-function shortModel(model: string | null): string | null {
-  if (!model) return null;
-  if (model.includes("sonnet")) return "Sonnet";
-  if (model.includes("opus")) return "Opus";
-  if (model.includes("haiku")) return "Haiku";
-  return model.split("-").slice(0, 2).join(" ");
-}
+/* shortModel() lives in HistoryCharts.tsx — single source of truth so the
+ * model labels in chart legends stay in sync with the labels rendered on
+ * each list row. */
 
 /* ─── Time-range filter ────────────────────────────────────────────────── */
 
-type RangeKey = "today" | "week" | "month" | "all";
+type RangeKey = 'today' | 'week' | 'month' | 'all';
 
 const RANGE_LABELS: Record<RangeKey, string> = {
-  today: "Today",
-  week: "This week",
-  month: "This month",
-  all: "All time",
+  today: 'Today',
+  week: 'Last 7 days',
+  month: 'This month',
+  all: 'All time',
 };
 
 function rangeFloor(key: RangeKey): number {
   const now = new Date();
-  if (key === "all") return 0;
-  if (key === "today") {
+  if (key === 'all') return 0;
+  if (key === 'today') {
     const d = new Date(now);
     d.setHours(0, 0, 0, 0);
     return d.getTime();
   }
-  if (key === "week") {
+  if (key === 'week') {
     const d = new Date(now);
     d.setDate(d.getDate() - 7);
     return d.getTime();
@@ -172,12 +138,9 @@ function groupByDay(sessions: HistoryRow[], showCost: boolean): DayGroup[] {
     map.get(key)!.push(s);
   }
   return Array.from(map.entries()).map(([key, rows]) => {
-    const hasCost = showCost && rows.some((r) => r.costUsd != null);
-    const total = hasCost
-      ? rows.reduce((sum, r) => sum + (r.costUsd ?? 0), 0)
-      : null;
-    const totalTok =
-      rows.reduce((sum, r) => sum + (r.totalTokens ?? 0), 0) || null;
+    const hasCost = showCost && rows.some(r => r.costUsd != null);
+    const total = hasCost ? rows.reduce((sum, r) => sum + (r.costUsd ?? 0), 0) : null;
+    const totalTok = rows.reduce((sum, r) => sum + (r.totalTokens ?? 0), 0) || null;
     return {
       label: dayLabel(new Date(key), today),
       sessions: rows,
@@ -190,24 +153,20 @@ function groupByDay(sessions: HistoryRow[], showCost: boolean): DayGroup[] {
 /* ─── Pill primitives — match SessionCard / Header pill chrome ─────────── */
 
 function MetaPill({
-  icon,
-  children,
-  accent = false,
+  icon, children, accent = false,
 }: {
   icon?: React.ReactNode;
   children: React.ReactNode;
   accent?: boolean;
 }) {
   const cls = accent
-    ? "bg-tool/15 border-tool/40 text-tool"
-    : "bg-line/40 border-edge/60 text-soft";
+    ? 'bg-tool/15 border-tool/40 text-tool'
+    : 'bg-line/40 border-edge/60 text-soft';
   return (
     <span
       className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge border ${cls} text-[11px] font-mono leading-none whitespace-nowrap`}
     >
-      {icon && (
-        <span className="inline-flex items-center text-fainter">{icon}</span>
-      )}
+      {icon && <span className="inline-flex items-center text-fainter">{icon}</span>}
       <span className="tabular-nums">{children}</span>
     </span>
   );
@@ -219,12 +178,7 @@ function MetaPill({
  * ────────────────────────────────────────────────────────────────────── */
 
 function DayGroupHeader({
-  label,
-  count,
-  totalCost,
-  totalTokens,
-  collapsed,
-  onToggle,
+  label, count, totalCost, totalTokens, collapsed, onToggle,
 }: {
   label: string;
   count: number;
@@ -243,7 +197,7 @@ function DayGroupHeader({
       >
         <span
           className={`shrink-0 inline-flex text-fainter group-hover/dh:text-soft transition-transform duration-150 ${
-            collapsed ? "" : "rotate-90"
+            collapsed ? '' : 'rotate-90'
           }`}
         >
           {CHEVRON}
@@ -252,22 +206,16 @@ function DayGroupHeader({
           {label}
         </span>
         <span className="ml-auto flex items-center gap-1.5">
-          <MetaPill>
-            {count} session{count === 1 ? "" : "s"}
-          </MetaPill>
-          {totalTokens != null && (
-            <MetaPill>{formatTokens(totalTokens)}</MetaPill>
-          )}
-          {totalCost != null && (
-            <MetaPill accent>{formatCost(totalCost)}</MetaPill>
-          )}
+          <MetaPill>{count} session{count === 1 ? '' : 's'}</MetaPill>
+          {totalTokens != null && <MetaPill>{formatTokens(totalTokens)}</MetaPill>}
+          {totalCost != null && <MetaPill accent>{formatCost(totalCost)}</MetaPill>}
         </span>
       </button>
       <div
         className="h-[2px] rounded-full"
         style={{
           background:
-            "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 50%, transparent 100%)",
+            'linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 50%, transparent 100%)',
           opacity: 0.3,
         }}
       />
@@ -282,16 +230,18 @@ function DayGroupHeader({
  * the inner span and bidi-isolate so the actual characters read normally.
  * ────────────────────────────────────────────────────────────────────── */
 
-function LeafPath({ pathStr, copied }: { pathStr: string; copied: boolean }) {
+function LeafPath({
+  pathStr, copied,
+}: { pathStr: string; copied: boolean }) {
   return (
     <span
       className={`overflow-hidden text-ellipsis whitespace-nowrap min-w-0 font-mono text-sm ${
-        copied ? "text-accent" : "text-fainter group-hover/path:text-soft"
+        copied ? 'text-accent' : 'text-fainter group-hover/path:text-soft'
       }`}
-      style={{ direction: "rtl" }}
+      style={{ direction: 'rtl' }}
     >
-      <bdi style={{ direction: "ltr", unicodeBidi: "bidi-override" }}>
-        {copied ? "copied!" : pathStr}
+      <bdi style={{ direction: 'ltr', unicodeBidi: 'bidi-override' }}>
+        {copied ? 'copied!' : pathStr}
       </bdi>
     </span>
   );
@@ -315,9 +265,7 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
   const model = shortModel(s.model);
   const prompt = s.currentTask ?? s.lastPrompt;
   const answer = s.lastMessage
-    ? s.lastMessage.length > 160
-      ? s.lastMessage.slice(0, 160) + "…"
-      : s.lastMessage
+    ? s.lastMessage.length > 160 ? s.lastMessage.slice(0, 160) + '…' : s.lastMessage
     : null;
   const pathStr = compactPath(s.workingDir, home);
 
@@ -336,9 +284,7 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
       <span
         aria-hidden
         className={`absolute left-0 top-0 bottom-0 w-[2px] ${
-          errored
-            ? "bg-badge-loop/50"
-            : "bg-fainter/30 group-hover:bg-fainter/60"
+          errored ? 'bg-badge-loop/50' : 'bg-fainter/30 group-hover:bg-fainter/60'
         } transition-colors duration-150`}
       />
 
@@ -371,9 +317,7 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
         <div className="rounded-md bg-base/60 border border-line/60 px-2.5 py-2">
           {prompt && (
             <div className="flex items-start gap-1.5 text-sm text-prompt leading-card break-words">
-              <span className="shrink-0 text-fainter leading-none text-base font-bold mt-px">
-                ›
-              </span>
+              <span className="shrink-0 text-fainter leading-none text-base font-bold mt-px">›</span>
               <span className="min-w-0">{prompt}</span>
             </div>
           )}
@@ -384,10 +328,7 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
             </div>
           ) : prompt ? (
             <div className="mt-1 pl-4 flex items-center gap-2">
-              <span
-                aria-hidden
-                className="inline-block w-[6px] h-[6px] rounded-full bg-badge-done shrink-0"
-              />
+              <span aria-hidden className="inline-block w-[6px] h-[6px] rounded-full bg-badge-done shrink-0" />
               <span className="text-soft font-mono text-[11px]">Completed</span>
             </div>
           ) : null}
@@ -403,13 +344,11 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
  * ────────────────────────────────────────────────────────────────────── */
 
 function FilterBar({
-  query,
-  onQuery,
-  range,
-  onRange,
-  total,
-  filtered,
+  view, onView,
+  query, onQuery, range, onRange, total, filtered,
 }: {
+  view: 'charts' | 'list';
+  onView: (v: 'charts' | 'list') => void;
   query: string;
   onQuery: (v: string) => void;
   range: RangeKey;
@@ -420,6 +359,32 @@ function FilterBar({
   const [rangeOpen, setRangeOpen] = useState(false);
   return (
     <div className="px-2 pt-1.5 pb-2 border-b border-line/60 flex items-center gap-2 shrink-0">
+      {/* View toggle — Charts | List */}
+      <div className="inline-flex rounded-md border border-line bg-surface p-0.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => onView('charts')}
+          className={`px-1.5 py-0.5 inline-flex items-center gap-1 text-[11px] font-mono rounded transition-colors duration-150 ${
+            view === 'charts' ? 'bg-edge text-brighter' : 'text-fainter hover:text-bright'
+          }`}
+          title="Charts view"
+        >
+          {CHART_ICON}
+          <span>Charts</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onView('list')}
+          className={`px-1.5 py-0.5 inline-flex items-center gap-1 text-[11px] font-mono rounded transition-colors duration-150 ${
+            view === 'list' ? 'bg-edge text-brighter' : 'text-fainter hover:text-bright'
+          }`}
+          title="List view"
+        >
+          {LIST_ICON}
+          <span>List</span>
+        </button>
+      </div>
+
       {/* Search input */}
       <label className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface/80 border border-edge/60 focus-within:border-accent/60 transition-colors">
         <span className="text-fainter shrink-0 inline-flex">{SEARCH_ICON}</span>
@@ -427,14 +392,14 @@ function FilterBar({
           type="text"
           value={query}
           onChange={(e) => onQuery(e.target.value)}
-          placeholder="Filter projects, prompts…"
+          placeholder={view === 'charts' ? 'Filter active range…' : 'Filter projects, prompts…'}
           className="flex-1 min-w-0 bg-transparent border-none outline-none text-bright text-[12px] font-mono placeholder:text-fainter/70"
           aria-label="Filter history"
         />
         {query && (
           <button
             type="button"
-            onClick={() => onQuery("")}
+            onClick={() => onQuery('')}
             className="text-fainter hover:text-bright text-[11px] px-1 leading-none transition-colors"
             title="Clear filter"
           >
@@ -443,50 +408,89 @@ function FilterBar({
         )}
       </label>
 
-      {/* Range dropdown */}
+      {/* Range dropdown — visible in both views.
+       *  • List view: filters the rows directly (rangeFloor → r.lastActivity).
+       *  • Charts view: seeds the brush window via presetRange. The user can
+       *    still drag the brush handles to fine-tune within the preset. */}
       <div className="relative shrink-0">
-        <button
-          type="button"
-          onClick={() => setRangeOpen((v) => !v)}
-          onBlur={() => setTimeout(() => setRangeOpen(false), 120)}
-          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface/80 border border-edge/60 hover:border-edge text-soft text-[11px] font-mono leading-none transition-colors"
-          title="Time range"
-        >
-          <span>{RANGE_LABELS[range]}</span>
-          <span className="text-fainter">{CARET_DOWN}</span>
-        </button>
-        {rangeOpen && (
-          <div
-            className="absolute right-0 top-full mt-1 z-10 min-w-[120px] rounded-md bg-surface border border-edge shadow-lg overflow-hidden"
-            role="menu"
+          <button
+            type="button"
+            onClick={() => setRangeOpen((v) => !v)}
+            onBlur={() => setTimeout(() => setRangeOpen(false), 120)}
+            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-surface/80 border border-edge/60 hover:border-edge text-soft text-[11px] font-mono leading-none transition-colors"
+            title="Time range"
           >
-            {(Object.keys(RANGE_LABELS) as RangeKey[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onRange(k);
-                  setRangeOpen(false);
-                }}
-                className={`block w-full text-left px-2.5 py-1.5 text-[11px] font-mono leading-none transition-colors ${
-                  k === range
-                    ? "bg-line/80 text-bright"
-                    : "text-soft hover:bg-line/50 hover:text-bright"
-                }`}
-                role="menuitem"
-              >
-                {RANGE_LABELS[k]}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+            <span>{RANGE_LABELS[range]}</span>
+            <span className="text-fainter">{CARET_DOWN}</span>
+          </button>
+          {rangeOpen && (
+            <div
+              className="absolute right-0 top-full mt-1 z-10 min-w-[120px] rounded-md bg-surface border border-edge shadow-lg overflow-hidden"
+              role="menu"
+            >
+              {(Object.keys(RANGE_LABELS) as RangeKey[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onRange(k);
+                    setRangeOpen(false);
+                  }}
+                  className={`block w-full text-left px-2.5 py-1.5 text-[11px] font-mono leading-none transition-colors ${
+                    k === range ? 'bg-line/80 text-bright' : 'text-soft hover:bg-line/50 hover:text-bright'
+                  }`}
+                  role="menuitem"
+                >
+                  {RANGE_LABELS[k]}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
       {/* Result count */}
-      <span className="shrink-0 text-fainter text-[11px] font-mono tabular-nums whitespace-nowrap">
-        {filtered === total ? `${total}` : `${filtered}/${total}`}
-      </span>
+      {view === 'list' && (
+        <span className="shrink-0 text-fainter text-[11px] font-mono tabular-nums whitespace-nowrap">
+          {filtered === total ? `${total}` : `${filtered}/${total}`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ─── Active filter banner ─────────────────────────────────────────────
+ * Shown above the list when the user clicks something in charts view that
+ * narrows the list. Dismissable via the × — clears the chart-derived filter
+ * but leaves search query / range alone.
+ * ────────────────────────────────────────────────────────────────────── */
+
+function ActiveFilterBanner({
+  filter, onClear,
+}: {
+  filter: HistoryChartsFilter | null;
+  onClear: () => void;
+}) {
+  if (!filter) return null;
+  let label = '';
+  if (filter.kind === 'project') label = `project: ${filter.value}`;
+  else if (filter.kind === 'model')   label = `model: ${filter.value}`;
+  else if (filter.kind === 'day') {
+    label = `day: ${new Date(filter.from).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+  }
+  return (
+    <div className="px-2 pt-1.5 shrink-0">
+      <div className="flex items-center gap-2 px-2 py-1 rounded bg-accent/10 border border-accent/30 text-accent text-[11px] font-mono">
+        <span>filtered → {label}</span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="ml-auto text-fainter hover:text-bright transition-colors"
+          title="Clear filter"
+        >
+          clear ×
+        </button>
+      </div>
     </div>
   );
 }
@@ -498,7 +502,8 @@ interface HistoryPanelProps {
   home: string;
 }
 
-const COLLAPSE_STORAGE_KEY = "history-panel:expanded-groups";
+const COLLAPSE_STORAGE_KEY = 'history-panel:expanded-groups';
+const VIEW_STORAGE_KEY = 'history-panel:view';
 
 function loadExpanded(): Set<string> {
   try {
@@ -519,10 +524,31 @@ function saveExpanded(set: Set<string>) {
   }
 }
 
+function loadView(): 'charts' | 'list' {
+  try {
+    const v = localStorage.getItem(VIEW_STORAGE_KEY);
+    return v === 'list' ? 'list' : 'charts';
+  } catch {
+    return 'charts';
+  }
+}
+
 export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
-  const [query, setQuery] = useState("");
-  const [range, setRange] = useState<RangeKey>("all");
+  const [query, setQuery] = useState('');
+  const [range, setRange] = useState<RangeKey>('all');
+
+  // Charts is the default view (per design). Persist user's choice across
+  // panel openings so it sticks per session.
+  const [view, setViewState] = useState<'charts' | 'list'>(() => loadView());
+  const setView = (v: 'charts' | 'list') => {
+    setViewState(v);
+    try { localStorage.setItem(VIEW_STORAGE_KEY, v); } catch { /* ignore */ }
+  };
+
+  // Filter coming from a click in charts view (project / model / day).
+  // Applied on top of the search query + range filters when in list view.
+  const [chartFilter, setChartFilter] = useState<HistoryChartsFilter | null>(null);
 
   // Persisted set of *user-expanded* group labels. Default = all collapsed.
   // When a search is active, every matching group expands automatically and
@@ -533,8 +559,7 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
   const toggleGroup = (label: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
+      if (next.has(label)) next.delete(label); else next.add(label);
       saveExpanded(next);
       return next;
     });
@@ -543,10 +568,20 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
   const searching = query.trim().length > 0;
 
   useEffect(() => {
-    ipcRenderer.invoke("get-history").then((rows: HistoryRow[]) => {
+    ipcRenderer.invoke('get-history').then((rows: HistoryRow[]) => {
       setHistory(rows ?? []);
     });
   }, []);
+
+  // Chart-driven filter: clicking a bar/slice/row flips to list view with
+  // the filter applied and the banner shown.
+  const handleChartFilter = (f: HistoryChartsFilter) => {
+    setChartFilter(f);
+    setView('list');
+    // Day clicks should also auto-expand all matching groups so the user
+    // sees the rows. Easiest: the searching=true short-circuit already does
+    // this when query is non-empty; for chartFilter we mirror it below.
+  };
 
   const filtered = useMemo(() => {
     if (!history) return [];
@@ -554,6 +589,12 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
     const q = query.trim().toLowerCase();
     return history.filter((r) => {
       if (r.lastActivity < floor) return false;
+      if (chartFilter) {
+        if (chartFilter.kind === 'project' && r.dirName !== chartFilter.value) return false;
+        if (chartFilter.kind === 'model'   && shortModel(r.model) !== chartFilter.value) return false;
+        if (chartFilter.kind === 'day' &&
+            (r.lastActivity < chartFilter.from || r.lastActivity > chartFilter.to)) return false;
+      }
       if (!q) return true;
       const hay = [
         r.dirName,
@@ -564,37 +605,34 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
         r.branch,
       ]
         .filter(Boolean)
-        .join(" ")
+        .join(' ')
         .toLowerCase();
       return hay.includes(q);
     });
-  }, [history, query, range]);
+  }, [history, query, range, chartFilter]);
 
   if (history === null) {
     return (
-      <div id="history-panel" className="px-3 py-4 text-soft text-sm">
-        Loading…
-      </div>
+      <div id="history-panel" className="px-3 py-4 text-soft text-sm">Loading…</div>
     );
   }
 
   if (history.length === 0) {
     return (
-      <div
-        id="history-panel"
-        className="px-3 py-4 text-soft text-sm leading-relaxed"
-      >
-        No history yet — completed sessions appear here after they expire from
-        the dashboard.
+      <div id="history-panel" className="px-3 py-4 text-soft text-sm leading-relaxed">
+        No history yet — completed sessions appear here after they expire from the dashboard.
       </div>
     );
   }
 
   const groups = groupByDay(filtered, showCost);
+  const hasActiveFilter = chartFilter !== null;
 
   return (
     <div id="history-panel" className="flex flex-col flex-1 min-h-0">
       <FilterBar
+        view={view}
+        onView={setView}
         query={query}
         onQuery={setQuery}
         range={range}
@@ -603,43 +641,45 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
         filtered={filtered.length}
       />
 
-      <div className="flex flex-col gap-4 px-2 py-2 overflow-y-auto flex-1 min-h-0">
-        {groups.length === 0 ? (
-          <div className="px-2 py-6 text-fainter text-sm text-center font-mono">
-            No matches for{" "}
-            {query ? `"${query}"` : RANGE_LABELS[range].toLowerCase()}
-          </div>
-        ) : (
-          groups.map((group, i) => {
-            // Auto-expand on search; otherwise honor the persisted user state.
-            const isOpen = searching || expanded.has(group.label);
-            return (
-              <div key={group.label} className={i > 0 ? "mt-2" : ""}>
-                <DayGroupHeader
-                  label={group.label}
-                  count={group.sessions.length}
-                  totalCost={group.totalCost}
-                  totalTokens={group.totalTokens}
-                  collapsed={!isOpen}
-                  onToggle={() => toggleGroup(group.label)}
-                />
-                {isOpen && (
-                  <div className="flex flex-col gap-1.5">
-                    {group.sessions.map((s) => (
-                      <HistoryEntry
-                        key={s.sessionId}
-                        s={s}
-                        showCost={showCost}
-                        home={home}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+      {view === 'list' && (
+        <ActiveFilterBanner filter={chartFilter} onClear={() => setChartFilter(null)} />
+      )}
+
+      {view === 'charts' ? (
+        <HistoryCharts rows={history} onFilter={handleChartFilter} presetRange={range} />
+      ) : (
+        <div className="flex flex-col gap-4 px-2 py-2 overflow-y-auto flex-1 min-h-0">
+          {groups.length === 0 ? (
+            <div className="px-2 py-6 text-fainter text-sm text-center font-mono">
+              No matches for {query ? `"${query}"` : RANGE_LABELS[range].toLowerCase()}
+            </div>
+          ) : (
+            groups.map((group, i) => {
+              // Auto-expand on search OR when a chart filter is active.
+              const isOpen = searching || hasActiveFilter || expanded.has(group.label);
+              return (
+                <div key={group.label} className={i > 0 ? 'mt-2' : ''}>
+                  <DayGroupHeader
+                    label={group.label}
+                    count={group.sessions.length}
+                    totalCost={group.totalCost}
+                    totalTokens={group.totalTokens}
+                    collapsed={!isOpen}
+                    onToggle={() => toggleGroup(group.label)}
+                  />
+                  {isOpen && (
+                    <div className="flex flex-col gap-1.5">
+                      {group.sessions.map((s) => (
+                        <HistoryEntry key={s.sessionId} s={s} showCost={showCost} home={home} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
     </div>
   );
 }
