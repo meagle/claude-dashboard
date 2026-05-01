@@ -1,6 +1,6 @@
 {
   "name": "@claude-dashboard/menubar",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsup --config tsup.main.config.ts && vite build",
