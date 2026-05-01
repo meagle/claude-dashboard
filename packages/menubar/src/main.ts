@@ -156,11 +156,16 @@ const prevStatusMap = new Map<string, string>();
 const isAliveCache = new Map<number, { result: boolean; ts: number }>();
 // Cache app name lookups — only cache hits; misses are retried until resolved
 const appNameCache = new Map<number, string>();
+const APP_DISPLAY_NAMES: Record<string, string> = { 'Visual Studio Code': 'VS Code' };
 function getAppName(pid: number): string | null {
   if (appNameCache.has(pid)) return appNameCache.get(pid)!;
   const name = findParentApp(pid);
-  if (name) appNameCache.set(pid, name);
-  return name;
+  if (name) {
+    const display = APP_DISPLAY_NAMES[name] ?? name;
+    appNameCache.set(pid, display);
+    return display;
+  }
+  return null;
 }
 
 function isClaudeProcess(pid: number): boolean {

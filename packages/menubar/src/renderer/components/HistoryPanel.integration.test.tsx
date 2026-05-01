@@ -15,7 +15,7 @@
  */
 
 import React from 'react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { ipcRenderer } from '../utils/electron';
 import { HistoryPanel } from './HistoryPanel';
@@ -73,12 +73,17 @@ const MOCK_HISTORY: HistoryRow[] = [
 ];
 
 beforeEach(() => {
+  vi.useFakeTimers({ now: NOW });
   localStorage.clear();
   vi.mocked(ipcRenderer.invoke).mockReset();
   vi.mocked(ipcRenderer.invoke).mockImplementation(async (channel: string) => {
     if (channel === 'get-history') return MOCK_HISTORY;
     return undefined;
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 async function mountPanel() {

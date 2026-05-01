@@ -10,8 +10,8 @@ export function sanitizeGuid(termSessionId: string): string {
 const KNOWN_EDITOR_APPS: Array<[string, string]> = [
   ['cursor', 'Cursor'],
   ['Cursor', 'Cursor'],
-  ['Code Helper', 'VS Code'],
-  ['Visual Studio Code', 'VS Code'],
+  ['Code Helper', 'Visual Studio Code'],
+  ['Visual Studio Code', 'Visual Studio Code'],
   ['Hyper', 'Hyper'],
   ['iTerm2', 'iTerm2'],
   ['Terminal', 'Terminal'],
