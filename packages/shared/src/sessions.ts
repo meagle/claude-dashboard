@@ -35,9 +35,12 @@ export function appendHistory(filePath: string, sessions: Session[]): void {
   const cutoff = now - HISTORY_DAYS * 24 * 60 * 60 * 1000;
   const existing = readHistory(filePath).filter(s => s.archivedAt > cutoff);
   const toAdd: ArchivedSession[] = sessions.map(s => ({ ...s, archivedAt: now }));
+  // Deduplicate by sessionId — last write wins so existing entries are overwritten
+  const byId = new Map<string, ArchivedSession>();
+  for (const s of [...existing, ...toAdd]) byId.set(s.sessionId, s);
   const tmp = filePath + '.tmp';
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(tmp, JSON.stringify([...existing, ...toAdd], null, 2), 'utf8');
+  fs.writeFileSync(tmp, JSON.stringify([...byId.values()], null, 2), 'utf8');
   fs.renameSync(tmp, filePath);
 }
 

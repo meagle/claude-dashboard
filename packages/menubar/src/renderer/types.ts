@@ -47,6 +47,7 @@ export interface SessionRow {
   turnStartedAt: number | null;
   lastActivity: number;
   dismissed: boolean;
+  appName?: string | null;
 }
 
 export interface HistoryRow extends SessionRow {

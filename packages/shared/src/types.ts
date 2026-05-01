@@ -48,6 +48,7 @@ export interface Session {
   turnStartedAt: number | null;  // epoch ms when the current/last Claude turn began
   lastActivity: number;
   dismissed: boolean;
+  appName?: string | null;
 }
 
 export interface DashboardConfig {

@@ -22,7 +22,7 @@ import {
   readConfig,
   DEFAULT_CONFIG,
 } from "@claude-dashboard/shared";
-import { focusTerminal } from "./focusTerminal";
+import { focusTerminal, findParentApp } from "./focusTerminal";
 import { getTrayLabel } from "./trayIcon";
 
 const MIN_WIDTH_CARD = 530;
@@ -154,6 +154,14 @@ const prevStatusMap = new Map<string, string>();
 
 // Cache isAlive results for 2s to avoid spawning ps on every chokidar tick
 const isAliveCache = new Map<number, { result: boolean; ts: number }>();
+// Cache app name lookups — only cache hits; misses are retried until resolved
+const appNameCache = new Map<number, string>();
+function getAppName(pid: number): string | null {
+  if (appNameCache.has(pid)) return appNameCache.get(pid)!;
+  const name = findParentApp(pid);
+  if (name) appNameCache.set(pid, name);
+  return name;
+}
 
 function isClaudeProcess(pid: number): boolean {
   try {
@@ -431,9 +439,9 @@ function buildSessionsPayload() {
           : s.status === "idle"
             ? 3
             : 4;
-  const sorted = [...sessions].sort(
-    (a, b) => priority(a) - priority(b) || b.lastActivity - a.lastActivity,
-  );
+  const sorted = [...sessions]
+    .sort((a, b) => priority(a) - priority(b) || b.lastActivity - a.lastActivity)
+    .map((s) => ({ ...s, appName: s.appName ?? getAppName(s.pid) }));
   return {
     sessions: sorted,
     cardConfig: {

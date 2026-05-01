@@ -10,9 +10,13 @@ export function sanitizeGuid(termSessionId: string): string {
 const KNOWN_EDITOR_APPS: Array<[string, string]> = [
   ['cursor', 'Cursor'],
   ['Cursor', 'Cursor'],
-  ['Code Helper', 'Visual Studio Code'],
-  ['Visual Studio Code', 'Visual Studio Code'],
+  ['Code Helper', 'VS Code'],
+  ['Visual Studio Code', 'VS Code'],
   ['Hyper', 'Hyper'],
+  ['iTerm2', 'iTerm2'],
+  ['Terminal', 'Terminal'],
+  ['Warp', 'Warp'],
+  ['Ghostty', 'Ghostty'],
 ];
 
 // Walk up the process tree from pid looking for a known editor host app.

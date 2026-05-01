@@ -441,17 +441,18 @@ export function SessionCard({
 
   // ── Footer: gradient token bar ─────────────────────────────────────────
   const showFooter =
-    (cfg.showModel || cfg.showCost) &&
-    (s.model ||
-      s.contextPct != null ||
-      s.costUsd != null ||
-      s.totalTokens != null);
+    !!s.appName ||
+    ((cfg.showModel || cfg.showCost) &&
+      (s.model ||
+        s.contextPct != null ||
+        s.costUsd != null ||
+        s.totalTokens != null));
 
   const footer = showFooter ? (
-    <div className="mt-2.5 flex items-center gap-2">
-      {s.contextPct != null ? (
-        <div className="flex-1 flex items-center gap-1.5 min-w-0">
-          <div className="flex-1 h-1 rounded-full overflow-hidden bg-line/70">
+    <div className="mt-2.5 flex items-center justify-between gap-2">
+      {s.contextPct != null && (
+        <div className="flex items-center gap-1.5">
+          <div className="w-36 h-1 rounded-full overflow-hidden bg-line/70">
             <div
               className="h-full rounded-full"
               style={{
@@ -465,8 +466,9 @@ export function SessionCard({
             {s.contextPct}%
           </span>
         </div>
-      ) : (
-        <div className="flex-1" />
+      )}
+      {s.appName && (
+        <span className="text-faint text-ui shrink-0">{s.appName}</span>
       )}
       {cfg.showModel && s.model && (
         <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">

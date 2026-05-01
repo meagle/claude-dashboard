@@ -229,12 +229,15 @@ export function CompactSessionRow({
         )}
         {worktreeLabel && <WorktreePill label={worktreeLabel} />}
 
-        {/* Right cluster — time + loop chip + shortcut */}
+        {/* Right cluster — app name + time + loop chip + shortcut */}
         <span className="ml-auto flex items-center gap-2 shrink-0">
           {s.errorState && s.loopCount > 1 && (
             <span className="text-[11px] text-badge-loop font-bold font-mono px-1.5 py-[1px] rounded-badge bg-badge-loop/15 border border-badge-loop/40">
               ×{s.loopCount} loop
             </span>
+          )}
+          {s.appName && (
+            <span className="text-faint text-[11px] shrink-0">{s.appName}</span>
           )}
           <span className="inline-flex items-center px-1.5 py-[1px] rounded-badge border border-edge/60 bg-line/40 text-fainter text-[11px] font-mono tabular-nums leading-none whitespace-nowrap">
             {timeLabel}
