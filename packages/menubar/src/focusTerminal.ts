@@ -12,6 +12,7 @@ const KNOWN_EDITOR_APPS: Array<[string, string]> = [
   ['Cursor', 'Cursor'],
   ['Code Helper', 'Visual Studio Code'],
   ['Visual Studio Code', 'Visual Studio Code'],
+  ['Hyper', 'Hyper'],
 ];
 
 // Walk up the process tree from pid looking for a known editor host app.
