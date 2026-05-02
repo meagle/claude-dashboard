@@ -250,31 +250,31 @@ export function OneLineSessionRow({
       <span className="shrink-0 flex items-center gap-2 w-[210px] justify-end">
         {/* Context bar slot (always same width) */}
         <span className="flex items-center gap-1.5 w-[86px] shrink-0">
-          {hasCtx ? (
+          {(!isDone || hasCtx) && (
             <>
               <span className="w-14 h-1 rounded-full overflow-hidden bg-line/70">
-                <span
-                  className="block h-full rounded-full"
-                  style={{
-                    width: `${Math.min(100, Math.max(4, s.contextPct!))}%`,
-                    background:
-                      "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-                  }}
-                />
+                {hasCtx && (
+                  <span
+                    className="block h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, Math.max(4, s.contextPct!))}%`,
+                      background:
+                        "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+                    }}
+                  />
+                )}
               </span>
               <span className="text-fainter text-[11px] font-mono tabular-nums w-6 text-right">
-                {s.contextPct}%
+                {hasCtx ? `${s.contextPct}%` : ""}
               </span>
             </>
-          ) : (
-            <span aria-hidden />
           )}
         </span>
 
         {/* Tokens — fixed width */}
         <span className="text-fainter text-[11px] font-mono tabular-nums w-[52px] text-right whitespace-nowrap">
-          {cfg.showCost && s.totalTokens != null
-            ? formatTokens(s.totalTokens)
+          {cfg.showCost
+            ? (s.totalTokens != null ? formatTokens(s.totalTokens) : (!isDone ? "— tok" : ""))
             : ""}
         </span>
 

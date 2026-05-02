@@ -51,5 +51,6 @@ export const defaultCardConfig: CardConfig = {
   compactPaths: true,
   showCost: false,
   showDoneFooter: true,
+  showContextInMeta: false,
   theme: 'light',
 };

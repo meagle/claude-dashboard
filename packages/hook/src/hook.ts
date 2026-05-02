@@ -138,37 +138,45 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
     let costUsd = 0;
     let cumulativeTokens = 0;
     let foundAssistant = false;
+    let pastTurnBoundary = false;
 
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const entry = JSON.parse(lines[i]);
-        if (!foundAssistant && entry.type === 'assistant' && entry.message?.model !== '<synthetic>') {
-          foundAssistant = true;
+        if (entry.type === 'assistant' && entry.message?.model !== '<synthetic>') {
           const msg = entry.message;
-          const blocks = msg?.content;
-          if (Array.isArray(blocks)) {
-            for (const block of blocks) {
-              if (block?.type === 'text' && typeof block.text === 'string') {
-                const t = block.text.trim().replace(/\s+/g, ' ');
-                text = t.length > 240 ? t.slice(0, 240) + '…' : t;
-                break;
+          if (!foundAssistant) {
+            foundAssistant = true;
+            const modelId: string | null = typeof msg?.model === 'string' ? msg.model : null;
+            const u = msg?.usage ?? {};
+            const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
+            const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+            // cache_read = tokens served from an existing cache breakpoint (not re-processed)
+            // cache_creation = tokens written to a new cache checkpoint (freshly processed)
+            // These represent different parts of the context, so sum all three fields.
+            const lastTurnTokens =
+              (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
+              cacheRead + cacheCreate;
+            contextPct = modelId && lastTurnTokens > 0
+              ? Math.min(100, Math.round((lastTurnTokens / getModelContextWindow(modelId)) * 100))
+              : null;
+            model = modelId ? modelDisplayName(modelId) : null;
+          }
+          // Scan backwards within the current turn for the most recent text block.
+          // Claude Code emits text and tool_use as separate assistant entries, so the
+          // last entry before a tool call is tool-only — we must keep looking back.
+          if (text === null && !pastTurnBoundary) {
+            const blocks = msg?.content;
+            if (Array.isArray(blocks)) {
+              for (const block of blocks) {
+                if (block?.type === 'text' && typeof block.text === 'string') {
+                  const t = block.text.trim().replace(/\s+/g, ' ');
+                  text = t.length > 240 ? t.slice(0, 240) + '…' : t;
+                  break;
+                }
               }
             }
           }
-          const modelId: string | null = typeof msg?.model === 'string' ? msg.model : null;
-          const u = msg?.usage ?? {};
-          const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
-          const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
-          // cache_read = tokens served from an existing cache breakpoint (not re-processed)
-          // cache_creation = tokens written to a new cache checkpoint (freshly processed)
-          // These represent different parts of the context, so sum all three fields.
-          const lastTurnTokens =
-            (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
-            cacheRead + cacheCreate;
-          contextPct = modelId && lastTurnTokens > 0
-            ? Math.min(100, Math.round((lastTurnTokens / getModelContextWindow(modelId)) * 100))
-            : null;
-          model = modelId ? modelDisplayName(modelId) : null;
         }
         // Count turns: only actual user text messages, not tool_result entries
         // (tool results are also stored as type:'user' in the transcript)
@@ -177,7 +185,10 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
           const isUserText = Array.isArray(content)
             ? content.some((b: unknown) => (b as Record<string, unknown>)?.type === 'text')
             : typeof content === 'string' && content.length > 0;
-          if (isUserText) turns++;
+          if (isUserText) {
+            turns++;
+            pastTurnBoundary = true; // don't read text from a previous turn
+          }
         }
         if (entry.type === 'assistant' && entry.message?.usage && entry.message?.model && entry.message.model !== '<synthetic>') {
           costUsd += calcTurnCost(entry.message.usage as Record<string, unknown>, entry.message.model as string);
@@ -482,6 +493,13 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     const completionPct = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
     const currentTask = tasks.find((t) => t.status === 'in_progress')?.subject ?? null;
 
+    // Transcript is written between PreToolUse and PostToolUse, so read it now
+    // to capture the text Claude wrote before this tool call.
+    const postStats = session.transcriptPath
+      ? readLastAssistantStats(session.transcriptPath)
+      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+    const freshPostPartial = postStats.text && postStats.text !== session.lastMessage ? postStats.text : null;
+
     session = {
       ...session,
       currentTool: null,
@@ -493,6 +511,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       subagents,
       completionPct,
       currentTask,
+      ...(freshPostPartial ? { partialResponse: freshPostPartial } : {}),
       // Clear bash timer when Bash completes
       ...(event.toolName === 'Bash' ? { bashStartedAt: null } : {}),
     };

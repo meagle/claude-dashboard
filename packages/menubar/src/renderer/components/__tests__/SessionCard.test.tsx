@@ -56,7 +56,7 @@ describe('SessionCard — done', () => {
 
   it('shows cost badge when showCost is true and costUsd is set', () => {
     renderCard({ status: 'done', costUsd: 0.0123 }, { showCost: true });
-    expect(screen.getByText('$0.0123')).toBeInTheDocument();
+    expect(screen.getByText('$0.01')).toBeInTheDocument();
   });
 
   it('does not show cost badge when showCost is false', () => {

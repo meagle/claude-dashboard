@@ -60,6 +60,22 @@ const WORKTREE_ICON = (
   </svg>
 );
 
+const TOOL_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="13"
+    height="13"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="shrink-0"
+  >
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+  </svg>
+);
+
 
 // ── Small helpers ─────────────────────────────────────────────────────────
 
@@ -258,8 +274,8 @@ export function SessionCard({
 
   // ── Meta row: repo · branch-pill · worktree-pill ───────────────────────
   const metaRow = (
-    <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-1.5 text-sm leading-none">
-      <span className="inline-flex items-center gap-1 text-fainter min-w-0">
+    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-sm leading-none">
+      <span className="inline-flex items-center gap-1 text-soft min-w-0">
         <span className="inline-flex items-center text-path">
           {FOLDER_ICON}
         </span>
@@ -279,31 +295,17 @@ export function SessionCard({
         </span>
       </span>
       {cfg.showBranch && s.branch && (
-        <>
-          <span className="text-fainter/60">·</span>
-          <BranchPill
-            branch={s.branch}
-            gitSummary={cfg.showGitSummary ? s.gitSummary : null}
-            gitAhead={cfg.showGitSummary ? s.gitAhead : null}
-          />
-        </>
+        <BranchPill
+          branch={s.branch}
+          gitSummary={cfg.showGitSummary ? s.gitSummary : null}
+          gitAhead={cfg.showGitSummary ? s.gitAhead : null}
+        />
       )}
       {worktreeLabel && <WorktreePill label={worktreeLabel} />}
-      {s.toolCount > 0 && (
-        <>
-          <span className="text-fainter/60">·</span>
-          <span className="text-fainter text-sm font-mono whitespace-nowrap">
-            {s.toolCount} tools
-          </span>
-        </>
-      )}
-      {s.turns != null && s.turns > 0 && (
-        <>
-          <span className="text-fainter/60">·</span>
-          <span className="text-fainter text-sm font-mono whitespace-nowrap">
-            {s.turns} turns
-          </span>
-        </>
+      {s.appName && (
+        <span className="ml-3.5 inline-flex items-center px-1.5 py-0.5 rounded-badge bg-line/60 border border-edge/60 text-ui text-soft font-mono whitespace-nowrap leading-none">
+          {s.appName}
+        </span>
       )}
     </div>
   );
@@ -318,7 +320,7 @@ export function SessionCard({
         <span className="min-w-0">{taskText}</span>
       </div>
       {answer && (
-        <div className="mt-1 pl-4 text-sm text-soft break-words leading-card">
+        <div className="mt-1 pl-4 text-sm text-soft break-words leading-card line-clamp-3">
           <span className="text-fainter mr-1">↳</span>
           {answer}
         </div>
@@ -337,9 +339,7 @@ export function SessionCard({
             s.errorState ? "text-badge-loop" : "text-tool"
           }`}
         >
-          <span className="shrink-0">
-            🔧
-          </span>
+          {TOOL_ICON}
           <span className="min-w-0">
             <span className="font-mono">{toolName}</span>
             {s.errorState && s.loopCount > 1 && (
@@ -384,8 +384,8 @@ export function SessionCard({
   if (!taskText && !isDone) {
     if (s.currentTool) {
       idleToolRow = (
-        <div className="mt-1.5 text-sm text-tool whitespace-nowrap overflow-hidden text-ellipsis">
-          🔧 <span className="font-mono">{s.currentTool}</span>
+        <div className="mt-1.5 text-sm text-tool flex items-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
+          {TOOL_ICON}<span className="font-mono">{s.currentTool}</span>
           {s.lastToolSummary && (
             <span className="text-faint"> {s.lastToolSummary}</span>
           )}
@@ -394,8 +394,8 @@ export function SessionCard({
     } else if (s.lastTool) {
       const ago = s.lastToolAt ? ` · ${agoStr(s.lastToolAt)}` : "";
       idleToolRow = (
-        <div className="mt-1.5 text-sm text-fainter whitespace-nowrap overflow-hidden text-ellipsis">
-          🔧 <span className="font-mono">{s.lastTool}</span>
+        <div className="mt-1.5 text-sm text-fainter flex items-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
+          {TOOL_ICON}<span className="font-mono">{s.lastTool}</span>
           {ago}
         </div>
       );
@@ -432,22 +432,27 @@ export function SessionCard({
     );
   }
 
-  // ── Footer: gradient token bar ─────────────────────────────────────────
-  const showFooter =
-    !!s.appName ||
-    (!isDone && (cfg.showCost || cfg.showModel)) ||
-    ((cfg.showModel || cfg.showCost) &&
-      (s.model != null ||
-        s.contextPct != null ||
-        s.costUsd != null ||
-        s.totalTokens != null));
+  // ── Footer: model · context bar · tools · cost · tokens · turns ──────────
+  const showFooter = (() => {
+    if (isDone && !cfg.showDoneFooter) return false;
+    if (s.toolCount > 0 || (s.turns != null && s.turns > 0)) return true;
+    if (!isDone) return cfg.showCost || cfg.showModel;
+    return (
+      (cfg.showModel && (s.model != null || s.contextPct != null)) ||
+      (cfg.showCost && (s.costUsd != null || s.totalTokens != null))
+    );
+  })();
 
   const footer = showFooter ? (
     <div className="mt-2.5 flex items-center justify-between gap-2">
-      {/* Context bar: always show track for active sessions; fill when data is ready */}
-      {(!isDone || s.contextPct != null) && (
+      {cfg.showModel && s.model && (
+        <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
+          {s.model}
+        </span>
+      )}
+      {cfg.showModel && (!isDone || s.contextPct != null) && (
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className="w-36 h-1 rounded-full overflow-hidden bg-line/70">
+          <div className="w-24 h-1 rounded-full overflow-hidden bg-line/70">
             {s.contextPct != null && (
               <div
                 className="h-full rounded-full"
@@ -464,20 +469,17 @@ export function SessionCard({
           </span>
         </div>
       )}
-      {s.appName && (
-        <span className="text-faint text-ui shrink-0">{s.appName}</span>
+      {s.toolCount > 0 && (
+        <TokenChip label={`${s.toolCount} tools`} />
       )}
-      {cfg.showModel && s.model && (
-        <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
-          {s.model}
-        </span>
-      )}
-      {/* Cost/tokens: show placeholders for active sessions when showCost is enabled */}
       {cfg.showCost && (s.costUsd != null || !isDone) && (
-        <TokenChip label={s.costUsd != null ? `$${s.costUsd.toFixed(4)}` : "$—"} />
+        <TokenChip label={s.costUsd != null ? `$${s.costUsd.toFixed(2)}` : "$—"} />
       )}
       {cfg.showCost && (s.totalTokens != null || !isDone) && (
         <TokenChip label={s.totalTokens != null ? (formatTokens(s.totalTokens) ?? "") : "— tok"} />
+      )}
+      {s.turns != null && s.turns > 0 && (
+        <TokenChip label={`${s.turns} turns`} />
       )}
     </div>
   ) : null;

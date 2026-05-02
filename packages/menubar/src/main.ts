@@ -260,10 +260,10 @@ async function resizeToContent(
         // For sessions and history: flex-1 stretches the container to fill the window,
         // so scrollHeight reports the window height rather than the content height.
         // Sum children directly: gap-4 (16px) for history, gap-1.5 (6px) for sessions,
-        // plus py-1.5 top+bottom padding (12px) for both.
+        // plus pt-1.5 top-only padding (6px) for sessions.
         "  function contentH(el, gap) {" +
         "    if (!el) return 0;" +
-        "    var kids = el.children, h = 12, c = 0;" +
+        "    var kids = el.children, h = 6, c = 0;" +
         "    for (var i = 0; i < kids.length; i++) {" +
         "      var pos = getComputedStyle(kids[i]).position;" +
         '      if (pos === "absolute" || pos === "fixed") continue;' +
@@ -286,7 +286,7 @@ async function resizeToContent(
         "    return h;" +
         "  }" +
         "  if (hp) return [hh + contentScrollH(hp) + 24, false];" +
-        "  return [hh + contentH(ses, 6) + 24, false];" +
+        "  return [hh + contentH(ses, 6) + 8, false];" +
         "})()",
     );
     const cap = isSettings ? 2400 : maxHeight;

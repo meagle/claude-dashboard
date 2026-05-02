@@ -163,7 +163,7 @@ export function App() {
       ) : (
         <div
           id="sessions"
-          className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${viewMode !== "card" ? "overflow-x-hidden" : "gap-1.5 px-2 py-1.5"}`}
+          className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${viewMode !== "card" ? "overflow-x-hidden" : "gap-1.5 px-2 pt-1.5"}`}
         >
           <SessionList
             sessions={sessions}
