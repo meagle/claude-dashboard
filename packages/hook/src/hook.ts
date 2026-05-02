@@ -353,6 +353,14 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
   const sessions = readSessions(sessionsFile);
   const existing = sessions.find((s) => s.sessionId === event.sessionId);
   let session: Session = existing ?? makeNewSession(event);
+  // For brand-new sessions, inherit the model from the most recent other session
+  // so the model pill shows immediately without waiting for a transcript read.
+  if (!existing && !session.model) {
+    const inheritedModel = sessions
+      .filter((s) => s.model)
+      .sort((a, b) => b.lastActivity - a.lastActivity)[0]?.model ?? null;
+    if (inheritedModel) session = { ...session, model: inheritedModel };
+  }
   // Always refresh pid and termSessionId — pid may have changed if Claude restarted
   session = {
     ...session,

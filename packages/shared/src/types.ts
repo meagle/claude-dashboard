@@ -61,6 +61,7 @@ export interface DashboardConfig {
     lastAction: boolean;
     compactPaths: boolean;
     doneFooter: boolean;
+    contextInHeader?: boolean;
   };
   staleSessionMinutes: number;
   maxHeight: number;
@@ -83,6 +84,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     lastAction: true,
     compactPaths: true,
     doneFooter: true,
+    contextInHeader: false,
   },
   staleSessionMinutes: 30,
   maxHeight: 700,

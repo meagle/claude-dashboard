@@ -103,7 +103,7 @@ describe('SessionCard — active', () => {
     expect(screen.getByText(/I will help with that/)).toBeInTheDocument();
   });
 
-  it('prioritizes currentTool over partialResponse', () => {
+  it('shows both currentTool and partialResponse together', () => {
     renderCard({
       status: 'active',
       lastPrompt: 'Do something',
@@ -111,7 +111,7 @@ describe('SessionCard — active', () => {
       partialResponse: 'Some partial text',
     });
     expect(screen.getByText('Read', { selector: '.font-mono' })).toBeInTheDocument();
-    expect(screen.queryByText(/Some partial text/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Some partial text/)).toBeInTheDocument();
   });
 });
 

@@ -16,6 +16,7 @@ const DEFAULT_CARD_CONFIG: CardConfig = {
   compactPaths: true,
   showCost: false,
   showDoneFooter: true,
+  showContextInMeta: false,
   theme: 'light',
 };
 

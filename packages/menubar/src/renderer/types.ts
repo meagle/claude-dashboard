@@ -62,6 +62,7 @@ export interface CardConfig {
   compactPaths: boolean;
   showCost: boolean;
   showDoneFooter: boolean;
+  showContextInMeta: boolean;
   theme: 'light' | 'dark';
 }
 

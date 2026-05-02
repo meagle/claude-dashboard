@@ -220,7 +220,7 @@ export function SessionCard({
     (isDone
       ? (s.currentTask ?? s.lastPrompt)
       : (s.currentTask ?? s.lastPrompt)) ?? null;
-  const answer = isDone ? s.lastMessage : null;
+  const answer = isDone ? s.lastMessage : (s.partialResponse ?? null);
 
   // ── Top row: dot + title + ⌘-key pill + dismiss ────────────────────────
   const topRow = (
@@ -354,13 +354,6 @@ export function SessionCard({
           </span>
         </div>
       );
-    } else if (s.partialResponse) {
-      streamRow = (
-        <div className="mt-1.5 text-sm text-soft break-words flex items-start gap-1.5">
-          <span className="text-fainter">↳</span>
-          <span className="min-w-0">{s.partialResponse}</span>
-        </div>
-      );
     }
   }
 
@@ -442,28 +435,32 @@ export function SessionCard({
   // ── Footer: gradient token bar ─────────────────────────────────────────
   const showFooter =
     !!s.appName ||
+    (!isDone && (cfg.showCost || cfg.showModel)) ||
     ((cfg.showModel || cfg.showCost) &&
-      (s.model ||
+      (s.model != null ||
         s.contextPct != null ||
         s.costUsd != null ||
         s.totalTokens != null));
 
   const footer = showFooter ? (
     <div className="mt-2.5 flex items-center justify-between gap-2">
-      {s.contextPct != null && (
-        <div className="flex items-center gap-1.5">
+      {/* Context bar: always show track for active sessions; fill when data is ready */}
+      {(!isDone || s.contextPct != null) && (
+        <div className="flex items-center gap-1.5 shrink-0">
           <div className="w-36 h-1 rounded-full overflow-hidden bg-line/70">
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
-                background:
-                  "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-              }}
-            />
+            {s.contextPct != null && (
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
+                  background:
+                    "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+                }}
+              />
+            )}
           </div>
-          <span className="text-fainter text-[11px] font-mono tabular-nums shrink-0">
-            {s.contextPct}%
+          <span className="text-fainter text-[11px] font-mono tabular-nums shrink-0 w-6 text-right">
+            {s.contextPct != null ? `${s.contextPct}%` : ""}
           </span>
         </div>
       )}
@@ -475,11 +472,12 @@ export function SessionCard({
           {s.model}
         </span>
       )}
-      {cfg.showCost && s.costUsd != null && (
-        <TokenChip label={`$${s.costUsd.toFixed(4)}`} />
+      {/* Cost/tokens: show placeholders for active sessions when showCost is enabled */}
+      {cfg.showCost && (s.costUsd != null || !isDone) && (
+        <TokenChip label={s.costUsd != null ? `$${s.costUsd.toFixed(4)}` : "$—"} />
       )}
-      {cfg.showCost && s.totalTokens != null && (
-        <TokenChip label={formatTokens(s.totalTokens) ?? ""} />
+      {cfg.showCost && (s.totalTokens != null || !isDone) && (
+        <TokenChip label={s.totalTokens != null ? (formatTokens(s.totalTokens) ?? "") : "— tok"} />
       )}
     </div>
   ) : null;
