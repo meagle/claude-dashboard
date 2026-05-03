@@ -11,11 +11,12 @@ function writeTranscript(dir: string, entries: object[]): string {
   return p;
 }
 
-function assistantEntry(text: string, model = 'claude-sonnet-4-6', usage: Record<string, number> = {}) {
+function assistantEntry(text: string, model = 'claude-sonnet-4-6', usage: Record<string, number> = {}, stopReason = 'end_turn') {
   return {
     type: 'assistant',
     message: {
       model,
+      stop_reason: stopReason,
       content: [{ type: 'text', text }],
       usage: { input_tokens: 5000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 200, ...usage },
     },

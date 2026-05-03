@@ -125,7 +125,7 @@ interface TranscriptStats {
   totalTokens: number | null;
 }
 
-function readLastAssistantStats(transcriptPath: string): TranscriptStats {
+function readLastAssistantStats(transcriptPath: string, endTurnOnly = false): TranscriptStats {
   try {
     const fsSync = require('fs') as typeof import('fs');
     const content = fsSync.readFileSync(transcriptPath, 'utf8');
@@ -165,7 +165,10 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
           // Scan backwards within the current turn for the most recent text block.
           // Claude Code emits text and tool_use as separate assistant entries, so the
           // last entry before a tool call is tool-only — we must keep looking back.
-          if (text === null && !pastTurnBoundary) {
+          // When endTurnOnly=true (Stop hook), only accept the final entry (stop_reason='end_turn')
+          // so we never grab an intermediate tool-use text as the session's final message.
+          const isEndTurn = msg?.stop_reason === 'end_turn';
+          if (text === null && !pastTurnBoundary && (!endTurnOnly || isEndTurn)) {
             const blocks = msg?.content;
             if (Array.isArray(blocks)) {
               for (const block of blocks) {
@@ -217,7 +220,9 @@ function readLastAssistantStats(transcriptPath: string): TranscriptStats {
 // previousMessage: the last known assistant message before this turn started.
 function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage: string | null): TranscriptStats {
   for (let attempt = 0; attempt < 6; attempt++) {
-    const stats = readLastAssistantStats(transcriptPath);
+    // endTurnOnly=true ensures we only accept the actual final message (stop_reason='end_turn'),
+    // not an intermediate text written before a tool call (stop_reason='tool_use').
+    const stats = readLastAssistantStats(transcriptPath, true);
     // Accept only if we got something new (different from the prior turn's message)
     if (stats.text && stats.text !== previousMessage) return stats;
     if (attempt < 5) {

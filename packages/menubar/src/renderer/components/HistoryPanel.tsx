@@ -322,9 +322,9 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
             </div>
           )}
           {answer ? (
-            <div className="mt-1 pl-4 text-sm text-soft break-words leading-card">
-              <span className="text-fainter mr-1">↳</span>
-              {answer}
+            <div className="mt-1 pl-4 text-sm text-soft leading-card flex items-start gap-1">
+              <span className="text-fainter shrink-0">↳</span>
+              <span className="break-words line-clamp-3 min-w-0">{answer}</span>
             </div>
           ) : prompt ? (
             <div className="mt-1 pl-4 flex items-center gap-2">

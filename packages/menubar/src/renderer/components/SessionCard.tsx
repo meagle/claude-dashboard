@@ -320,9 +320,9 @@ export function SessionCard({
         <span className="min-w-0">{taskText}</span>
       </div>
       {answer && (
-        <div className="mt-1 pl-4 text-sm text-soft break-words leading-card line-clamp-3">
-          <span className="text-fainter mr-1">↳</span>
-          {answer}
+        <div className="mt-1 pl-4 text-sm text-soft leading-card flex items-start gap-1">
+          <span className="text-fainter shrink-0">↳</span>
+          <span className="break-words line-clamp-4 min-w-0">{answer}</span>
         </div>
       )}
     </div>
