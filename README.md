@@ -230,6 +230,7 @@ Click `⚙` in the popover to open the settings panel. Options:
 | Show model & context on done cards | Show model name and context usage bar on completed cards               |
 | Compact paths                      | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`)          |
 | Show session cost                  | Display the USD cost in the footer of done cards (API billing only)    |
+| Footer style                       | **Default** shows horizontal stat chips; **Grid** shows a 6-cell labeled grid (Model, Context, Cost, Tokens, Tools, Turns) centered at the bottom of each card |
 
 Changes take effect immediately — no restart needed.
 
