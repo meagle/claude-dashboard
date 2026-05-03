@@ -7,6 +7,7 @@ import {
   agoStr,
   compressBranch,
   formatTokens,
+  formatTokensShort,
 } from "../utils/format";
 import { COPY_ICON } from "./icons";
 
@@ -200,6 +201,109 @@ function TokenChip({ label }: { label: string }) {
     <span className="text-fainter text-ui font-mono whitespace-nowrap shrink-0">
       {label}
     </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+
+function GridFooter({
+  session: s,
+  cfg,
+  isDone,
+}: {
+  session: SessionRow;
+  cfg: CardConfig;
+  isDone: boolean;
+}) {
+  const LABEL = "text-[9px] font-semibold tracking-wider uppercase text-fainter leading-none";
+  const VALUE = "text-[12px] font-mono text-soft leading-none";
+  const CELL = "flex flex-col items-center gap-[3px]";
+
+  const cells: React.ReactNode[] = [];
+
+  if (cfg.showModel && s.model != null) {
+    cells.push(
+      <div key="model" className={CELL}>
+        <span className={LABEL}>Model</span>
+        <span className={`${VALUE} text-accent font-bold`}>{s.model}</span>
+      </div>
+    );
+  }
+
+  if (cfg.showModel && (!isDone || s.contextPct != null)) {
+    cells.push(
+      <div key="context" className={CELL}>
+        <span className={LABEL}>Context</span>
+        <div className="flex items-center gap-1">
+          <div className="w-9 h-[3px] rounded-full overflow-hidden bg-line/70 shrink-0">
+            {s.contextPct != null && (
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
+                  background:
+                    "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+                }}
+              />
+            )}
+          </div>
+          <span className="text-fainter text-[10px] font-mono tabular-nums leading-none">
+            {s.contextPct != null ? `${s.contextPct}%` : ""}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (cfg.showCost && (s.costUsd != null || !isDone)) {
+    cells.push(
+      <div key="cost" className={CELL}>
+        <span className={LABEL}>Cost</span>
+        <span className={VALUE}>
+          {s.costUsd != null ? `$${s.costUsd.toFixed(2)}` : "$—"}
+        </span>
+      </div>
+    );
+  }
+
+  if (cfg.showCost && (s.totalTokens != null || !isDone)) {
+    cells.push(
+      <div key="tokens" className={CELL}>
+        <span className={LABEL}>Tokens</span>
+        <span className={VALUE}>
+          {s.totalTokens != null ? (formatTokensShort(s.totalTokens) ?? "") : "—"}
+        </span>
+      </div>
+    );
+  }
+
+  if (s.toolCount > 0) {
+    cells.push(
+      <div key="tools" className={CELL}>
+        <span className={LABEL}>Tools</span>
+        <span className={VALUE}>{s.toolCount}</span>
+      </div>
+    );
+  }
+
+  if (s.turns != null && s.turns > 0) {
+    cells.push(
+      <div key="turns" className={CELL}>
+        <span className={LABEL}>Turns</span>
+        <span className={VALUE}>{s.turns}</span>
+      </div>
+    );
+  }
+
+  if (cells.length === 0) return null;
+
+  return (
+    <div
+      className="mt-2.5 border-t border-line pt-2"
+      style={{ display: "grid", gridTemplateColumns: `repeat(${cells.length}, 1fr)` }}
+    >
+      {cells}
+    </div>
   );
 }
 
@@ -480,44 +584,48 @@ export function SessionCard({
   })();
 
   const footer = showFooter ? (
-    <div className="mt-2.5 border-t border-line pt-2 flex items-center justify-between gap-2">
-      {cfg.showModel && s.model && (
-        <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
-          {s.model}
-        </span>
-      )}
-      {cfg.showModel && (!isDone || s.contextPct != null) && (
-        <div className="flex items-center gap-1.5 shrink-0">
-          <div className="w-24 h-1 rounded-full overflow-hidden bg-line/70">
-            {s.contextPct != null && (
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
-                  background:
-                    "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-                }}
-              />
-            )}
-          </div>
-          <span className="text-fainter text-[11px] font-mono tabular-nums shrink-0 w-6 text-right">
-            {s.contextPct != null ? `${s.contextPct}%` : ""}
+    cfg.footerStyle === "grid" ? (
+      <GridFooter session={s} cfg={cfg} isDone={isDone} />
+    ) : (
+      <div className="mt-2.5 border-t border-line pt-2 flex items-center justify-between gap-2">
+        {cfg.showModel && s.model && (
+          <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
+            {s.model}
           </span>
-        </div>
-      )}
-      {s.toolCount > 0 && (
-        <TokenChip label={`${s.toolCount} tools`} />
-      )}
-      {cfg.showCost && (s.costUsd != null || !isDone) && (
-        <TokenChip label={s.costUsd != null ? `$${s.costUsd.toFixed(2)}` : "$—"} />
-      )}
-      {cfg.showCost && (s.totalTokens != null || !isDone) && (
-        <TokenChip label={s.totalTokens != null ? (formatTokens(s.totalTokens) ?? "") : "— tok"} />
-      )}
-      {s.turns != null && s.turns > 0 && (
-        <TokenChip label={`${s.turns} turns`} />
-      )}
-    </div>
+        )}
+        {cfg.showModel && (!isDone || s.contextPct != null) && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="w-24 h-1 rounded-full overflow-hidden bg-line/70">
+              {s.contextPct != null && (
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, Math.max(4, s.contextPct))}%`,
+                    background:
+                      "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
+                  }}
+                />
+              )}
+            </div>
+            <span className="text-fainter text-[11px] font-mono tabular-nums shrink-0 w-6 text-right">
+              {s.contextPct != null ? `${s.contextPct}%` : ""}
+            </span>
+          </div>
+        )}
+        {s.toolCount > 0 && (
+          <TokenChip label={`${s.toolCount} tools`} />
+        )}
+        {cfg.showCost && (s.costUsd != null || !isDone) && (
+          <TokenChip label={s.costUsd != null ? `$${s.costUsd.toFixed(2)}` : "$—"} />
+        )}
+        {cfg.showCost && (s.totalTokens != null || !isDone) && (
+          <TokenChip label={s.totalTokens != null ? (formatTokens(s.totalTokens) ?? "") : "— tok"} />
+        )}
+        {s.turns != null && s.turns > 0 && (
+          <TokenChip label={`${s.turns} turns`} />
+        )}
+      </div>
+    )
   ) : null;
 
   return (

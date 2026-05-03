@@ -224,6 +224,46 @@ describe('SessionCard — branch and git', () => {
   });
 });
 
+describe('SessionCard — grid footer', () => {
+  it('renders labeled Tokens cell without "tok" suffix', () => {
+    renderCard(
+      { status: 'active', totalTokens: 23000, toolCount: 9, turns: 3 },
+      { footerStyle: 'grid', showCost: true }
+    );
+    expect(screen.getByText('Tokens')).toBeInTheDocument();
+    expect(screen.getByText('23k')).toBeInTheDocument();
+    expect(screen.queryByText(/\btok\b/)).not.toBeInTheDocument();
+  });
+
+  it('renders Tools and Turns cells with counts', () => {
+    renderCard(
+      { status: 'active', toolCount: 5, turns: 2 },
+      { footerStyle: 'grid' }
+    );
+    expect(screen.getByText('Tools')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('Turns')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('omits Model cell when showModel is false', () => {
+    renderCard(
+      { status: 'active', model: 'claude-sonnet-4-6', toolCount: 1 },
+      { footerStyle: 'grid', showModel: false }
+    );
+    expect(screen.queryByText('Model')).not.toBeInTheDocument();
+  });
+
+  it('omits Cost and Tokens cells when showCost is false', () => {
+    renderCard(
+      { status: 'active', costUsd: 0.21, totalTokens: 5000, toolCount: 1 },
+      { footerStyle: 'grid', showCost: false }
+    );
+    expect(screen.queryByText('Cost')).not.toBeInTheDocument();
+    expect(screen.queryByText('Tokens')).not.toBeInTheDocument();
+  });
+});
+
 describe('SessionCard — flash animation', () => {
   it('applies flash animation when isNew is true', () => {
     const session = makeSession({ sessionId: 'a', status: 'done' });
