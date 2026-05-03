@@ -230,7 +230,7 @@ function GridFooter({
     );
   }
 
-  if (cfg.showModel && (!isDone || s.contextPct != null)) {
+  if (cfg.showModel && s.model != null && (!isDone || s.contextPct != null)) {
     cells.push(
       <div key="context" className={CELL}>
         <span className={LABEL}>Context</span>
