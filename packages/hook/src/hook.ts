@@ -414,7 +414,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
       ...(freshBranch ? { branch: freshBranch } : {}),
       worktree: freshWorktree,
       ...(event.transcriptPath ? { transcriptPath: event.transcriptPath } : {}),
-      ...(event.prompt ? { lastPrompt: event.prompt } : {}),
+      ...(event.prompt && !event.prompt.startsWith('<') ? { lastPrompt: event.prompt } : {}),
       ...(stats.text ? { lastMessage: stats.text } : {}),
       ...(stats.model ? { model: stats.model } : {}),
       ...(stats.contextPct !== null ? { contextPct: stats.contextPct } : {}),
@@ -608,8 +608,9 @@ if (require.main === module) {
     let event: HookEvent;
     if (eventType === 'user-prompt') {
       const rawPrompt = (payload.prompt as string) ?? null;
-      const prompt = rawPrompt
-        ? rawPrompt.trim().replace(/\s+/g, ' ').slice(0, 120) + (rawPrompt.length > 120 ? '…' : '')
+      const trimmed = rawPrompt?.trim() ?? null;
+      const prompt = trimmed && !trimmed.startsWith('<')
+        ? trimmed.replace(/\s+/g, ' ').slice(0, 120) + (trimmed.length > 120 ? '…' : '')
         : null;
       event = {
         type: 'user-prompt',

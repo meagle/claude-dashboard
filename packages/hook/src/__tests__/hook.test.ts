@@ -206,6 +206,14 @@ describe('processHookEvent — user-prompt', () => {
     expect(readSessions(sessionsFile)[0].lastPrompt).toBe('Write a test');
   });
 
+  it('ignores prompts that are system XML injections (start with <)', () => {
+    processHookEvent(
+      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: '<task-notification><task-id>abc</task-id></task-notification>' },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].lastPrompt).toBeNull();
+  });
+
   it('reads model and contextPct from the previous turn transcript', () => {
     const tp = writeTranscript(dir, [
       userEntry('First prompt'),
