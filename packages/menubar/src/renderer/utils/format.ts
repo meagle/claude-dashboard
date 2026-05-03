@@ -41,3 +41,8 @@ export function ctxBarClass(pct: number): string {
   if (pct >= 60) return `${base} bg-ctx-warn`;
   return `${base} bg-ctx-fill`;
 }
+
+export function formatTokensShort(totalTokens: number | null): string | null {
+  if (totalTokens == null) return null;
+  return totalTokens >= 1000 ? `${Math.round(totalTokens / 1000)}k` : `${totalTokens}`;
+}

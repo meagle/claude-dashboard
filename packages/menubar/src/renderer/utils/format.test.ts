@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { elapsedStr, agoStr, compactPath, compressBranch, ctxBarClass } from './format';
+import { elapsedStr, agoStr, compactPath, compressBranch, ctxBarClass, formatTokensShort } from './format';
 
 describe('elapsedStr', () => {
   it('shows 0m for less than a minute', () => {
@@ -103,5 +103,26 @@ describe('ctxBarClass', () => {
   it('returns crit class at 80%', () => {
     expect(ctxBarClass(80)).toContain('bg-ctx-crit');
     expect(ctxBarClass(100)).toContain('bg-ctx-crit');
+  });
+});
+
+describe('formatTokensShort', () => {
+  it('returns null for null input', () => {
+    expect(formatTokensShort(null)).toBeNull();
+  });
+
+  it('returns the raw number as string for values under 1000', () => {
+    expect(formatTokensShort(500)).toBe('500');
+    expect(formatTokensShort(999)).toBe('999');
+  });
+
+  it('returns rounded k notation for 1000 and above', () => {
+    expect(formatTokensShort(1000)).toBe('1k');
+    expect(formatTokensShort(23000)).toBe('23k');
+    expect(formatTokensShort(1500)).toBe('2k');
+  });
+
+  it('does not include "tok" suffix', () => {
+    expect(formatTokensShort(5000)).not.toContain('tok');
   });
 });
