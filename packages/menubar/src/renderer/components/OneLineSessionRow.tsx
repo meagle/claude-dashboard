@@ -197,6 +197,12 @@ export function OneLineSessionRow({
 
   const hasCtx = s.contextPct != null;
 
+  const branchChanges = (() => {
+    if (!s.gitSummary) return null;
+    const m = s.gitSummary.match(/(\d+)\s*file/i);
+    return m ? parseInt(m[1], 10) : null;
+  })();
+
   return (
     <div
       className="group relative flex items-center gap-2 pl-3 pr-2 py-1 border-b border-line/60 cursor-pointer bg-surface/40 hover:bg-surface transition-colors duration-150 overflow-hidden"
@@ -214,22 +220,23 @@ export function OneLineSessionRow({
 
       <StatusDot status={s.status} errorState={s.errorState} />
 
-      {/* Project + branch cluster */}
-      <span className="flex items-center gap-1.5 min-w-0 shrink-0 max-w-[44%]">
-        <span
-          className="font-bold text-brighter text-ui truncate"
-          title={s.workingDir}
-        >
-          {s.dirName}
-        </span>
+      {/* Project + branch breadcrumb */}
+      <span className="inline-flex items-center gap-0 min-w-0 shrink-0 max-w-[44%] font-mono text-[11px]">
+        <span className="font-bold text-brighter truncate" title={s.workingDir}>{s.dirName}</span>
         {cfg.showBranch && s.branch && (
-          <BranchPill
-            branch={s.branch}
-            gitSummary={cfg.showGitSummary ? s.gitSummary : null}
-            gitAhead={cfg.showGitSummary ? s.gitAhead : null}
-          />
+          <>
+            <span className="text-fainter mx-1">/</span>
+            <span className="text-soft truncate">{compressBranch(s.branch, 20)}</span>
+            {branchChanges != null && cfg.showGitSummary && (
+              <span className="ml-1 text-badge-waiting inline-flex items-center gap-0.5">
+                <span className="text-[7px]">●</span>{branchChanges}
+              </span>
+            )}
+            {s.gitAhead != null && s.gitAhead > 0 && cfg.showGitSummary && (
+              <span className="ml-1 text-branch">↑{s.gitAhead}</span>
+            )}
+          </>
         )}
-        {worktreeLabel && <WorktreePill label={worktreeLabel} />}
       </span>
 
       {taskText && <span className="text-fainter/50 text-xs shrink-0">·</span>}
@@ -247,27 +254,13 @@ export function OneLineSessionRow({
       )}
 
       {/* Fixed-width trailing cluster → context bars line up across rows */}
-      <span className="shrink-0 flex items-center gap-2 w-[210px] justify-end">
-        {/* Context bar slot (always same width) */}
-        <span className="flex items-center gap-1.5 w-[86px] shrink-0">
+      <span className="shrink-0 flex items-center gap-2 w-[155px] justify-end">
+        {/* Context % only — no bar */}
+        <span className="shrink-0 w-[30px] text-right">
           {(!isDone || hasCtx) && (
-            <>
-              <span className="w-14 h-1 rounded-full overflow-hidden bg-line/70">
-                {hasCtx && (
-                  <span
-                    className="block h-full rounded-full"
-                    style={{
-                      width: `${Math.min(100, Math.max(4, s.contextPct!))}%`,
-                      background:
-                        "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-                    }}
-                  />
-                )}
-              </span>
-              <span className="text-fainter text-[11px] font-mono tabular-nums w-6 text-right">
-                {hasCtx ? `${s.contextPct}%` : ""}
-              </span>
-            </>
+            <span className="text-fainter text-[11px] font-mono tabular-nums">
+              {hasCtx ? `${s.contextPct}%` : ""}
+            </span>
           )}
         </span>
 

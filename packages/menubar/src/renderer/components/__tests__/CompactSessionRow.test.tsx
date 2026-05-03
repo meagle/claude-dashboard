@@ -99,15 +99,13 @@ describe('CompactSessionRow — time label', () => {
 });
 
 describe('CompactSessionRow — context bar', () => {
-  it('shows context bar and percentage when contextPct is set', () => {
-    const { container } = renderRow({ contextPct: 50 });
-    expect(container.querySelector('[style*="width: 50%"]')).not.toBeNull();
+  it('shows percentage when contextPct is set', () => {
+    renderRow({ contextPct: 50 });
     expect(screen.getByText('50%')).toBeInTheDocument();
   });
 
-  it('shows context bar at crit level', () => {
-    const { container } = renderRow({ contextPct: 85 });
-    expect(container.querySelector('[style*="width: 85%"]')).not.toBeNull();
+  it('shows percentage at high context level', () => {
+    renderRow({ contextPct: 85 });
     expect(screen.getByText('85%')).toBeInTheDocument();
   });
 

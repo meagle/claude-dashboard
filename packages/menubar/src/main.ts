@@ -472,6 +472,12 @@ function sendSessionsToPopover() {
     detachedPanel.webContents.send("sessions-update", payload);
 }
 
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+  process.exit(0);
+}
+
 app.whenReady().then(() => {
   installHook();
 

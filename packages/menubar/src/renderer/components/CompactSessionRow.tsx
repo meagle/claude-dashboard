@@ -190,6 +190,12 @@ export function CompactSessionRow({
 
   const hasCtx = s.contextPct != null;
 
+  const branchChanges = (() => {
+    if (!s.gitSummary) return null;
+    const m = s.gitSummary.match(/(\d+)\s*file/i);
+    return m ? parseInt(m[1], 10) : null;
+  })();
+
   // Indent column under the status dot so line 2 visually hangs under the
   // project title. Dot ≈ 9px + gap-2 (8px) + accent-stripe lane (3px) ≈ 20px.
   const LINE2_INDENT = "pl-[20px]";
@@ -213,21 +219,23 @@ export function CompactSessionRow({
       <div className="flex items-center gap-2 min-w-0">
         <StatusDot status={s.status} errorState={s.errorState} />
 
-        <span
-          className="font-bold text-brighter text-ui truncate min-w-0 max-w-[38%]"
-          title={s.workingDir}
-        >
-          {s.dirName}
+        <span className="inline-flex items-center gap-0 min-w-0 max-w-[50%] font-mono text-[11px]">
+          <span className="font-bold text-brighter truncate" title={s.workingDir}>{s.dirName}</span>
+          {cfg.showBranch && s.branch && (
+            <>
+              <span className="text-fainter mx-1">/</span>
+              <span className="text-soft truncate">{compressBranch(s.branch, 22)}</span>
+              {branchChanges != null && cfg.showGitSummary && (
+                <span className="ml-1 text-badge-waiting inline-flex items-center gap-0.5">
+                  <span className="text-[7px]">●</span>{branchChanges}
+                </span>
+              )}
+              {s.gitAhead != null && s.gitAhead > 0 && cfg.showGitSummary && (
+                <span className="ml-1 text-branch">↑{s.gitAhead}</span>
+              )}
+            </>
+          )}
         </span>
-
-        {cfg.showBranch && s.branch && (
-          <BranchPill
-            branch={s.branch}
-            gitSummary={cfg.showGitSummary ? s.gitSummary : null}
-            gitAhead={cfg.showGitSummary ? s.gitAhead : null}
-          />
-        )}
-        {worktreeLabel && <WorktreePill label={worktreeLabel} />}
 
         {/* Right cluster — app name + time + loop chip + shortcut */}
         <span className="ml-auto flex items-center gap-2 shrink-0">
@@ -252,27 +260,13 @@ export function CompactSessionRow({
         </span>
 
         {/* Fixed-width trailing cluster so context bars line up across rows */}
-        <span className="shrink-0 flex items-center gap-2 w-[170px] justify-end">
-          {/* Context bar slot — always occupies the same width */}
-          <span className="flex items-center gap-1.5 w-[88px] shrink-0">
+        <span className="shrink-0 flex items-center gap-2 w-[110px] justify-end">
+          {/* Context % only — no bar */}
+          <span className="shrink-0 w-[30px] text-right">
             {(!isDone || hasCtx) && (
-              <>
-                <span className="w-16 h-1 rounded-full overflow-hidden bg-line/70">
-                  {hasCtx && (
-                    <span
-                      className="block h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, Math.max(4, s.contextPct!))}%`,
-                        background:
-                          "linear-gradient(90deg, var(--color-accent) 0%, var(--color-tool) 100%)",
-                      }}
-                    />
-                  )}
-                </span>
-                <span className="text-fainter text-[11px] font-mono tabular-nums w-6 text-right">
-                  {hasCtx ? `${s.contextPct}%` : ""}
-                </span>
-              </>
+              <span className="text-fainter text-[11px] font-mono tabular-nums">
+                {hasCtx ? `${s.contextPct}%` : ""}
+              </span>
             )}
           </span>
 

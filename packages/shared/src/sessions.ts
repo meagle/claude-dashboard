@@ -13,6 +13,7 @@ export function readSessions(filePath: string): Session[] {
 
 export function writeSessions(filePath: string, sessions: Session[]): void {
   const tmp = filePath + '.tmp';
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(tmp, JSON.stringify(sessions, null, 2), 'utf8');
   fs.renameSync(tmp, filePath);
 }
