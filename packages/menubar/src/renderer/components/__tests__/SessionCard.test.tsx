@@ -132,13 +132,13 @@ describe('SessionCard — copy path', () => {
     const { onCopyPath } = renderCard({
       workingDir: '/Users/alice/code/myproject',
     });
-    fireEvent.click(screen.getByTitle('Copy: /Users/alice/code/myproject'));
+    fireEvent.click(screen.getByTitle('/Users/alice/code/myproject'));
     expect(onCopyPath).toHaveBeenCalledWith('/Users/alice/code/myproject');
   });
 
   it('shows ✓ flash after clicking copy icon', async () => {
     renderCard({ workingDir: '/Users/alice/code/myproject' });
-    fireEvent.click(screen.getByTitle('Copy: /Users/alice/code/myproject'));
+    fireEvent.click(screen.getByTitle('/Users/alice/code/myproject'));
     expect(screen.getByText('✓')).toBeInTheDocument();
   });
 });

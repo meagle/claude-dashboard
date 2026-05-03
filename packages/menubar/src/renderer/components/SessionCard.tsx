@@ -76,6 +76,52 @@ const TOOL_ICON = (
   </svg>
 );
 
+const TERMINAL_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="11"
+    height="11"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="shrink-0"
+  >
+    <polyline points="4 17 10 11 4 5" />
+    <line x1="12" y1="19" x2="20" y2="19" />
+  </svg>
+);
+
+const IDE_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="11"
+    height="11"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="shrink-0"
+  >
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </svg>
+);
+
+const IDE_APPS = new Set([
+  "cursor", "code", "vscode", "vs code", "visual studio code",
+  "zed", "windsurf", "xcode", "intellij", "webstorm", "pycharm",
+  "rubymine", "goland", "clion", "rider", "nova", "sublime text",
+  "atom", "brackets",
+]);
+
+function appIcon(appName: string): React.ReactNode {
+  const lower = appName.toLowerCase();
+  return IDE_APPS.has(lower) ? IDE_ICON : TERMINAL_ICON;
+}
+
 
 // ── Small helpers ─────────────────────────────────────────────────────────
 
@@ -238,8 +284,54 @@ export function SessionCard({
       : (s.currentTask ?? s.lastPrompt)) ?? null;
   const answer = isDone ? s.lastMessage : (s.partialResponse ?? null);
 
-  // ── Top row: dot + title + ⌘-key pill + dismiss ────────────────────────
-  const topRow = (
+  // ── Breadcrumb row: dir / branch + git stats (left) · app + time (right) ─
+  const branchChanges = (() => {
+    if (!s.gitSummary) return null;
+    const m = s.gitSummary.match(/(\d+)\s*file/i);
+    return m ? parseInt(m[1], 10) : null;
+  })();
+
+  const breadcrumbRow = (
+    <div className="flex items-center justify-between gap-2 mb-1.5 text-[11px] text-faint font-mono leading-none min-w-0">
+      <span className="inline-flex items-center gap-0 min-w-0 overflow-hidden">
+        <span
+          className="truncate max-w-[140px] cursor-pointer hover:text-soft transition-colors"
+          title={s.workingDir}
+          onClick={handleCopyPath}
+        >
+          {pathCopied ? <span className="text-accent">✓</span> : s.dirName}
+        </span>
+        {cfg.showBranch && s.branch && (
+          <>
+            <span className="text-fainter mx-1">/</span>
+            <span className="text-soft truncate max-w-[120px]">{compressBranch(s.branch, 24)}</span>
+            {branchChanges != null && cfg.showGitSummary && (
+              <span className="ml-1 text-badge-waiting inline-flex items-center gap-0.5">
+                <span className="text-[8px]">●</span>{branchChanges}
+              </span>
+            )}
+            {s.gitAhead != null && s.gitAhead > 0 && cfg.showGitSummary && (
+              <span className="ml-1 text-branch">↑{s.gitAhead}</span>
+            )}
+          </>
+        )}
+      </span>
+      <span className="shrink-0 inline-flex items-center gap-2.5 text-faint">
+        {s.appName && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-badge bg-line/40 border border-edge/50 text-fainter leading-none">
+            {appIcon(s.appName)}
+            <span>{s.appName}</span>
+          </span>
+        )}
+        {timeLabel && (
+          <span className="tabular-nums text-fainter">{timeLabel}</span>
+        )}
+      </span>
+    </div>
+  );
+
+  // ── Title row: dot + prompt title + dismiss ────────────────────────────
+  const titleRow = (
     <div className="flex items-center gap-2 min-w-0">
       <span className={`shrink-0 ${dotColor(s.status, s.errorState)}`}>
         <Badge status={s.status} lastActivity={s.lastActivity} size="sm" />
@@ -247,84 +339,28 @@ export function SessionCard({
       <span className="font-bold text-brighter text-[15px] truncate min-w-0 flex-1">
         {taskText || s.dirName}
       </span>
-      <span className="shrink-0 inline-flex items-center gap-1.5">
-        {timeLabel && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-badge border border-edge/70 bg-line/40 text-fainter text-ui font-mono tabular-nums leading-none whitespace-nowrap">
-            {timeLabel}
-          </span>
-        )}
-        <button
-          className={[
-            "bg-transparent border-none cursor-pointer leading-none",
-            "text-fainter hover:text-danger transition-opacity duration-150",
-            "text-ui px-0.5",
-            isDone ? "opacity-0 group-hover:opacity-100" : "invisible",
-          ].join(" ")}
-          title="Dismiss"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isDone) onDismiss(s.sessionId);
-          }}
-        >
-          ✕
-        </button>
-      </span>
+      <button
+        className={[
+          "bg-transparent border-none cursor-pointer leading-none shrink-0",
+          "text-fainter hover:text-danger transition-opacity duration-150",
+          "text-ui px-0.5",
+          isDone ? "opacity-0 group-hover:opacity-100" : "invisible",
+        ].join(" ")}
+        title="Dismiss"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isDone) onDismiss(s.sessionId);
+        }}
+      >
+        ✕
+      </button>
     </div>
   );
 
-  // ── Meta row: repo · branch-pill · worktree-pill ───────────────────────
-  const metaRow = (
-    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-1.5 text-sm leading-none">
-      <span className="inline-flex items-center gap-1 text-soft min-w-0">
-        <span className="inline-flex items-center text-path">
-          {FOLDER_ICON}
-        </span>
-        <span className="font-mono truncate max-w-[160px]" title={s.workingDir}>
-          {s.dirName}
-        </span>
-        <span
-          className="ml-0.5 inline-flex items-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-soft hover:text-accent"
-          title={`Copy: ${s.workingDir}`}
-          onClick={handleCopyPath}
-        >
-          {pathCopied ? (
-            <span className="text-accent text-xs leading-none">✓</span>
-          ) : (
-            COPY_ICON
-          )}
-        </span>
-      </span>
-      {cfg.showBranch && s.branch && (
-        <BranchPill
-          branch={s.branch}
-          gitSummary={cfg.showGitSummary ? s.gitSummary : null}
-          gitAhead={cfg.showGitSummary ? s.gitAhead : null}
-        />
-      )}
-      {worktreeLabel && <WorktreePill label={worktreeLabel} />}
-      {s.appName && (
-        <span className="ml-3.5 inline-flex items-center px-1.5 py-0.5 rounded-badge bg-line/60 border border-edge/60 text-ui text-soft font-mono whitespace-nowrap leading-none">
-          {s.appName}
-        </span>
-      )}
-    </div>
-  );
-
-  // ── Body panel: quoted prompt preview ──────────────────────────────────
-  const promptPreview = taskText ? (
-    <div className="mt-2.5 rounded-md bg-base/60 border border-line/60 px-2.5 py-2">
-      <div className="flex items-start gap-1.5 text-sm text-prompt leading-card break-words">
-        <span className="shrink-0 text-fainter leading-none text-base font-bold mt-px">
-          ›
-        </span>
-        <span className="min-w-0">{taskText}</span>
-      </div>
-      {answer && (
-        <div className="mt-1 pl-4 text-sm text-soft leading-card flex items-start gap-1">
-          <span className="text-fainter shrink-0">↳</span>
-          <span className="break-words line-clamp-4 min-w-0">{answer}</span>
-        </div>
-      )}
+  // ── Response block: left vertical bar ─────────────────────────────────
+  const responseBlock = answer ? (
+    <div className="mt-2 border-l-2 border-soft/50 pl-3 text-sm text-soft leading-card break-words line-clamp-4 min-w-0">
+      {answer}
     </div>
   ) : null;
 
@@ -493,9 +529,9 @@ export function SessionCard({
       onClick={() => onFocus(s.pid, s.termSessionId)}
     >
       <span className={accentCls} aria-hidden="true" />
-      {topRow}
-      {metaRow}
-      {promptPreview}
+      {breadcrumbRow}
+      {titleRow}
+      {responseBlock}
       {streamRow}
       {tasksRow}
       {idleToolRow}
