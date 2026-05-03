@@ -458,6 +458,7 @@ function buildSessionsPayload() {
       showCost: config.columns.cost ?? false,
       showDoneFooter: config.columns.doneFooter ?? true,
       showContextInMeta: config.columns.contextInHeader ?? false,
+      footerStyle: config.columns.footerStyle ?? 'default',
       theme: config.theme ?? "light",
     },
     home: os.homedir(),

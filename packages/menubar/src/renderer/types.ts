@@ -63,6 +63,7 @@ export interface CardConfig {
   showCost: boolean;
   showDoneFooter: boolean;
   showContextInMeta: boolean;
+  footerStyle: 'default' | 'grid';
   theme: 'light' | 'dark';
 }
 
@@ -75,6 +76,7 @@ export interface DashboardConfig {
     compactPaths: boolean;
     cost: boolean;
     doneFooter: boolean;
+    footerStyle: 'default' | 'grid';
   };
   staleSessionMinutes: number;
   maxHeight: number;

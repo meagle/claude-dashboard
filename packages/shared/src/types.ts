@@ -62,6 +62,7 @@ export interface DashboardConfig {
     compactPaths: boolean;
     doneFooter: boolean;
     contextInHeader?: boolean;
+    footerStyle: 'default' | 'grid';
   };
   staleSessionMinutes: number;
   maxHeight: number;
@@ -85,6 +86,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     compactPaths: true,
     doneFooter: true,
     contextInHeader: false,
+    footerStyle: 'default',
   },
   staleSessionMinutes: 30,
   maxHeight: 700,

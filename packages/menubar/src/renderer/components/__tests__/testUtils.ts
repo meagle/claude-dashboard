@@ -52,5 +52,6 @@ export const defaultCardConfig: CardConfig = {
   showCost: false,
   showDoneFooter: true,
   showContextInMeta: false,
+  footerStyle: 'default',
   theme: 'light',
 };
