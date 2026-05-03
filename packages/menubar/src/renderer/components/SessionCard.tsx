@@ -480,7 +480,7 @@ export function SessionCard({
   })();
 
   const footer = showFooter ? (
-    <div className="mt-2.5 flex items-center justify-between gap-2">
+    <div className="mt-2.5 border-t border-line pt-2 flex items-center justify-between gap-2">
       {cfg.showModel && s.model && (
         <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
           {s.model}
