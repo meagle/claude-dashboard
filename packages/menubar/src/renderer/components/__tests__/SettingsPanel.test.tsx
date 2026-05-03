@@ -15,6 +15,7 @@ const mockConfig = {
     lastAction: true,
     compactPaths: true,
     cost: false,
+    footerStyle: 'default',
   },
 };
 
@@ -65,6 +66,20 @@ describe('SettingsPanel', () => {
     fireEvent.click(screen.getByText('Save'));
     await waitFor(() => screen.getByText('permission denied'));
     expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('saves footerStyle: grid when Grid segment is clicked', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByText('Grid'));
+    fireEvent.click(screen.getByText('Grid'));
+    await waitFor(() => {
+      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
+        'save-config',
+        expect.objectContaining({
+          columns: expect.objectContaining({ footerStyle: 'grid' }),
+        })
+      );
+    });
   });
 
   it('calls save-config with updated value when toggled and saved', async () => {

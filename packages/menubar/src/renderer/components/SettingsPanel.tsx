@@ -21,6 +21,7 @@ interface FormState {
   doneFooter: boolean;
   notifications: boolean;
   notificationSound: boolean;
+  footerStyle: "default" | "grid";
 }
 
 const DEFAULTS: FormState = {
@@ -36,6 +37,7 @@ const DEFAULTS: FormState = {
   doneFooter: true,
   notifications: true,
   notificationSound: true,
+  footerStyle: "default",
 };
 
 function Toggle({
@@ -98,6 +100,7 @@ export function SettingsPanel({
         doneFooter: config.columns?.doneFooter ?? true,
         notifications: config.notifications ?? true,
         notificationSound: config.notificationSound ?? true,
+        footerStyle: (config.columns?.footerStyle as "default" | "grid" | undefined) ?? "default",
       });
     });
   }, []);
@@ -116,6 +119,7 @@ export function SettingsPanel({
       compactPaths: f.compactPaths,
       cost: f.cost,
       doneFooter: f.doneFooter,
+      footerStyle: f.footerStyle,
     },
   });
 
@@ -248,6 +252,26 @@ export function SettingsPanel({
           onChange={(v) => setAndSave("subagents", v)}
         />
       </div>
+      {/* Footer style */}
+      <div className="flex justify-between items-center py-1.75">
+        <div className="text-ui text-bright">Footer style</div>
+        <div className="flex rounded overflow-hidden border border-line shrink-0">
+          {(["default", "grid"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setAndSave("footerStyle", s)}
+              className={`px-3 py-0.5 text-ui-sm cursor-pointer border-none transition-colors duration-150 ${
+                form.footerStyle === s
+                  ? "bg-accent text-base font-bold"
+                  : "bg-edge text-soft hover:text-bright"
+              }`}
+            >
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className={ROW}>
         <label htmlFor="show-model" className={LABEL}>
           Show model &amp; context
