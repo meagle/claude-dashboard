@@ -578,6 +578,8 @@ app.whenReady().then(() => {
     },
   );
 
+  ipcMain.handle("get-app-version", () => app.getVersion());
+
   ipcMain.handle("get-config", () => readConfig(CONFIG_FILE));
 
   ipcMain.handle("save-config", (_event, partial: Record<string, unknown>) => {
