@@ -42,6 +42,13 @@ const DEFAULTS: FormState = {
   pinnedPanelOpacity: 1,
 };
 
+const OPACITY_OPTIONS: { label: string; value: number }[] = [
+  { label: "None", value: 1 },
+  { label: "75%", value: 0.75 },
+  { label: "50%", value: 0.5 },
+  { label: "25%", value: 0.25 },
+];
+
 function Toggle({
   id,
   checked,
@@ -150,12 +157,6 @@ export function SettingsPanel({
     }
   }, [form, onSave]);
 
-  const OPACITY_OPTIONS: { label: string; value: number }[] = [
-    { label: "None", value: 1 },
-    { label: "75%", value: 0.75 },
-    { label: "50%", value: 0.5 },
-    { label: "25%", value: 0.25 },
-  ];
 
   const ROW = "flex justify-between items-center py-1.75";
   const LABEL = "text-ui text-bright cursor-pointer";
