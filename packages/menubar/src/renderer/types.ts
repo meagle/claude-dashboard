@@ -65,6 +65,7 @@ export interface CardConfig {
   showContextInMeta: boolean;
   footerStyle: 'default' | 'grid';
   theme: 'light' | 'dark';
+  pinnedPanelOpacity: number;
 }
 
 export interface DashboardConfig {
@@ -83,4 +84,5 @@ export interface DashboardConfig {
   theme: 'light' | 'dark';
   notifications: boolean;
   notificationSound: boolean;
+  pinnedPanelOpacity?: number;
 }

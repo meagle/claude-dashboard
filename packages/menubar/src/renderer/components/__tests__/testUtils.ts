@@ -54,4 +54,5 @@ export const defaultCardConfig: CardConfig = {
   showContextInMeta: false,
   footerStyle: 'default',
   theme: 'light',
+  pinnedPanelOpacity: 1,
 };

@@ -69,6 +69,7 @@ export interface DashboardConfig {
   theme: 'light' | 'dark';
   notifications: boolean;
   notificationSound: boolean;
+  pinnedPanelOpacity?: number;
 }
 
 export interface ArchivedSession extends Session {

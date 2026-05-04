@@ -17,7 +17,9 @@ const DEFAULT_CARD_CONFIG: CardConfig = {
   showCost: false,
   showDoneFooter: true,
   showContextInMeta: false,
+  footerStyle: 'default',
   theme: 'light',
+  pinnedPanelOpacity: 1,
 };
 
 export function useSessions(): SessionsPayload {
