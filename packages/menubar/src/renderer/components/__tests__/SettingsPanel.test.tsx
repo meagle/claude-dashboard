@@ -100,36 +100,34 @@ describe('SettingsPanel', () => {
     });
   });
 
-  it('renders all four opacity options', async () => {
+  it('renders a transparency range slider instead of segmented buttons', async () => {
     render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => {
-      expect(screen.getByText('None')).toBeInTheDocument();
-      expect(screen.getByText('75%')).toBeInTheDocument();
-      expect(screen.getByText('50%')).toBeInTheDocument();
-      expect(screen.getByText('25%')).toBeInTheDocument();
+      expect(screen.getByRole('slider')).toBeInTheDocument();
+      expect(screen.queryByText('None')).not.toBeInTheDocument();
     });
   });
 
-  it('saves pinnedPanelOpacity: 0.5 when 50% is clicked', async () => {
+  it('slider value reflects current opacity as transparency percentage', async () => {
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve({ ...mockConfig, pinnedPanelOpacity: 0.75 });
+      return Promise.resolve(undefined);
+    });
     render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
-    await waitFor(() => screen.getByText('50%'));
-    fireEvent.click(screen.getByText('50%'));
+    await waitFor(() => {
+      const slider = screen.getByRole('slider') as HTMLInputElement;
+      expect(slider.value).toBe('25'); // 25% transparent = opacity 0.75
+    });
+  });
+
+  it('saves pinnedPanelOpacity 0.5 when slider changed to 50% transparency', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('slider'));
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '50' } });
     await waitFor(() => {
       expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
         'save-config',
         expect.objectContaining({ pinnedPanelOpacity: 0.5 })
-      );
-    });
-  });
-
-  it('saves pinnedPanelOpacity: 0.25 when 25% is clicked', async () => {
-    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
-    await waitFor(() => screen.getByText('25%'));
-    fireEvent.click(screen.getByText('25%'));
-    await waitFor(() => {
-      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
-        'save-config',
-        expect.objectContaining({ pinnedPanelOpacity: 0.25 })
       );
     });
   });

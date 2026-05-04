@@ -42,12 +42,6 @@ const DEFAULTS: FormState = {
   pinnedPanelOpacity: 1,
 };
 
-const OPACITY_OPTIONS: { label: string; value: number }[] = [
-  { label: "None", value: 1 },
-  { label: "75%", value: 0.75 },
-  { label: "50%", value: 0.5 },
-  { label: "25%", value: 0.25 },
-];
 
 function Toggle({
   id,
@@ -235,20 +229,20 @@ export function SettingsPanel({
       {/* Pinned panel opacity */}
       <div className="flex justify-between items-center py-1.75">
         <div className="text-ui text-bright">Pinned panel opacity</div>
-        <div className="flex rounded overflow-hidden border border-line shrink-0">
-          {OPACITY_OPTIONS.map(({ label, value }) => (
-            <button
-              key={label}
-              onClick={() => setAndSave("pinnedPanelOpacity", value)}
-              className={`px-3 py-0.5 text-ui-sm cursor-pointer border-none transition-colors duration-150 ${
-                form.pinnedPanelOpacity === value
-                  ? "bg-accent text-base font-bold"
-                  : "bg-edge text-soft hover:text-bright"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 shrink-0 ml-3">
+          <input
+            type="range"
+            min={0}
+            max={100}
+            value={Math.round((1 - form.pinnedPanelOpacity) * 100)}
+            onChange={(e) =>
+              setAndSave("pinnedPanelOpacity", 1 - parseInt(e.target.value) / 100)
+            }
+            className="w-24 cursor-pointer accent-accent"
+          />
+          <span className="text-faint text-ui-sm w-8 text-right">
+            {Math.round((1 - form.pinnedPanelOpacity) * 100)}%
+          </span>
         </div>
       </div>
 
