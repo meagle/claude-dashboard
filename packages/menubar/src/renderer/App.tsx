@@ -64,6 +64,7 @@ export function App() {
     () => (localStorage.getItem("viewMode") as ViewMode | null) ?? "card",
   );
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
+  const [hovered, setHovered] = useState(false);
   const isDetached = window.location.hash === "#detached";
 
   // Apply saved theme on mount
@@ -88,6 +89,7 @@ export function App() {
   useEffect(() => {
     if (isDetached) {
       document.body.classList.add("detached");
+      document.body.style.background = "transparent";
     }
   }, [isDetached]);
 
@@ -133,8 +135,18 @@ export function App() {
 
   const handleClose = () => window.close();
 
+  const idleOpacity = isDetached ? (cardConfig.pinnedPanelOpacity ?? 1) : 1;
+
   return (
-    <>
+    <div
+      className="flex flex-col flex-1 min-h-0 bg-base"
+      style={{
+        opacity: hovered ? 1 : idleOpacity,
+        transition: "opacity 200ms ease",
+      }}
+      onMouseEnter={isDetached ? () => setHovered(true) : undefined}
+      onMouseLeave={isDetached ? () => setHovered(false) : undefined}
+    >
       <Header
         isDetached={isDetached}
         isSettingsOpen={settingsOpen}
@@ -173,6 +185,6 @@ export function App() {
           />
         </div>
       )}
-    </>
+    </div>
   );
 }
