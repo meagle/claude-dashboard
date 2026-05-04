@@ -460,6 +460,7 @@ function buildSessionsPayload() {
       showContextInMeta: config.columns.contextInHeader ?? false,
       footerStyle: config.columns.footerStyle ?? 'default',
       theme: config.theme ?? "light",
+      pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
     },
     home: os.homedir(),
   };
@@ -683,6 +684,7 @@ app.whenReady().then(() => {
       frame: false,
       resizable: true,
       alwaysOnTop: true,
+      transparent: true,
       webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
     if (isDev) {
