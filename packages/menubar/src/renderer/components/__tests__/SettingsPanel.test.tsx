@@ -8,6 +8,7 @@ const mockConfig = {
   staleSessionMinutes: 30,
   notifications: true,
   notificationSound: true,
+  pinnedPanelOpacity: 1,
   columns: {
     gitBranch: true,
     changedFiles: true,
@@ -96,6 +97,40 @@ describe('SettingsPanel', () => {
         columns: expect.objectContaining({ subagents: true }),
       }));
       expect(onSave).toHaveBeenCalled();
+    });
+  });
+
+  it('renders all four opacity options', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText('None')).toBeInTheDocument();
+      expect(screen.getByText('75%')).toBeInTheDocument();
+      expect(screen.getByText('50%')).toBeInTheDocument();
+      expect(screen.getByText('25%')).toBeInTheDocument();
+    });
+  });
+
+  it('saves pinnedPanelOpacity: 0.5 when 50% is clicked', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByText('50%'));
+    fireEvent.click(screen.getByText('50%'));
+    await waitFor(() => {
+      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
+        'save-config',
+        expect.objectContaining({ pinnedPanelOpacity: 0.5 })
+      );
+    });
+  });
+
+  it('saves pinnedPanelOpacity: 0.25 when 25% is clicked', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByText('25%'));
+    fireEvent.click(screen.getByText('25%'));
+    await waitFor(() => {
+      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
+        'save-config',
+        expect.objectContaining({ pinnedPanelOpacity: 0.25 })
+      );
     });
   });
 });

@@ -22,6 +22,7 @@ interface FormState {
   notifications: boolean;
   notificationSound: boolean;
   footerStyle: "default" | "grid";
+  pinnedPanelOpacity: number;
 }
 
 const DEFAULTS: FormState = {
@@ -38,6 +39,7 @@ const DEFAULTS: FormState = {
   notifications: true,
   notificationSound: true,
   footerStyle: "default",
+  pinnedPanelOpacity: 1,
 };
 
 function Toggle({
@@ -101,6 +103,7 @@ export function SettingsPanel({
         notifications: config.notifications ?? true,
         notificationSound: config.notificationSound ?? true,
         footerStyle: (config.columns?.footerStyle as "default" | "grid" | undefined) ?? "default",
+        pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
       });
     });
   }, []);
@@ -111,6 +114,7 @@ export function SettingsPanel({
     theme: f.theme,
     notifications: f.notifications,
     notificationSound: f.notificationSound,
+    pinnedPanelOpacity: f.pinnedPanelOpacity,
     columns: {
       gitBranch: f.gitBranch,
       changedFiles: f.changedFiles,
@@ -145,6 +149,13 @@ export function SettingsPanel({
       setSaveError((e as Error)?.message ?? "Failed to save settings");
     }
   }, [form, onSave]);
+
+  const OPACITY_OPTIONS: { label: string; value: number }[] = [
+    { label: "None", value: 1 },
+    { label: "75%", value: 0.75 },
+    { label: "50%", value: 0.5 },
+    { label: "25%", value: 0.25 },
+  ];
 
   const ROW = "flex justify-between items-center py-1.75";
   const LABEL = "text-ui text-bright cursor-pointer";
@@ -215,6 +226,26 @@ export function SettingsPanel({
               }`}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Pinned panel opacity */}
+      <div className="flex justify-between items-center py-1.75">
+        <div className="text-ui text-bright">Pinned panel opacity</div>
+        <div className="flex rounded overflow-hidden border border-line shrink-0">
+          {OPACITY_OPTIONS.map(({ label, value }) => (
+            <button
+              key={label}
+              onClick={() => setAndSave("pinnedPanelOpacity", value)}
+              className={`px-3 py-0.5 text-ui-sm cursor-pointer border-none transition-colors duration-150 ${
+                form.pinnedPanelOpacity === value
+                  ? "bg-accent text-base font-bold"
+                  : "bg-edge text-soft hover:text-bright"
+              }`}
+            >
+              {label}
             </button>
           ))}
         </div>
