@@ -202,7 +202,12 @@ export function DayBars({
 }: DayBarsProps) {
   const [hover, setHover] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(600);
+  const [tooltipPos, setTooltipPos] = useState<{
+    left: number; top: number; showBelow: boolean;
+  } | null>(null);
+
   useEffect(() => {
     if (!containerRef.current) return;
     const ro = new ResizeObserver((entries) => {
@@ -214,13 +219,34 @@ export function DayBars({
     ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, []);
+  const padTop = 8;
+  const padBottom = 18;
+  const chartH = height - padTop - padBottom;
+
+  // Measure the real rendered tooltip width to position it accurately.
+  // useLayoutEffect runs before paint so the tooltip is never visibly misplaced.
+  useEffect(() => {
+    if (hover == null || !containerRef.current || !tooltipRef.current) {
+      setTooltipPos(null);
+      return;
+    }
+    const slot = buckets.length > 0 ? w / buckets.length : 0;
+    const barCenterPx = hover * slot + slot / 2;
+    const margin = 8;
+    const actualW = tooltipRef.current.offsetWidth;
+    const rect = containerRef.current.getBoundingClientRect();
+    const screenX = rect.left + barCenterPx;
+    const left = Math.max(margin, Math.min(screenX - actualW / 2, window.innerWidth - actualW - margin));
+    const screenBarTop = rect.top + padTop;
+    const screenBarBottom = rect.top + padTop + chartH;
+    const showBelow = screenBarTop < 240;
+    setTooltipPos({ left, top: showBelow ? screenBarBottom : screenBarTop, showBelow });
+  });
+
   const max = useMemo(
     () => Math.max(0.0001, ...buckets.map((b) => b.total)),
     [buckets],
   );
-  const padTop = 8;
-  const padBottom = 18;
-  const chartH = height - padTop - padBottom;
   // Cap bar width so few-entry charts don't blow up to absurd-width bars.
   const slot = buckets.length > 0 ? w / buckets.length : 0;
   const maxBarW = 28;
@@ -320,15 +346,19 @@ export function DayBars({
         })()}
       </svg>
 
-      {/* Tooltip (DOM, not SVG, so it can overflow) */}
+      {/* Tooltip — fixed so it escapes any overflow/clip ancestor.
+          Rendered invisible first; useEffect measures real width and sets position. */}
       {hover != null && buckets[hover] && (
         <div
-          className="absolute pointer-events-none rounded-md border border-edge bg-surface px-2 py-1.5 shadow-lg z-10"
+          ref={tooltipRef}
+          className="fixed pointer-events-none rounded-md border border-edge bg-surface px-2 py-1.5 shadow-lg z-50"
           style={{
-            left: `${((hover * slot + slot / 2) / w) * 100}%`,
-            top: 0,
-            transform: "translate(-50%, -100%)",
+            left: tooltipPos?.left ?? 0,
+            top: tooltipPos?.top ?? 0,
+            transform: tooltipPos?.showBelow ? "none" : "translateY(-100%)",
             minWidth: 140,
+            maxWidth: 260,
+            visibility: tooltipPos ? "visible" : "hidden",
           }}
         >
           <div className="text-bright text-ui font-bold mb-0.5">
@@ -337,18 +367,20 @@ export function DayBars({
           <div className="text-soft text-ui-sm font-mono mb-1">
             {yLabel}: {formatY(buckets[hover].total)}
           </div>
-          {buckets[hover].segments.map((seg) => (
-            <div key={seg.key} className="flex items-center gap-1.5 text-ui-sm">
-              <span
-                className="inline-block w-2 h-2 rounded-sm"
-                style={{ background: seg.color }}
-              />
-              <span className="text-soft truncate flex-1">{seg.label}</span>
-              <span className="text-bright font-mono tabular-nums">
-                {formatY(seg.value)}
-              </span>
-            </div>
-          ))}
+          <div style={{ maxHeight: 160, overflowY: "auto" }}>
+            {buckets[hover].segments.map((seg) => (
+              <div key={seg.key} className="flex items-center gap-1.5 text-ui-sm">
+                <span
+                  className="inline-block w-2 h-2 rounded-sm"
+                  style={{ background: seg.color }}
+                />
+                <span className="text-soft truncate flex-1">{seg.label}</span>
+                <span className="text-bright font-mono tabular-nums">
+                  {formatY(seg.value)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
