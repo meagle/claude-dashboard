@@ -209,23 +209,42 @@ function getActiveSessions() {
       all.filter((s) => s.lastActivity > cutoff),
     );
   }
-  return pruneStaleSessions(all, config.staleSessionMinutes)
+  type S = ReturnType<typeof pruneStaleSessions>[number];
+  const live = pruneStaleSessions(all, config.staleSessionMinutes)
     .filter((s) => !s.dismissed)
-    .filter((s) => {
-      // Hide done sessions after 60s once the Claude process is confirmed dead
-      if (
-        s.status === "done" &&
-        !isAlive(s.pid) &&
-        Date.now() - s.lastActivity > 60_000
-      )
-        return false;
-      return true;
-    })
-    .map((s) => {
+    .map((s): S => {
       if (s.status !== "done" && !isAlive(s.pid))
         return { ...s, status: "done" as const };
       return s;
     });
+
+  // Deduplicate by pid+termSessionId: same terminal reused after Escape produces
+  // two entries sharing these fields. Keep the newest (by startedAt), mark older done.
+  const groups = new Map<string, S[]>();
+  const ungrouped: S[] = [];
+  for (const s of live) {
+    const k = s.pid && s.termSessionId ? `${s.pid}:${s.termSessionId}` : null;
+    if (!k) { ungrouped.push(s); continue; }
+    const g = groups.get(k) ?? [];
+    g.push(s);
+    groups.set(k, g);
+  }
+  const deduped: S[] = [...ungrouped];
+  for (const group of groups.values()) {
+    group.sort((a, b) => b.startedAt - a.startedAt);
+    deduped.push(group[0]); // oldest duplicates are dropped entirely
+  }
+
+  return deduped.filter((s) => {
+    // Hide done sessions after 60s once the Claude process is confirmed dead
+    if (
+      s.status === "done" &&
+      !isAlive(s.pid) &&
+      Date.now() - s.lastActivity > 60_000
+    )
+      return false;
+    return true;
+  });
 }
 
 function updateTray() {
