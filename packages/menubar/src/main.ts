@@ -272,16 +272,30 @@ async function resizeToContent(
         "    }" +
         "    return h;" +
         "  }" +
-        // History panel children use flex-1/overflow-y:auto so offsetHeight just
-        // reflects the current window allocation. scrollHeight gives the real
-        // content height even when the element is squashed or stretched by flex.
+        // History panel children include flex-1/overflow-y:auto scroll containers.
+        // For those, scrollHeight equals clientHeight when content is shorter than
+        // the flex-allocated height — so we recurse into their children instead.
         "  function contentScrollH(el) {" +
         "    if (!el) return 0;" +
         "    var kids = el.children, h = 12, c = 0;" +
         "    for (var i = 0; i < kids.length; i++) {" +
-        "      var pos = getComputedStyle(kids[i]).position;" +
-        '      if (pos === "absolute" || pos === "fixed") continue;' +
-        "      h += kids[i].scrollHeight + (c > 0 ? 8 : 0); c++;" +
+        "      var cs = getComputedStyle(kids[i]);" +
+        '      if (cs.position === "absolute" || cs.position === "fixed") continue;' +
+        "      var childH;" +
+        '      if (cs.overflowY === "auto" || cs.overflowY === "scroll") {' +
+        "        var inner = kids[i].children, ih = 0, ic = 0;" +
+        "        var gap = parseFloat(cs.rowGap) || 0;" +
+        "        var pt = parseFloat(cs.paddingTop) || 0;" +
+        "        var pb = parseFloat(cs.paddingBottom) || 0;" +
+        "        for (var j = 0; j < inner.length; j++) {" +
+        '          if (getComputedStyle(inner[j]).position === "absolute" || getComputedStyle(inner[j]).position === "fixed") continue;' +
+        "          ih += inner[j].offsetHeight + (ic > 0 ? gap : 0); ic++;" +
+        "        }" +
+        "        childH = ih + pt + pb;" +
+        "      } else {" +
+        "        childH = kids[i].scrollHeight;" +
+        "      }" +
+        "      h += childH + (c > 0 ? 8 : 0); c++;" +
         "    }" +
         "    return h;" +
         "  }" +
