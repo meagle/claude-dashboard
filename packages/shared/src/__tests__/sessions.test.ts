@@ -56,7 +56,7 @@ describe('Session type shape', () => {
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { readSessions, writeSessions, pruneStaleSessions } from '../sessions';
+import { readSessions, writeSessions, pruneStaleSessions, appendHistory, readHistory } from '../sessions';
 
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
@@ -149,5 +149,59 @@ describe('sessions I/O', () => {
     });
     const result = pruneStaleSessions([borderline], 30);
     expect(result).toHaveLength(1);
+  });
+});
+
+describe('appendHistory', () => {
+  let dir: string;
+  let historyPath: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dashboard-history-test-'));
+    historyPath = path.join(dir, 'history.json');
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true });
+  });
+
+  it('creates history file with archived sessions', () => {
+    appendHistory(historyPath, [makeSession({ sessionId: 'a' })]);
+    const result = readHistory(historyPath);
+    expect(result).toHaveLength(1);
+    expect(result[0].sessionId).toBe('a');
+    expect(result[0].archivedAt).toBeGreaterThan(0);
+  });
+
+  it('appends to existing history', () => {
+    appendHistory(historyPath, [makeSession({ sessionId: 'a' })]);
+    appendHistory(historyPath, [makeSession({ sessionId: 'b' })]);
+    const result = readHistory(historyPath);
+    expect(result.map((s) => s.sessionId).sort()).toEqual(['a', 'b']);
+  });
+
+  it('deduplicates by sessionId — last write wins', () => {
+    appendHistory(historyPath, [makeSession({ sessionId: 'a', lastPrompt: 'first' })]);
+    appendHistory(historyPath, [makeSession({ sessionId: 'a', lastPrompt: 'second' })]);
+    const result = readHistory(historyPath);
+    expect(result).toHaveLength(1);
+    expect(result[0].lastPrompt).toBe('second');
+  });
+
+  it('prunes entries older than 30 days', () => {
+    appendHistory(historyPath, [makeSession({ sessionId: 'old' })]);
+    // Manually backdating the archivedAt by writing directly
+    const raw = readHistory(historyPath);
+    raw[0].archivedAt = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    fs.writeFileSync(historyPath, JSON.stringify(raw));
+    appendHistory(historyPath, [makeSession({ sessionId: 'new' })]);
+    const result = readHistory(historyPath);
+    expect(result.map((s) => s.sessionId)).toEqual(['new']);
+  });
+
+  it('writes atomically (no .tmp file left behind)', () => {
+    appendHistory(historyPath, [makeSession()]);
+    expect(fs.existsSync(historyPath + '.tmp')).toBe(false);
+    expect(fs.existsSync(historyPath)).toBe(true);
   });
 });

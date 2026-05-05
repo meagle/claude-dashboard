@@ -63,7 +63,6 @@ export function SessionList({
             key={session.sessionId}
             session={session}
             cardConfig={cardConfig}
-            home={home}
             onFocus={handleFocus}
           />
         ))}
@@ -79,7 +78,6 @@ export function SessionList({
             key={session.sessionId}
             session={session}
             cardConfig={cardConfig}
-            home={home}
             onFocus={handleFocus}
           />
         ))}

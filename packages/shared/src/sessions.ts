@@ -11,11 +11,15 @@ export function readSessions(filePath: string): Session[] {
   }
 }
 
-export function writeSessions(filePath: string, sessions: Session[]): void {
+function atomicWriteJson(filePath: string, data: unknown): void {
   const tmp = filePath + '.tmp';
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(tmp, JSON.stringify(sessions, null, 2), 'utf8');
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
   fs.renameSync(tmp, filePath);
+}
+
+export function writeSessions(filePath: string, sessions: Session[]): void {
+  atomicWriteJson(filePath, sessions);
 }
 
 export function pruneStaleSessions(sessions: Session[], staleMinutes: number): Session[] {
@@ -39,10 +43,7 @@ export function appendHistory(filePath: string, sessions: Session[]): void {
   // Deduplicate by sessionId — last write wins so existing entries are overwritten
   const byId = new Map<string, ArchivedSession>();
   for (const s of [...existing, ...toAdd]) byId.set(s.sessionId, s);
-  const tmp = filePath + '.tmp';
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(tmp, JSON.stringify([...byId.values()], null, 2), 'utf8');
-  fs.renameSync(tmp, filePath);
+  atomicWriteJson(filePath, [...byId.values()]);
 }
 
 export function upsertSession(sessions: Session[], updated: Session): Session[] {

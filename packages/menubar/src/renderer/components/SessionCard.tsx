@@ -8,7 +8,9 @@ import {
   compressBranch,
   formatTokens,
   formatTokensShort,
+  extractGitChanges,
 } from "../utils/format";
+import { accentColor, dotColor } from "../utils/statusColors";
 import { COPY_ICON } from "./icons";
 
 // ── Inline icons ──────────────────────────────────────────────────────────
@@ -126,29 +128,6 @@ function appIcon(appName: string): React.ReactNode {
 
 // ── Small helpers ─────────────────────────────────────────────────────────
 
-// Accent-bar color class per status. Uses existing semantic tokens.
-function accentColor(
-  status: SessionRow["status"],
-  errorState: boolean,
-): string {
-  if (errorState) return "bg-badge-loop"; // red
-  if (status === "waiting_permission" || status === "waiting_input")
-    return "bg-badge-waiting"; // amber
-  if (status === "active") return "bg-branch"; // green
-  if (status === "done") return "bg-badge-done"; // neutral
-  return "bg-accent"; // idle → cyan/blue
-}
-
-// Status dot color — same palette as the accent bar.
-function dotColor(status: SessionRow["status"], errorState: boolean): string {
-  if (errorState) return "text-badge-loop";
-  if (status === "waiting_permission" || status === "waiting_input")
-    return "text-badge-waiting";
-  if (status === "active") return "text-badge-active";
-  if (status === "done") return "text-badge-done";
-  return "text-accent";
-}
-
 // Git-change indicators inside the branch pill: ● N (diff dot) + ↑ N (ahead)
 function BranchPill({
   branch,
@@ -159,13 +138,7 @@ function BranchPill({
   gitSummary?: string | null;
   gitAhead?: number | null;
 }) {
-  // Extract a single "changed files" count from gitSummary if present,
-  // e.g. "3 files +42 -7" → 3. Fallback: show nothing for the diff dot.
-  let changes: number | null = null;
-  if (gitSummary) {
-    const m = gitSummary.match(/(\d+)\s*file/i);
-    if (m) changes = parseInt(m[1], 10);
-  }
+  const changes = extractGitChanges(gitSummary);
 
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-badge bg-line/60 border border-edge/60 text-sm text-bright whitespace-nowrap leading-none">
@@ -381,19 +354,11 @@ export function SessionCard({
     isActive ? "animate-status-pulse" : "",
   ].join(" ");
 
-  // Primary prompt / task text for this session.
-  const taskText =
-    (isDone
-      ? (s.currentTask ?? s.lastPrompt)
-      : (s.currentTask ?? s.lastPrompt)) ?? null;
+  const taskText = s.currentTask ?? s.lastPrompt ?? null;
   const answer = isDone ? s.lastMessage : (s.partialResponse ?? null);
 
   // ── Breadcrumb row: dir / branch + git stats (left) · app + time (right) ─
-  const branchChanges = (() => {
-    if (!s.gitSummary) return null;
-    const m = s.gitSummary.match(/(\d+)\s*file/i);
-    return m ? parseInt(m[1], 10) : null;
-  })();
+  const branchChanges = extractGitChanges(s.gitSummary);
 
   const breadcrumbRow = (
     <div className="flex items-center justify-between gap-2 mb-1.5 text-[11px] text-faint font-mono leading-none min-w-0">

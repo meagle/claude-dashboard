@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { elapsedStr, agoStr, compactPath, compressBranch, ctxBarClass, formatTokensShort } from './format';
+import { elapsedStr, agoStr, compactPath, compressBranch, ctxBarClass, formatTokensShort, extractGitChanges } from './format';
 
 describe('elapsedStr', () => {
   it('shows 0m for less than a minute', () => {
@@ -103,6 +103,45 @@ describe('ctxBarClass', () => {
   it('returns crit class at 80%', () => {
     expect(ctxBarClass(80)).toContain('bg-ctx-crit');
     expect(ctxBarClass(100)).toContain('bg-ctx-crit');
+  });
+});
+
+describe('extractGitChanges', () => {
+  it('returns null for null input', () => {
+    expect(extractGitChanges(null)).toBeNull();
+  });
+
+  it('returns null for undefined input', () => {
+    expect(extractGitChanges(undefined)).toBeNull();
+  });
+
+  it('returns null for empty string', () => {
+    expect(extractGitChanges('')).toBeNull();
+  });
+
+  it('returns null when no file count in string', () => {
+    expect(extractGitChanges('no changes')).toBeNull();
+    expect(extractGitChanges('+42 -7')).toBeNull();
+  });
+
+  it('parses "N files changed" format', () => {
+    expect(extractGitChanges('3 files changed, 42 insertions(+)')).toBe(3);
+  });
+
+  it('parses singular "1 file"', () => {
+    expect(extractGitChanges('1 file changed, 5 insertions(+)')).toBe(1);
+  });
+
+  it('parses "0 files"', () => {
+    expect(extractGitChanges('0 files changed')).toBe(0);
+  });
+
+  it('is case-insensitive', () => {
+    expect(extractGitChanges('10 Files changed')).toBe(10);
+  });
+
+  it('returns the leading number from multi-stat strings', () => {
+    expect(extractGitChanges('5 files changed, +42 -3')).toBe(5);
   });
 });
 

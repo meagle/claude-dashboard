@@ -72,6 +72,21 @@ function writeWindowState(state: WindowState): void {
 
 const windowState = readWindowState();
 
+function isDashboardHook(h: unknown): boolean {
+  const hook = h as Record<string, unknown>;
+  if (typeof hook.command === "string" && hook.command.includes("dashboard/hook.js"))
+    return true;
+  if (
+    Array.isArray(hook.hooks) &&
+    hook.hooks.some((i: unknown) => {
+      const item = i as Record<string, unknown>;
+      return typeof item.command === "string" && item.command.includes("dashboard/hook.js");
+    })
+  )
+    return true;
+  return false;
+}
+
 function installHook(): void {
   try {
     // Locate the bundled hook.js — next to the executable when packaged, in the
@@ -107,26 +122,7 @@ function installHook(): void {
       };
       const existing: unknown[] = settings.hooks[event] ?? [];
       settings.hooks[event] = [
-        ...existing.filter((h: unknown) => {
-          const hook = h as Record<string, unknown>;
-          if (
-            typeof hook.command === "string" &&
-            hook.command.includes("dashboard/hook.js")
-          )
-            return false;
-          if (
-            Array.isArray(hook.hooks) &&
-            hook.hooks.some((i: unknown) => {
-              const item = i as Record<string, unknown>;
-              return (
-                typeof item.command === "string" &&
-                item.command.includes("dashboard/hook.js")
-              );
-            })
-          )
-            return false;
-          return true;
-        }),
+        ...existing.filter((h) => !isDashboardHook(h)),
         entry,
       ];
     }
@@ -150,6 +146,8 @@ const isDev =
 let tray: Tray | null = null;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
+let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
+let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 const prevStatusMap = new Map<string, string>();
 
 // Cache isAlive results for 2s to avoid spawning ps on every chokidar tick
@@ -235,16 +233,14 @@ function getActiveSessions() {
     deduped.push(group[0]); // oldest duplicates are dropped entirely
   }
 
-  return deduped.filter((s) => {
-    // Hide done sessions after 60s once the Claude process is confirmed dead
-    if (
-      s.status === "done" &&
-      !isAlive(s.pid) &&
-      Date.now() - s.lastActivity > 60_000
-    )
-      return false;
-    return true;
-  });
+  return deduped.filter(
+    (s) =>
+      !(
+        s.status === "done" &&
+        !isAlive(s.pid) &&
+        Date.now() - s.lastActivity > 60_000
+      ),
+  );
 }
 
 function updateTray() {
@@ -307,7 +303,8 @@ async function resizeToContent(
         "        var pt = parseFloat(cs.paddingTop) || 0;" +
         "        var pb = parseFloat(cs.paddingBottom) || 0;" +
         "        for (var j = 0; j < inner.length; j++) {" +
-        '          if (getComputedStyle(inner[j]).position === "absolute" || getComputedStyle(inner[j]).position === "fixed") continue;' +
+        "          var ics = getComputedStyle(inner[j]);" +
+        '          if (ics.position === "absolute" || ics.position === "fixed") continue;' +
         "          ih += inner[j].offsetHeight + (ic > 0 ? gap : 0); ic++;" +
         "        }" +
         "        childH = ih + pt + pb;" +
@@ -651,26 +648,7 @@ app.whenReady().then(() => {
         if (settings.hooks) {
           for (const event of Object.keys(settings.hooks)) {
             settings.hooks[event] = (settings.hooks[event] as unknown[]).filter(
-              (h: unknown) => {
-                const hook = h as Record<string, unknown>;
-                if (
-                  typeof hook.command === "string" &&
-                  hook.command.includes("dashboard/hook.js")
-                )
-                  return false;
-                if (
-                  Array.isArray(hook.hooks) &&
-                  hook.hooks.some((i: unknown) => {
-                    const item = i as Record<string, unknown>;
-                    return (
-                      typeof item.command === "string" &&
-                      item.command.includes("dashboard/hook.js")
-                    );
-                  })
-                )
-                  return false;
-                return true;
-              },
+              (h) => !isDashboardHook(h),
             );
             if ((settings.hooks[event] as unknown[]).length === 0)
               delete settings.hooks[event];
@@ -760,6 +738,7 @@ app.whenReady().then(() => {
       }
     });
     detachedPanel.on("closed", () => {
+      if (panelSaveTimer) clearTimeout(panelSaveTimer);
       detachedPanel = null;
     });
   });
@@ -806,13 +785,14 @@ app.whenReady().then(() => {
   });
 
   updateTray();
-  setInterval(refreshGitInfo, 10_000);
+  gitRefreshInterval = setInterval(refreshGitInfo, 10_000);
 
   // Catch changes not triggered by file writes: dead processes (idle→done) and stale expiry.
   // Compare sessionId:status so status changes (not just adds/removes) trigger updates.
   let lastSessionSnapshot = "";
-  setInterval(() => {
-    const snapshot = getActiveSessions()
+  sessionCheckInterval = setInterval(() => {
+    const sessions = getActiveSessions();
+    const snapshot = sessions
       .map((s) => `${s.sessionId}:${s.status}`)
       .sort()
       .join(",");
@@ -820,6 +800,15 @@ app.whenReady().then(() => {
       lastSessionSnapshot = snapshot;
       sendSessionsToPopover();
       setTimeout(doResize, 100);
+    }
+    // Prune caches for pids no longer in any active session
+    const activePids = new Set(sessions.map((s) => s.pid));
+    const staleTs = Date.now() - 10_000;
+    for (const [pid, entry] of isAliveCache) {
+      if (!activePids.has(pid) || entry.ts < staleTs) isAliveCache.delete(pid);
+    }
+    for (const pid of appNameCache.keys()) {
+      if (!activePids.has(pid)) appNameCache.delete(pid);
     }
   }, 5_000);
 });
@@ -829,6 +818,8 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", () => {
+  if (gitRefreshInterval) clearInterval(gitRefreshInterval);
+  if (sessionCheckInterval) clearInterval(sessionCheckInterval);
   tray?.destroy();
   tray = null;
 });

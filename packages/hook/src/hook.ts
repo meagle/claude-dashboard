@@ -125,6 +125,10 @@ interface TranscriptStats {
   totalTokens: number | null;
 }
 
+const EMPTY_STATS: TranscriptStats = {
+  text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null,
+};
+
 function readLastAssistantStats(transcriptPath: string, endTurnOnly = false): TranscriptStats {
   try {
     const fsSync = require('fs') as typeof import('fs');
@@ -212,7 +216,7 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false): Tr
       totalTokens: cumulativeTokens > 0 ? cumulativeTokens : null,
     };
   } catch { /* file unreadable */ }
-  return { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+  return EMPTY_STATS;
 }
 
 // The transcript may be written concurrently with the Stop hook firing.
@@ -230,7 +234,7 @@ function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
     }
   }
-  return { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+  return EMPTY_STATS;
 }
 
 function toolSummary(toolName: string, input: Record<string, unknown>): string | null {
@@ -400,7 +404,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // so read it here to capture the previous turn's response + model/context/cost stats.
     const stats = event.transcriptPath
       ? readLastAssistantStats(event.transcriptPath)
-      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+      : EMPTY_STATS;
     // Refresh branch/worktree on each turn in case session was created before worktree was set up
     const freshBranch   = getGitBranch(event.workingDir);
     const freshWorktree = getWorktreeName(event.workingDir);
@@ -438,7 +442,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // Ignore partial text if it matches lastMessage — transcript not yet updated this turn.
     const stats = session.transcriptPath
       ? readLastAssistantStats(session.transcriptPath)
-      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+      : EMPTY_STATS;
     const freshPartial = stats.text && stats.text !== session.lastMessage ? stats.text : null;
 
     session = {
@@ -502,7 +506,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // to capture the text Claude wrote before this tool call.
     const postStats = session.transcriptPath
       ? readLastAssistantStats(session.transcriptPath)
-      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+      : EMPTY_STATS;
     const freshPostPartial = postStats.text && postStats.text !== session.lastMessage ? postStats.text : null;
 
     session = {
@@ -523,7 +527,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
   } else if (event.type === 'stop') {
     const stats = event.transcriptPath
       ? readLastAssistantStatsWithRetry(event.transcriptPath, session.lastMessage)
-      : { text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null };
+      : EMPTY_STATS;
     const gitSummary = getGitSummary(event.workingDir);
     const gitAhead = getGitAhead(event.workingDir);
     session = {

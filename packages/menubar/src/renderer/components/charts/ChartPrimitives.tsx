@@ -7,7 +7,7 @@
  * implement click-to-filter behavior. Tooltips are local to each chart.
  */
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from "react";
 
 /* ─── Types ────────────────────────────────────────────────────────────── */
 
@@ -223,9 +223,8 @@ export function DayBars({
   const padBottom = 18;
   const chartH = height - padTop - padBottom;
 
-  // Measure the real rendered tooltip width to position it accurately.
-  // useLayoutEffect runs before paint so the tooltip is never visibly misplaced.
-  useEffect(() => {
+  // Runs synchronously after DOM mutation, before paint, so tooltip is never visibly misplaced.
+  useLayoutEffect(() => {
     if (hover == null || !containerRef.current || !tooltipRef.current) {
       setTooltipPos(null);
       return;
@@ -241,7 +240,7 @@ export function DayBars({
     const screenBarBottom = rect.top + padTop + chartH;
     const showBelow = screenBarTop < 240;
     setTooltipPos({ left, top: showBelow ? screenBarBottom : screenBarTop, showBelow });
-  });
+  }, [hover, w, buckets, chartH]);
 
   const max = useMemo(
     () => Math.max(0.0001, ...buckets.map((b) => b.total)),

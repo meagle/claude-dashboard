@@ -5,7 +5,9 @@ import {
   agoStr,
   elapsedStr,
   formatTokens,
+  extractGitChanges,
 } from "../utils/format";
+import { accentColor, dotColor } from "../utils/statusColors";
 
 /* ─────────────────────────────────────────────────────────────────────────
  * CompactSessionRow — 2-line compact layout, matches SessionCard style.
@@ -55,28 +57,6 @@ const WORKTREE_ICON = (
   </svg>
 );
 
-// ── Status → colors (mirror SessionCard) ─────────────────────────────────
-
-function accentColor(
-  status: SessionRow["status"],
-  errorState: boolean,
-): string {
-  if (errorState) return "bg-badge-loop";
-  if (status === "waiting_permission" || status === "waiting_input")
-    return "bg-badge-waiting";
-  if (status === "active") return "bg-branch";
-  if (status === "done") return "bg-badge-done";
-  return "bg-accent";
-}
-
-function dotColor(status: SessionRow["status"], errorState: boolean): string {
-  if (errorState) return "text-badge-loop";
-  if (status === "waiting_permission" || status === "waiting_input")
-    return "text-badge-waiting";
-  if (status === "active") return "text-badge-active";
-  if (status === "done") return "text-badge-done";
-  return "text-accent";
-}
 
 function StatusDot({
   status,
@@ -123,11 +103,7 @@ function BranchPill({
   gitSummary?: string | null;
   gitAhead?: number | null;
 }) {
-  let changes: number | null = null;
-  if (gitSummary) {
-    const m = gitSummary.match(/(\d+)\s*file/i);
-    if (m) changes = parseInt(m[1], 10);
-  }
+  const changes = extractGitChanges(gitSummary);
   return (
     <span className="inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge bg-line/60 border border-edge/60 text-[11px] text-bright whitespace-nowrap leading-none">
       <span className="text-path inline-flex items-center">{BRANCH_ICON}</span>
@@ -160,7 +136,6 @@ function WorktreePill({ label }: { label: string }) {
 interface CompactSessionRowProps {
   session: SessionRow;
   cardConfig: CardConfig;
-  home: string;
   onFocus: (pid: number, termSessionId: string | null) => void;
 }
 
@@ -190,11 +165,7 @@ export function CompactSessionRow({
 
   const hasCtx = s.contextPct != null;
 
-  const branchChanges = (() => {
-    if (!s.gitSummary) return null;
-    const m = s.gitSummary.match(/(\d+)\s*file/i);
-    return m ? parseInt(m[1], 10) : null;
-  })();
+  const branchChanges = extractGitChanges(s.gitSummary);
 
   // Indent column under the status dot so line 2 visually hangs under the
   // project title. Dot ≈ 9px + gap-2 (8px) + accent-stripe lane (3px) ≈ 20px.

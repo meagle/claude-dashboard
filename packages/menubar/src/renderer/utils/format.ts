@@ -46,3 +46,9 @@ export function formatTokensShort(totalTokens: number | null): string | null {
   if (totalTokens == null) return null;
   return totalTokens >= 1000 ? `${Math.round(totalTokens / 1000)}k` : `${totalTokens}`;
 }
+
+export function extractGitChanges(gitSummary: string | null | undefined): number | null {
+  if (!gitSummary) return null;
+  const m = gitSummary.match(/(\d+)\s*file/i);
+  return m ? parseInt(m[1], 10) : null;
+}
