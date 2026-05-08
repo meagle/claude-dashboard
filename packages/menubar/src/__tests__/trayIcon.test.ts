@@ -3,9 +3,18 @@ import { TrayIconController } from '../trayIcon';
 import { nativeImage } from 'electron';
 import type { Session } from '@claude-dashboard/shared';
 
+// Mock zlib (Node built-in used by PNG encoder) — return a trivial buffer
+vi.mock('zlib', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('zlib')>();
+  return {
+    ...actual,
+    deflateSync: vi.fn().mockReturnValue(Buffer.alloc(0)),
+  };
+});
+
 vi.mock('electron', () => ({
   nativeImage: {
-    createFromDataURL: vi.fn().mockImplementation(() => ({
+    createFromBuffer: vi.fn().mockImplementation(() => ({
       setTemplateImage: vi.fn(),
     })),
   },
@@ -60,7 +69,7 @@ function makeTray() {
 
 describe('TrayIconController', () => {
   beforeEach(() => {
-    vi.mocked(nativeImage.createFromDataURL).mockClear();
+    vi.mocked(nativeImage.createFromBuffer).mockClear();
     vi.useFakeTimers();
   });
 
@@ -70,13 +79,13 @@ describe('TrayIconController', () => {
 
   it('creates 9 NativeImages at construction (1 idle + 4 green + 4 orange)', () => {
     const ctrl = new TrayIconController(makeTray() as any);
-    expect(vi.mocked(nativeImage.createFromDataURL)).toHaveBeenCalledTimes(9);
+    expect(vi.mocked(nativeImage.createFromBuffer)).toHaveBeenCalledTimes(9);
     ctrl.destroy();
   });
 
   it('marks first created image as template image (idle state)', () => {
     const ctrl = new TrayIconController(makeTray() as any);
-    const idleImg = vi.mocked(nativeImage.createFromDataURL).mock.results[0].value;
+    const idleImg = vi.mocked(nativeImage.createFromBuffer).mock.results[0].value;
     expect(idleImg.setTemplateImage).toHaveBeenCalledWith(true);
     ctrl.destroy();
   });
@@ -84,7 +93,7 @@ describe('TrayIconController', () => {
   it('sets idle image when update called with no sessions', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
-    const idleImg = vi.mocked(nativeImage.createFromDataURL).mock.results[0].value;
+    const idleImg = vi.mocked(nativeImage.createFromBuffer).mock.results[0].value;
     ctrl.update([], false);
     expect(tray.setImage).toHaveBeenCalledWith(idleImg);
     ctrl.destroy();
@@ -110,7 +119,7 @@ describe('TrayIconController', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
     // results[0] = idle, results[1..4] = green frames
-    const firstGreenFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[1].value;
+    const firstGreenFrame = vi.mocked(nativeImage.createFromBuffer).mock.results[1].value;
     ctrl.update([makeSession({ status: 'active' })], false);
     expect(tray.setImage).toHaveBeenCalledWith(firstGreenFrame);
     ctrl.destroy();
@@ -120,7 +129,7 @@ describe('TrayIconController', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
     // results[5..8] = orange frames
-    const firstOrangeFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[5].value;
+    const firstOrangeFrame = vi.mocked(nativeImage.createFromBuffer).mock.results[5].value;
     ctrl.update([makeSession({ status: 'waiting_permission' })], false);
     expect(tray.setImage).toHaveBeenCalledWith(firstOrangeFrame);
     ctrl.destroy();
@@ -129,7 +138,7 @@ describe('TrayIconController', () => {
   it('starts animation with orange frame for waiting_input', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
-    const firstOrangeFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[5].value;
+    const firstOrangeFrame = vi.mocked(nativeImage.createFromBuffer).mock.results[5].value;
     ctrl.update([makeSession({ status: 'waiting_input' })], false);
     expect(tray.setImage).toHaveBeenCalledWith(firstOrangeFrame);
     ctrl.destroy();
@@ -138,7 +147,7 @@ describe('TrayIconController', () => {
   it('permission takes priority over active', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
-    const firstOrangeFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[5].value;
+    const firstOrangeFrame = vi.mocked(nativeImage.createFromBuffer).mock.results[5].value;
     ctrl.update([
       makeSession({ status: 'active' }),
       makeSession({ sessionId: 'sess-2', status: 'waiting_permission' }),
@@ -150,7 +159,7 @@ describe('TrayIconController', () => {
   it('advances to next frame after 500ms', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
-    const secondGreenFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[2].value;
+    const secondGreenFrame = vi.mocked(nativeImage.createFromBuffer).mock.results[2].value;
     ctrl.update([makeSession({ status: 'active' })], false);
     tray.setImage.mockClear();
     vi.advanceTimersByTime(500);
@@ -163,7 +172,7 @@ describe('TrayIconController', () => {
     const ctrl = new TrayIconController(tray as any);
     ctrl.update([makeSession({ status: 'active' })], false);
     tray.setImage.mockClear();
-    ctrl.update([makeSession({ status: 'active' })], false); // same state, no restart
+    ctrl.update([makeSession({ status: 'active' })], false);
     expect(tray.setImage).not.toHaveBeenCalled();
     ctrl.destroy();
   });
@@ -171,10 +180,10 @@ describe('TrayIconController', () => {
   it('cycles back to first frame after 4 advances', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
-    const firstGreenFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[1].value;
+    const firstGreenFrame = vi.mocked(nativeImage.createFromBuffer).mock.results[1].value;
     ctrl.update([makeSession({ status: 'active' })], false);
     tray.setImage.mockClear();
-    vi.advanceTimersByTime(2000); // 4 × 500ms
+    vi.advanceTimersByTime(2000);
     expect(tray.setImage).toHaveBeenLastCalledWith(firstGreenFrame);
     ctrl.destroy();
   });
@@ -182,13 +191,13 @@ describe('TrayIconController', () => {
   it('stops animation and shows idle on transition to idle', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
-    const idleImg = vi.mocked(nativeImage.createFromDataURL).mock.results[0].value;
+    const idleImg = vi.mocked(nativeImage.createFromBuffer).mock.results[0].value;
     ctrl.update([makeSession({ status: 'active' })], false);
-    ctrl.update([], false); // transition to idle
+    ctrl.update([], false);
     expect(tray.setImage).toHaveBeenCalledWith(idleImg);
     tray.setImage.mockClear();
     vi.advanceTimersByTime(2000);
-    expect(tray.setImage).not.toHaveBeenCalled(); // interval was cleared
+    expect(tray.setImage).not.toHaveBeenCalled();
     ctrl.destroy();
   });
 

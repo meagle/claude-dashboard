@@ -1,6 +1,15 @@
 import { nativeImage } from 'electron';
 import type { Tray, NativeImage } from 'electron';
+import { deflateSync } from 'zlib';
 import type { Session } from '@claude-dashboard/shared';
+
+// BrandMark geometry (normalized 0–1, based on SVG viewBox 0 0 16 16)
+const OUTER_R = 6 / 16;
+const OUTER_HALF_STROKE = 0.75 / 16;
+const CENTER_R = 2 / 16;
+const ORBIT_CX = 12.6 / 16;
+const ORBIT_CY = 3.7 / 16;
+const ORBIT_R = 1.2 / 16;
 
 const PULSE_OPACITIES = [1.0, 0.65, 0.4, 0.65] as const;
 const GREEN = '#3fb950';
@@ -10,21 +19,91 @@ const FRAME_MS = 500;
 
 type TrayState = 'idle' | 'active' | 'permission';
 
-function makeSvg(color: string, opacity: number): string {
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">` +
-    `<g opacity="${opacity}">` +
-    `<circle cx="8" cy="8" r="6" stroke="${color}" stroke-width="1.5" fill="none"/>` +
-    `<circle cx="8" cy="8" r="2" fill="${color}"/>` +
-    `<circle cx="12.6" cy="3.7" r="1.2" fill="${color}"/>` +
-    `</g></svg>`
-  );
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+function renderPixels(size: number, r: number, g: number, b: number, opacity: number): Uint8Array {
+  const pixels = new Uint8Array(size * size * 4);
+  const SAMPLES = 4;
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      let hits = 0;
+      for (let sy = 0; sy < SAMPLES; sy++) {
+        for (let sx = 0; sx < SAMPLES; sx++) {
+          const x = (px + (sx + 0.5) / SAMPLES) / size;
+          const y = (py + (sy + 0.5) / SAMPLES) / size;
+          const dx = x - 0.5, dy = y - 0.5;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          const onRing = d >= OUTER_R - OUTER_HALF_STROKE && d <= OUTER_R + OUTER_HALF_STROKE;
+          const inCenter = d <= CENTER_R;
+          const ox = x - ORBIT_CX, oy = y - ORBIT_CY;
+          const inOrbit = Math.sqrt(ox * ox + oy * oy) <= ORBIT_R;
+          if (onRing || inCenter || inOrbit) hits++;
+        }
+      }
+      const alpha = Math.round((hits / (SAMPLES * SAMPLES)) * opacity * 255);
+      if (alpha > 0) {
+        const i = (py * size + px) * 4;
+        pixels[i] = r; pixels[i + 1] = g; pixels[i + 2] = b; pixels[i + 3] = alpha;
+      }
+    }
+  }
+  return pixels;
+}
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c;
+  }
+  return t;
+})();
+
+function crc32(buf: Buffer): number {
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]!) & 0xFF]! ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+
+function pngChunk(type: string, data: Buffer): Buffer {
+  const t = Buffer.from(type, 'ascii');
+  const len = Buffer.allocUnsafe(4); len.writeUInt32BE(data.length, 0);
+  const crcInput = Buffer.concat([t, data]);
+  const crcBuf = Buffer.allocUnsafe(4); crcBuf.writeUInt32BE(crc32(crcInput), 0);
+  return Buffer.concat([len, t, data, crcBuf]);
+}
+
+function encodePng(size: number, pixels: Uint8Array): Buffer {
+  const row = 1 + size * 4;
+  const raw = Buffer.alloc(size * row);
+  for (let y = 0; y < size; y++) {
+    raw[y * row] = 0; // filter: None
+    for (let x = 0; x < size; x++) {
+      const s = (y * size + x) * 4;
+      const d = y * row + 1 + x * 4;
+      raw[d] = pixels[s]!; raw[d + 1] = pixels[s + 1]!;
+      raw[d + 2] = pixels[s + 2]!; raw[d + 3] = pixels[s + 3]!;
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; ihdr[9] = 6; // 8-bit depth, RGBA color type
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), // PNG signature
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', deflateSync(raw)),
+    pngChunk('IEND', Buffer.alloc(0)),
+  ]);
 }
 
 function buildFrame(color: string, opacity: number): NativeImage {
-  return nativeImage.createFromDataURL(
-    `data:image/svg+xml;charset=utf-8,${encodeURIComponent(makeSvg(color, opacity))}`
-  );
+  const [r, g, b] = hexToRgb(color);
+  const buf = encodePng(32, renderPixels(32, r, g, b, opacity));
+  return nativeImage.createFromBuffer(buf, { scaleFactor: 2.0 });
 }
 
 function buildFrames(color: string): NativeImage[] {
@@ -38,7 +117,7 @@ export class TrayIconController {
   private readonly orangeFrames: NativeImage[];
   private frameIndex = 0;
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
-  private currentState: TrayState | null = null; // null forces state apply on first update()
+  private currentState: TrayState | null = null;
 
   constructor(tray: Tray) {
     this.tray = tray;
