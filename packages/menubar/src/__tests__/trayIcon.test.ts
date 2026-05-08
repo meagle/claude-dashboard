@@ -1,5 +1,15 @@
-import { getTrayLabel, getTrayTooltip } from '../trayIcon';
-import { Session } from '@claude-dashboard/shared';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { TrayIconController } from '../trayIcon';
+import { nativeImage } from 'electron';
+import type { Session } from '@claude-dashboard/shared';
+
+vi.mock('electron', () => ({
+  nativeImage: {
+    createFromDataURL: vi.fn().mockImplementation(() => ({
+      setTemplateImage: vi.fn(),
+    })),
+  },
+}));
 
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
@@ -44,36 +54,190 @@ function makeSession(overrides: Partial<Session> = {}): Session {
   };
 }
 
-describe('getTrayLabel', () => {
-  it('shows lock icon when any session needs permission', () => {
-    const sessions = [makeSession({ status: 'waiting_permission' })];
-    expect(getTrayLabel(sessions)).toBe('🔐 1');
+function makeTray() {
+  return { setImage: vi.fn(), setTitle: vi.fn(), setToolTip: vi.fn() };
+}
+
+describe('TrayIconController', () => {
+  beforeEach(() => {
+    vi.mocked(nativeImage.createFromDataURL).mockClear();
+    vi.useFakeTimers();
   });
 
-  it('shows question mark when any session waiting input (no permission)', () => {
-    const sessions = [makeSession({ status: 'waiting_input' })];
-    expect(getTrayLabel(sessions)).toBe('❓ 1');
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it('shows robot when sessions active (no urgent states)', () => {
-    const sessions = [makeSession({ status: 'active' })];
-    expect(getTrayLabel(sessions)).toBe('🤖 1');
+  it('creates 9 NativeImages at construction (1 idle + 4 green + 4 orange)', () => {
+    const ctrl = new TrayIconController(makeTray() as any);
+    expect(vi.mocked(nativeImage.createFromDataURL)).toHaveBeenCalledTimes(9);
+    ctrl.destroy();
   });
 
-  it('shows checkmark when all done', () => {
-    const sessions = [makeSession({ status: 'done' })];
-    expect(getTrayLabel(sessions)).toBe('✅');
+  it('marks first created image as template image (idle state)', () => {
+    const ctrl = new TrayIconController(makeTray() as any);
+    const idleImg = vi.mocked(nativeImage.createFromDataURL).mock.results[0].value;
+    expect(idleImg.setTemplateImage).toHaveBeenCalledWith(true);
+    ctrl.destroy();
   });
 
-  it('permission takes priority over waiting_input', () => {
-    const sessions = [
-      makeSession({ status: 'waiting_permission' }),
-      makeSession({ sessionId: 'sess-2', status: 'waiting_input' }),
-    ];
-    expect(getTrayLabel(sessions)).toBe('🔐 2');
+  it('sets idle image when update called with no sessions', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    const idleImg = vi.mocked(nativeImage.createFromDataURL).mock.results[0].value;
+    ctrl.update([], false);
+    expect(tray.setImage).toHaveBeenCalledWith(idleImg);
+    ctrl.destroy();
   });
 
-  it('returns robot emoji when no sessions', () => {
-    expect(getTrayLabel([])).toBe('🤖');
+  it('sets tooltip to "Claude Dashboard" with no sessions', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    ctrl.update([], false);
+    expect(tray.setToolTip).toHaveBeenCalledWith('Claude Dashboard');
+    ctrl.destroy();
+  });
+
+  it('sets tooltip to session count when sessions present', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    ctrl.update([makeSession()], false);
+    expect(tray.setToolTip).toHaveBeenCalledWith('Claude Sessions: 1');
+    ctrl.destroy();
+  });
+
+  it('starts animation with green frame for active sessions', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    // results[0] = idle, results[1..4] = green frames
+    const firstGreenFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[1].value;
+    ctrl.update([makeSession({ status: 'active' })], false);
+    expect(tray.setImage).toHaveBeenCalledWith(firstGreenFrame);
+    ctrl.destroy();
+  });
+
+  it('starts animation with orange frame for waiting_permission', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    // results[5..8] = orange frames
+    const firstOrangeFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[5].value;
+    ctrl.update([makeSession({ status: 'waiting_permission' })], false);
+    expect(tray.setImage).toHaveBeenCalledWith(firstOrangeFrame);
+    ctrl.destroy();
+  });
+
+  it('starts animation with orange frame for waiting_input', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    const firstOrangeFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[5].value;
+    ctrl.update([makeSession({ status: 'waiting_input' })], false);
+    expect(tray.setImage).toHaveBeenCalledWith(firstOrangeFrame);
+    ctrl.destroy();
+  });
+
+  it('permission takes priority over active', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    const firstOrangeFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[5].value;
+    ctrl.update([
+      makeSession({ status: 'active' }),
+      makeSession({ sessionId: 'sess-2', status: 'waiting_permission' }),
+    ], false);
+    expect(tray.setImage).toHaveBeenCalledWith(firstOrangeFrame);
+    ctrl.destroy();
+  });
+
+  it('advances to next frame after 500ms', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    const secondGreenFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[2].value;
+    ctrl.update([makeSession({ status: 'active' })], false);
+    tray.setImage.mockClear();
+    vi.advanceTimersByTime(500);
+    expect(tray.setImage).toHaveBeenCalledWith(secondGreenFrame);
+    ctrl.destroy();
+  });
+
+  it('does not restart animation when called again with the same state', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    ctrl.update([makeSession({ status: 'active' })], false);
+    tray.setImage.mockClear();
+    ctrl.update([makeSession({ status: 'active' })], false); // same state, no restart
+    expect(tray.setImage).not.toHaveBeenCalled();
+    ctrl.destroy();
+  });
+
+  it('cycles back to first frame after 4 advances', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    const firstGreenFrame = vi.mocked(nativeImage.createFromDataURL).mock.results[1].value;
+    ctrl.update([makeSession({ status: 'active' })], false);
+    tray.setImage.mockClear();
+    vi.advanceTimersByTime(2000); // 4 × 500ms
+    expect(tray.setImage).toHaveBeenLastCalledWith(firstGreenFrame);
+    ctrl.destroy();
+  });
+
+  it('stops animation and shows idle on transition to idle', () => {
+    const tray = makeTray();
+    const ctrl = new TrayIconController(tray as any);
+    const idleImg = vi.mocked(nativeImage.createFromDataURL).mock.results[0].value;
+    ctrl.update([makeSession({ status: 'active' })], false);
+    ctrl.update([], false); // transition to idle
+    expect(tray.setImage).toHaveBeenCalledWith(idleImg);
+    tray.setImage.mockClear();
+    vi.advanceTimersByTime(2000);
+    expect(tray.setImage).not.toHaveBeenCalled(); // interval was cleared
+    ctrl.destroy();
+  });
+
+  describe('badge count (setTitle)', () => {
+    it('sets title to count when showBadgeCount is true and sessions active', () => {
+      const tray = makeTray();
+      const ctrl = new TrayIconController(tray as any);
+      ctrl.update([makeSession({ status: 'active' })], true);
+      expect(tray.setTitle).toHaveBeenCalledWith('1');
+      ctrl.destroy();
+    });
+
+    it('sets title to empty string when showBadgeCount is false', () => {
+      const tray = makeTray();
+      const ctrl = new TrayIconController(tray as any);
+      ctrl.update([makeSession({ status: 'active' })], false);
+      expect(tray.setTitle).toHaveBeenCalledWith('');
+      ctrl.destroy();
+    });
+
+    it('sets title to empty string when no active sessions even with showBadgeCount true', () => {
+      const tray = makeTray();
+      const ctrl = new TrayIconController(tray as any);
+      ctrl.update([], true);
+      expect(tray.setTitle).toHaveBeenCalledWith('');
+      ctrl.destroy();
+    });
+
+    it('counts active + waiting_permission + waiting_input in badge', () => {
+      const tray = makeTray();
+      const ctrl = new TrayIconController(tray as any);
+      ctrl.update([
+        makeSession({ status: 'active' }),
+        makeSession({ sessionId: 'sess-2', status: 'waiting_permission' }),
+        makeSession({ sessionId: 'sess-3', status: 'waiting_input' }),
+      ], true);
+      expect(tray.setTitle).toHaveBeenCalledWith('3');
+      ctrl.destroy();
+    });
+
+    it('does not count done or idle sessions in badge', () => {
+      const tray = makeTray();
+      const ctrl = new TrayIconController(tray as any);
+      ctrl.update([
+        makeSession({ status: 'done' }),
+        makeSession({ sessionId: 'sess-2', status: 'idle' }),
+      ], true);
+      expect(tray.setTitle).toHaveBeenCalledWith('');
+      ctrl.destroy();
+    });
   });
 });

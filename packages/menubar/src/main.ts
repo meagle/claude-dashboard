@@ -23,7 +23,7 @@ import {
   DEFAULT_CONFIG,
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
-import { getTrayLabel } from "./trayIcon";
+import { TrayIconController } from "./trayIcon";
 
 const MIN_WIDTH_CARD = 530;
 const MIN_WIDTH_COMPACT = 530;
@@ -144,6 +144,7 @@ const isDev =
   !fs.existsSync(path.join(__dirname, "index.html"));
 
 let tray: Tray | null = null;
+let trayIconCtrl: TrayIconController | null = null;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
 let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -244,15 +245,9 @@ function getActiveSessions() {
 }
 
 function updateTray() {
-  if (!tray) return;
+  if (!trayIconCtrl) return;
   const sessions = getActiveSessions();
-  const label = getTrayLabel(sessions);
-  tray.setTitle(label);
-  tray.setToolTip(
-    sessions.length > 0
-      ? `Claude Sessions: ${sessions.length}`
-      : "Claude Dashboard",
-  );
+  trayIconCtrl.update(sessions, showBadgeCount);
 }
 
 async function resizeToContent(
@@ -518,6 +513,7 @@ app.whenReady().then(() => {
 
   const icon = nativeImage.createEmpty();
   tray = new Tray(icon);
+  trayIconCtrl = new TrayIconController(tray);
   tray.on("right-click", () => {
     tray!.popUpContextMenu(
       Menu.buildFromTemplate([
@@ -526,7 +522,9 @@ app.whenReady().then(() => {
     );
   });
 
-  let MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700;
+  let cfg = readConfig(CONFIG_FILE);
+  let MAX_HEIGHT = cfg.maxHeight ?? 700;
+  let showBadgeCount = cfg.showBadgeCount ?? false;
   let cachedHeight = MAX_HEIGHT;
 
   popover = new BrowserWindow({
@@ -635,6 +633,7 @@ app.whenReady().then(() => {
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
     MAX_HEIGHT = updated.maxHeight ?? 700;
+    showBadgeCount = updated.showBadgeCount ?? false;
     updateTray();
     sendSessionsToPopover();
   });
@@ -776,7 +775,9 @@ app.whenReady().then(() => {
   });
   watcher.on("add", updateTray);
   watcher.on("change", () => {
-    MAX_HEIGHT = readConfig(CONFIG_FILE).maxHeight ?? 700;
+    const updatedCfg = readConfig(CONFIG_FILE);
+    MAX_HEIGHT = updatedCfg.maxHeight ?? 700;
+    showBadgeCount = updatedCfg.showBadgeCount ?? false;
     checkNotifications();
     updateTray();
     sendSessionsToPopover();
@@ -820,6 +821,8 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (gitRefreshInterval) clearInterval(gitRefreshInterval);
   if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+  trayIconCtrl?.destroy();
+  trayIconCtrl = null;
   tray?.destroy();
   tray = null;
 });
