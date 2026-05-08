@@ -18,13 +18,15 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - The header shows live activity pills — active, waiting, and loop counts at a glance
 - Click `🕐` to open the session history panel — a 30-day log of completed sessions grouped by day with cost totals
 
-**Tray icon** shows the highest-priority state across all sessions:
-| Icon | Meaning |
-|------|---------|
-| `🔐 2` | Sessions waiting for tool approval |
-| `❓ 1` | Sessions waiting for your input |
-| `🤖 3` | Active sessions (number = count) |
-| `✅` | All sessions done |
+**Tray icon** uses a circle-dot design that matches the dashboard's brand mark and adapts to your menu bar:
+
+| State | Appearance | Meaning |
+|-------|------------|---------|
+| Idle / all done | White template icon | No active sessions (adapts to dark/light menu bar) |
+| Active agents | Green pulsing icon | One or more sessions are running |
+| Permission needed | Orange pulsing icon | A session is waiting for tool approval or input |
+
+If **Show agent count in menu bar** is enabled (off by default), a numeric badge appears next to the icon showing the number of active sessions.
 
 ## Demo
 
@@ -231,6 +233,7 @@ Click `⚙` in the popover to open the settings panel. Options:
 | Compact paths                      | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`)          |
 | Show session cost                  | Display the USD cost in the footer of done cards (API billing only)    |
 | Footer style                       | **Default** shows horizontal stat chips; **Grid** shows a 6-cell labeled grid (Model, Context, Cost, Tokens, Tools, Turns) centered at the bottom of each card |
+| Show agent count in menu bar       | Show a numeric count of active sessions next to the tray icon (off by default) |
 
 Changes take effect immediately — no restart needed.
 

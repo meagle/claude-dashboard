@@ -145,6 +145,7 @@ const isDev =
 
 let tray: Tray | null = null;
 let trayIconCtrl: TrayIconController | null = null;
+let showBadgeCount = false;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
 let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
@@ -524,7 +525,7 @@ app.whenReady().then(() => {
 
   let cfg = readConfig(CONFIG_FILE);
   let MAX_HEIGHT = cfg.maxHeight ?? 700;
-  let showBadgeCount = cfg.showBadgeCount ?? false;
+  showBadgeCount = cfg.showBadgeCount ?? false;
   let cachedHeight = MAX_HEIGHT;
 
   popover = new BrowserWindow({
