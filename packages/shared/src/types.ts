@@ -69,6 +69,7 @@ export interface DashboardConfig {
   theme: 'light' | 'dark';
   notifications: boolean;
   notificationSound: boolean;
+  showBadgeCount: boolean;
   pinnedPanelOpacity?: number;
 }
 
@@ -94,4 +95,5 @@ export const DEFAULT_CONFIG: DashboardConfig = {
   theme: 'light',
   notifications: true,
   notificationSound: true,
+  showBadgeCount: false,
 };
