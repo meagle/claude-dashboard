@@ -11,11 +11,15 @@ const ORBIT_CX = 12.6 / 16;
 const ORBIT_CY = 3.7 / 16;
 const ORBIT_R = 1.2 / 16;
 
-const PULSE_OPACITIES = [1.0, 0.65, 0.4, 0.65] as const;
+const PULSE_FRAME_COUNT = 20;
+// Cosine curve: starts at 1.0, dips to 0.4, returns to 1.0 over 2 seconds
+const PULSE_OPACITIES = Array.from({ length: PULSE_FRAME_COUNT }, (_, i) =>
+  0.7 + 0.3 * Math.cos((2 * Math.PI * i) / PULSE_FRAME_COUNT)
+);
 const GREEN = '#3fb950';
 const ORANGE = '#f0883e';
 const WHITE = '#ffffff';
-const FRAME_MS = 500;
+const FRAME_MS = 100;
 
 type TrayState = 'idle' | 'active' | 'permission';
 
