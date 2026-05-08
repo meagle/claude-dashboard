@@ -21,6 +21,7 @@ interface FormState {
   doneFooter: boolean;
   notifications: boolean;
   notificationSound: boolean;
+  showBadgeCount: boolean;
   footerStyle: "default" | "grid";
   pinnedPanelOpacity: number;
 }
@@ -38,6 +39,7 @@ const DEFAULTS: FormState = {
   doneFooter: true,
   notifications: true,
   notificationSound: true,
+  showBadgeCount: false,
   footerStyle: "default",
   pinnedPanelOpacity: 1,
 };
@@ -103,6 +105,7 @@ export function SettingsPanel({
         doneFooter: config.columns?.doneFooter ?? true,
         notifications: config.notifications ?? true,
         notificationSound: config.notificationSound ?? true,
+        showBadgeCount: config.showBadgeCount ?? false,
         footerStyle: (config.columns?.footerStyle as "default" | "grid" | undefined) ?? "default",
         pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
       });
@@ -115,6 +118,7 @@ export function SettingsPanel({
     theme: f.theme,
     notifications: f.notifications,
     notificationSound: f.notificationSound,
+    showBadgeCount: f.showBadgeCount,
     pinnedPanelOpacity: f.pinnedPanelOpacity,
     columns: {
       gitBranch: f.gitBranch,
@@ -364,6 +368,16 @@ export function SettingsPanel({
           id="notification-sound"
           checked={form.notificationSound}
           onChange={(v) => setAndSave("notificationSound", v)}
+        />
+      </div>
+      <div className={ROW}>
+        <label htmlFor="show-badge-count" className={LABEL}>
+          Show agent count in menu bar
+        </label>
+        <Toggle
+          id="show-badge-count"
+          checked={form.showBadgeCount}
+          onChange={(v) => setAndSave("showBadgeCount", v)}
         />
       </div>
 

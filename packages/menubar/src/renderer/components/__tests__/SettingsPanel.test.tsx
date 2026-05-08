@@ -8,6 +8,7 @@ const mockConfig = {
   staleSessionMinutes: 30,
   notifications: true,
   notificationSound: true,
+  showBadgeCount: false,
   pinnedPanelOpacity: 1,
   columns: {
     gitBranch: true,
@@ -128,6 +129,30 @@ describe('SettingsPanel', () => {
       expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
         'save-config',
         expect.objectContaining({ pinnedPanelOpacity: 0.5 })
+      );
+    });
+  });
+
+  it('reflects showBadgeCount: true from config', async () => {
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve({ ...mockConfig, showBadgeCount: true });
+      return Promise.resolve(undefined);
+    });
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => {
+      const toggle = screen.getByRole('checkbox', { name: /agent count/i }) as HTMLInputElement;
+      expect(toggle.checked).toBe(true);
+    });
+  });
+
+  it('saves showBadgeCount: true when badge toggle is switched on', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('checkbox', { name: /agent count/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /agent count/i }));
+    await waitFor(() => {
+      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
+        'save-config',
+        expect.objectContaining({ showBadgeCount: true })
       );
     });
   });
