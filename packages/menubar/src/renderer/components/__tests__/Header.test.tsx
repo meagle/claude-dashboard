@@ -78,13 +78,8 @@ describe('Header — view mode toggle', () => {
     expect(screen.getByTitle('Switch to compact view')).toBeInTheDocument();
   });
 
-  it('shows "Switch to one-line view" in compact mode', () => {
+  it('shows "Switch to card view" in compact mode', () => {
     render(<Header {...makeProps({ viewMode: 'compact' })} />);
-    expect(screen.getByTitle('Switch to one-line view')).toBeInTheDocument();
-  });
-
-  it('shows "Switch to card view" in one-line mode', () => {
-    render(<Header {...makeProps({ viewMode: 'oneline' })} />);
     expect(screen.getByTitle('Switch to card view')).toBeInTheDocument();
   });
 

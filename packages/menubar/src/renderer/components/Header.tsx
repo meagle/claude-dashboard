@@ -1,7 +1,7 @@
 import React from 'react';
 import { SessionRow } from '../types';
 
-export type ViewMode = 'card' | 'compact' | 'oneline';
+export type ViewMode = 'card' | 'compact';
 
 /* ─── Brand mark ──────────────────────────────────────────────────────────
  * A compact "orbit" mark that echoes the cyan→violet gradient used on
@@ -122,21 +122,10 @@ const COMPACT_ICON = (
   </svg>
 );
 
-// One-line view: evenly-spaced single lines
-const ONELINE_ICON = (
-  <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <rect x="1" y="2.5"  width="14" height="1.5" rx="0.5"/>
-    <rect x="1" y="6.25" width="14" height="1.5" rx="0.5"/>
-    <rect x="1" y="10"   width="14" height="1.5" rx="0.5"/>
-    <rect x="1" y="13.5" width="14" height="1.5" rx="0.5"/>
-  </svg>
-);
-
 // Map: current mode → { next-mode icon, tooltip }
 const VIEW_CYCLE: Record<ViewMode, { icon: React.ReactNode; title: string }> = {
-  card:    { icon: COMPACT_ICON,  title: 'Switch to compact view'  },
-  compact: { icon: ONELINE_ICON,  title: 'Switch to one-line view' },
-  oneline: { icon: CARD_ICON,     title: 'Switch to card view'     },
+  card:    { icon: COMPACT_ICON, title: 'Switch to compact view' },
+  compact: { icon: CARD_ICON,    title: 'Switch to card view'    },
 };
 
 const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150 focus:outline-none';
