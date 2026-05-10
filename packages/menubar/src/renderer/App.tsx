@@ -66,7 +66,6 @@ export function App() {
     return (saved as ViewMode | null) ?? "card";
   });
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
-  const [hovered, setHovered] = useState(false);
   const isDetached = window.location.hash === "#detached";
 
   // Apply saved theme on mount
@@ -143,13 +142,8 @@ export function App() {
 
   return (
     <div
-      className="flex flex-col flex-1 min-h-0 bg-base"
-      style={{
-        opacity: hovered ? 1 : idleOpacity,
-        transition: "opacity 200ms ease",
-      }}
-      onMouseEnter={isDetached ? () => setHovered(true) : undefined}
-      onMouseLeave={isDetached ? () => setHovered(false) : undefined}
+      className={`flex flex-col flex-1 min-h-0 bg-base${isDetached ? " panel-hover-fade" : ""}`}
+      style={isDetached ? ({ "--panel-idle-opacity": idleOpacity } as React.CSSProperties) : undefined}
     >
       <Header
         isDetached={isDetached}
