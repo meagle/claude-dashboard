@@ -54,15 +54,17 @@ export function applyTheme(theme: "light" | "dark") {
   }
 }
 
-const VIEW_ORDER: ViewMode[] = ["card", "compact", "oneline"];
+const VIEW_ORDER: ViewMode[] = ["card", "compact"];
 
 export function App() {
   const { sessions, cardConfig, home } = useSessions();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>(
-    () => (localStorage.getItem("viewMode") as ViewMode | null) ?? "card",
-  );
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem("viewMode");
+    if (saved === "oneline") return "compact";
+    return (saved as ViewMode | null) ?? "card";
+  });
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
   const [hovered, setHovered] = useState(false);
   const isDetached = window.location.hash === "#detached";
@@ -118,8 +120,10 @@ export function App() {
 
   useEffect(() => {
     const handler = (e: StorageEvent) => {
-      if (e.key === "viewMode")
-        setViewMode((e.newValue as ViewMode | null) ?? "card");
+      if (e.key === "viewMode") {
+        const v = e.newValue;
+        setViewMode(v === "oneline" ? "compact" : (v as ViewMode | null) ?? "card");
+      }
     };
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
