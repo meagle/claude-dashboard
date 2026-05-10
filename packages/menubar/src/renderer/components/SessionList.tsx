@@ -4,7 +4,6 @@ import { ipcRenderer, clipboard } from "../utils/electron";
 import { SessionRow, CardConfig } from "../types";
 import { SessionCard } from "./SessionCard";
 import { CompactSessionRow } from "./CompactSessionRow";
-import { OneLineSessionRow } from "./OneLineSessionRow";
 import { ViewMode } from "./Header";
 
 interface SessionListProps {
@@ -51,21 +50,6 @@ export function SessionList({
     return (
       <div className="text-faint text-[13px] text-center py-8">
         No active Claude sessions
-      </div>
-    );
-  }
-
-  if (viewMode === 'oneline') {
-    return (
-      <div className="flex flex-col">
-        {sessions.map((session) => (
-          <OneLineSessionRow
-            key={session.sessionId}
-            session={session}
-            cardConfig={cardConfig}
-            onFocus={handleFocus}
-          />
-        ))}
       </div>
     );
   }

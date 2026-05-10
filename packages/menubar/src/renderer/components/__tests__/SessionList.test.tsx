@@ -69,24 +69,3 @@ describe('SessionList compact mode', () => {
     expect(container.querySelectorAll('[data-session]')).toHaveLength(2);
   });
 });
-
-describe('SessionList one-line mode', () => {
-  it('renders dirName in one-line mode', () => {
-    const sessions = [makeSession({ sessionId: 'a', dirName: 'my-project', status: 'active' })];
-    render(
-      <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" viewMode="oneline" />
-    );
-    expect(screen.getByText('my-project')).toBeInTheDocument();
-  });
-
-  it('renders one row per session in one-line mode', () => {
-    const sessions = [
-      makeSession({ sessionId: 'a', dirName: 'alpha' }),
-      makeSession({ sessionId: 'b', dirName: 'beta' }),
-    ];
-    const { container } = render(
-      <SessionList sessions={sessions} cardConfig={defaultCardConfig} home="/Users/alice" viewMode="oneline" />
-    );
-    expect(container.querySelectorAll('[data-session]')).toHaveLength(2);
-  });
-});
