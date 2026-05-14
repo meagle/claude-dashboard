@@ -49,46 +49,43 @@ afterEach(() => {
 });
 
 describe('App pinned panel opacity', () => {
-  it('applies configured idle opacity in detached mode when not hovered', () => {
+  it('sets --panel-idle-opacity CSS variable to configured value in detached mode', () => {
     window.location.hash = '#detached';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.5);
 
     const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.style.opacity).toBe('0.5');
+    expect(wrapper.style.getPropertyValue('--panel-idle-opacity')).toBe('0.5');
   });
 
-  it('restores full opacity on mouseenter in detached mode', () => {
+  it('applies panel-hover-fade class in detached mode for CSS hover transitions', () => {
     window.location.hash = '#detached';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.5);
 
     const wrapper = container.firstElementChild as HTMLElement;
-    fireEvent.mouseEnter(wrapper);
-    expect(wrapper.style.opacity).toBe('1');
+    expect(wrapper.classList.contains('panel-hover-fade')).toBe(true);
   });
 
-  it('returns to idle opacity on mouseleave in detached mode', () => {
-    window.location.hash = '#detached';
+  it('does not apply panel-hover-fade class when not in detached mode', () => {
+    window.location.hash = '';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.5);
 
     const wrapper = container.firstElementChild as HTMLElement;
-    fireEvent.mouseEnter(wrapper);
-    fireEvent.mouseLeave(wrapper);
-    expect(wrapper.style.opacity).toBe('0.5');
+    expect(wrapper.classList.contains('panel-hover-fade')).toBe(false);
   });
 
-  it('does not apply reduced opacity when not in detached mode', () => {
+  it('does not set --panel-idle-opacity when not in detached mode', () => {
     window.location.hash = '';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.25);
 
     const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.style.opacity).toBe('1');
+    expect(wrapper.style.getPropertyValue('--panel-idle-opacity')).toBe('');
   });
 });
