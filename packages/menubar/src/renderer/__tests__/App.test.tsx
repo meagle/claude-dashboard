@@ -17,6 +17,7 @@ const baseCardConfig: CardConfig = {
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,
+  modelColors: {},
 };
 
 function setupSessionsHandler() {

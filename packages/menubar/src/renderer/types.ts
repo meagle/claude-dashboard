@@ -75,6 +75,7 @@ export interface CardConfig {
   footerStyle: 'default' | 'grid';
   theme: 'light' | 'dark';
   pinnedPanelOpacity: number;
+  modelColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
 }
 
 export interface DashboardConfig {

@@ -26,7 +26,9 @@ export function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
     toolCount: 0,
     totalTokens: null,
     model: null,
+    modelId: null,
     contextPct: null,
+    contextTokens: null,
     bashStartedAt: null,
     gitSummary: null,
     gitAhead: null,
@@ -55,4 +57,5 @@ export const defaultCardConfig: CardConfig = {
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,
+  modelColors: {},
 };

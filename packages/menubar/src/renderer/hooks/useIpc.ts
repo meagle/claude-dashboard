@@ -20,6 +20,11 @@ const DEFAULT_CARD_CONFIG: CardConfig = {
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,
+  modelColors: {
+    'claude-sonnet': { color: '#D97757', badgeStyle: 'A' },
+    'claude-opus':   { color: '#D97757', badgeStyle: 'A' },
+    'claude-haiku':  { color: '#D97757', badgeStyle: 'A' },
+  },
 };
 
 export function useSessions(): SessionsPayload {
