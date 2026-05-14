@@ -4,3 +4,4 @@
 const e = (window as any).require('electron') as typeof import('electron');
 export const ipcRenderer = e.ipcRenderer;
 export const clipboard = e.clipboard;
+export const shell = e.shell;

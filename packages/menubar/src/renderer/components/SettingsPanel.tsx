@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { ipcRenderer } from "../utils/electron";
+import { ipcRenderer, shell } from "../utils/electron";
 import { DashboardConfig, ModelPricingEntry } from "../types";
 
 interface SettingsPanelProps {
@@ -63,6 +63,17 @@ function buildRows(
   return rows;
 }
 
+function isFieldOverridden(
+  row: PricingRow,
+  field: keyof ModelPricingEntry,
+  fetchedPrices: Record<string, ModelPricingEntry>,
+): boolean {
+  if (row.source !== 'custom') return false;
+  const base = fetchedPrices[row.prefix];
+  if (!base) return true; // entirely custom model — all fields are custom
+  return row[field] !== base[field];
+}
+
 const PRICE_FIELDS: Array<{ field: keyof ModelPricingEntry; label: string }> = [
   { field: 'input',      label: 'Input'       },
   { field: 'cacheWrite', label: 'Cache write' },
@@ -83,7 +94,7 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
   const [editValue, setEditValue] = React.useState('');
   const [showAdd, setShowAdd] = React.useState(false);
   const [addForm, setAddForm] = React.useState({ prefix: '', input: '', cacheWrite: '', cacheRead: '', output: '' });
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [confirmReset, setConfirmReset] = React.useState(false);
 
   React.useEffect(() => {
     ipcRenderer.invoke('get-config').then((cfg: { modelPricing?: { fetched?: Record<string, ModelPricingEntry>; custom?: Array<{ prefix: string } & ModelPricingEntry>; fetchedAt?: number } }) => {
@@ -136,20 +147,6 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
     setShowAdd(false);
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      const result = await ipcRenderer.invoke('refresh-pricing') as { fetched?: Record<string, ModelPricingEntry>; custom?: Array<{ prefix: string } & ModelPricingEntry>; fetchedAt?: number } | undefined;
-      if (result) {
-        setFetched(result.fetched ?? {});
-        setCustom(result.custom ?? []);
-        setFetchedAt(result.fetchedAt);
-      }
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
   const rows = buildRows(fetched, custom);
   const lastUpdatedLabel = fetchedAt
     ? (() => {
@@ -168,21 +165,41 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
 
   return (
     <div className="px-3 pt-2 pb-3">
-      <div className="rounded border border-accent/20 bg-accent/5 px-2.5 py-2 text-ui-sm text-faint mb-3 leading-relaxed">
-        Prices are <span className="text-body">API list prices</span> fetched from LiteLLM's community-maintained data. Custom entries override fetched prices. All values are <span className="text-body">per million tokens</span>.
+      <div className="rounded border border-accent/20 bg-accent/5 px-2.5 py-2 text-ui-sm text-faint mb-3 leading-relaxed space-y-1">
+        <div>Prices are fetched from <button onClick={() => shell.openExternal('https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json')} className="font-mono text-[10px] text-accent underline underline-offset-2 bg-transparent border-none cursor-pointer p-0 hover:opacity-70 transition-opacity break-all">raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json</button>, a community-maintained list of API list prices. All values are <span className="text-body">per million tokens</span>.</div>
+        <div><span className="text-body">Click any price to edit it.</span> Edited values are saved as custom overrides — marked with an <span className="text-[#d97706]">●</span> orange dot and always take priority over fetched prices. Use <span className="text-body">Reset overrides</span> to clear them and restore fetched prices.</div>
       </div>
 
       <div className="flex justify-between items-center mb-1.5">
         <span className="text-ui-sm text-fainter uppercase tracking-wide">Model Pricing</span>
-        <span className="text-ui-sm text-fainter flex items-center gap-1.5">
+        <span className="text-ui-sm text-fainter flex items-center gap-2">
           {lastUpdatedLabel && <span>Updated {lastUpdatedLabel}</span>}
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="text-accent bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity disabled:opacity-40"
-          >
-            {refreshing ? '…' : '↻ Refresh'}
-          </button>
+          {custom.length > 0 && (
+            confirmReset ? (
+              <span className="flex items-center gap-1.5">
+                <span className="text-[#d97706]">Clear all overrides?</span>
+                <button
+                  onClick={() => { savePricing(fetched, []); setConfirmReset(false); }}
+                  className="text-bright bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity font-semibold"
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setConfirmReset(false)}
+                  className="text-soft bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity"
+                >
+                  No
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmReset(true)}
+                className="text-[#d97706] bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity"
+              >
+                Reset overrides
+              </button>
+            )
+          )}
         </span>
       </div>
 
@@ -218,10 +235,11 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
                     />
                   ) : (
                     <span
-                      className="cursor-pointer hover:text-bright transition-colors"
+                      className="cursor-pointer hover:text-bright transition-colors inline-flex items-center gap-1 justify-end w-full"
                       onClick={() => { setEditCell({ prefix: row.prefix, field }); setEditValue(String(row[field])); }}
                     >
                       ${row[field]}
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${isFieldOverridden(row, field, fetched) ? 'bg-[#d97706]' : 'opacity-0'}`} />
                     </span>
                   )}
                 </td>
@@ -240,6 +258,13 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
           ))}
         </tbody>
       </table>
+
+      {custom.length > 0 && (
+        <div className="flex items-center gap-1.5 mt-1.5 text-ui-sm text-fainter">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#d97706] flex-shrink-0" />
+          <span>Overridden value — takes priority over the fetched price</span>
+        </div>
+      )}
 
       {showAdd ? (
         <div className="mt-2 border border-line rounded p-2.5 bg-surface">
