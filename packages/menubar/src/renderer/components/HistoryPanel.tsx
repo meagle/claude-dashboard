@@ -659,7 +659,7 @@ export function HistoryPanel({ showCost, home, modelColors }: HistoryPanelProps)
       )}
 
       {view === 'charts' ? (
-        <HistoryCharts rows={history} onFilter={handleChartFilter} presetRange={range} />
+        <HistoryCharts rows={history} onFilter={handleChartFilter} presetRange={range} modelColors={modelColors} />
       ) : (
         <div className="flex flex-col gap-4 px-2 py-2 overflow-y-auto flex-1 min-h-0">
           {groups.length === 0 ? (

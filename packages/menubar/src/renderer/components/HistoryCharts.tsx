@@ -5,6 +5,7 @@ import {
   fmtCost, fmtTokens, dayKey,
   DayBucket, DonutSegment,
 } from './charts/ChartPrimitives';
+import { modelColorFromConfig } from '../utils/modelColors';
 
 /* ─── Types ────────────────────────────────────────────────────────────── */
 
@@ -23,6 +24,7 @@ interface HistoryChartsProps {
   rows: HistoryRow[];
   onFilter: (f: HistoryChartsFilter) => void;
   presetRange?: HistoryChartsPreset;
+  modelColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
 }
 
 /* Map a FilterBar preset → brush window [from,to], clamped to data extent.
@@ -58,15 +60,31 @@ const PROJECT_PALETTE = [
   '#d9a4ff',
 ];
 
-function buildModelColors(rows: HistoryRow[]): Record<string, string> {
+function buildModelColors(
+  rows: HistoryRow[],
+  configColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>,
+): Record<string, string> {
   const sums = new Map<string, number>();
   for (const r of rows) {
     const k = shortModel(r.model);
     sums.set(k, (sums.get(k) || 0) + (r.costUsd || 0));
   }
   const order = [...sums.entries()].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+
+  // Build shortModelName → configured color via prefix matching on raw model strings
+  const configuredColors: Record<string, string> = {};
+  for (const r of rows) {
+    const shortName = shortModel(r.model);
+    if (r.model && !(shortName in configuredColors)) {
+      const entry = modelColorFromConfig(r.model, configColors);
+      if (entry) configuredColors[shortName] = entry.color;
+    }
+  }
+
   const map: Record<string, string> = {};
-  order.forEach((k, i) => { map[k] = PROJECT_PALETTE[i % PROJECT_PALETTE.length]; });
+  order.forEach((shortName, i) => {
+    map[shortName] = configuredColors[shortName] ?? PROJECT_PALETTE[i % PROJECT_PALETTE.length];
+  });
   return map;
 }
 
@@ -330,13 +348,16 @@ function BrushedTimeline({
 
 /* ─── HistoryCharts ────────────────────────────────────────────────────── */
 
-export function HistoryCharts({ rows, onFilter, presetRange }: HistoryChartsProps) {
+export function HistoryCharts({ rows, onFilter, presetRange, modelColors }: HistoryChartsProps) {
   const [mode, setMode] = useState<'summary' | 'analyze'>('summary');
   const [segmentBy, setSegmentBy] = useState<'model' | 'project'>('model');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
   const projectColors = useMemo(() => buildProjectColors(rows), [rows]);
-  const modelColors   = useMemo(() => buildModelColors(rows), [rows]);
+  const chartModelColors = useMemo(
+    () => buildModelColors(rows, modelColors),
+    [rows, modelColors],
+  );
 
   const fullRange = useMemo<[number, number]>(() => {
     if (rows.length === 0) return [Date.now(), Date.now()];
@@ -390,12 +411,12 @@ export function HistoryCharts({ rows, onFilter, presetRange }: HistoryChartsProp
     const map = new Map<string, DonutSegment>();
     for (const r of agg.inRange) {
       const k = shortModel(r.model);
-      const cur = map.get(k) || { key: k, label: k, value: 0, color: modelColors[k] || 'var(--color-fainter)' };
+      const cur = map.get(k) || { key: k, label: k, value: 0, color: chartModelColors[k] || 'var(--color-fainter)' };
       cur.value += r.costUsd || 0;
       map.set(k, cur);
     }
     return [...map.values()].filter(x => x.value > 0).sort((a, b) => b.value - a.value);
-  }, [agg.inRange, modelColors]);
+  }, [agg.inRange, chartModelColors]);
 
   const heatmap = useMemo(() => {
     const grid: number[][] = Array.from({ length: 7 }, () => Array(24).fill(0));
@@ -485,7 +506,7 @@ export function HistoryCharts({ rows, onFilter, presetRange }: HistoryChartsProp
           range={range}
           onRange={setRange}
           projectColors={projectColors}
-          modelColors={modelColors}
+          modelColors={chartModelColors}
           segmentBy={segmentBy}
           onSelectDay={handleDaySelect}
           selectedDay={selectedDay}
