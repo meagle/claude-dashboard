@@ -21,6 +21,7 @@ import {
   readHistory,
   readConfig,
   DEFAULT_CONFIG,
+  modelContextWindowFromConfig,
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
 import { TrayIconController } from "./trayIcon";
@@ -507,6 +508,29 @@ if (!gotLock) {
   process.exit(0);
 }
 
+function readContextTokensFromTranscript(
+  transcriptPath: string,
+): { contextTokens: number; modelId: string } | null {
+  try {
+    const content = fs.readFileSync(transcriptPath, 'utf8');
+    const lines = content.split('\n').filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const entry = JSON.parse(lines[i]) as Record<string, unknown>;
+        const msg = (entry.message ?? {}) as Record<string, unknown>;
+        if (entry.type === 'assistant' && typeof msg.model === 'string' && msg.model !== '<synthetic>') {
+          const u = (msg.usage ?? {}) as Record<string, unknown>;
+          const cr = typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : 0;
+          const cw = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
+          const ct = (typeof u.input_tokens === 'number' ? u.input_tokens : 0) + cr + cw;
+          return ct > 0 ? { contextTokens: ct, modelId: msg.model } : null;
+        }
+      } catch { /* skip malformed line */ }
+    }
+  } catch { /* file unreadable */ }
+  return null;
+}
+
 function litellmModelToPrefix(modelId: string): string | null {
   const m = modelId.match(/^(claude-(?:opus|sonnet|haiku)-\d+)/);
   return m ? m[1] : null;
@@ -523,43 +547,65 @@ async function fetchAndCacheLiteLLMPricing(): Promise<void> {
         try {
           const json = JSON.parse(data) as Record<string, Record<string, unknown>>;
           const byPrefix: Record<string, { minor: number; entry: import('@claude-dashboard/shared').ModelPricingEntry }> = {};
+          const byPrefixCtx: Record<string, { minor: number; contextWindow: number }> = {};
           for (const [modelId, v] of Object.entries(json)) {
             if (!modelId.startsWith('claude-')) continue;
             const prefix = litellmModelToPrefix(modelId);
             if (!prefix) continue;
+            const minorMatch = modelId.match(/claude-(?:opus|sonnet|haiku)-\d+-(\d+)/);
+            const minor = minorMatch ? parseInt(minorMatch[1], 10) : 0;
+
             const inp = typeof v.input_cost_per_token === 'number' ? v.input_cost_per_token * 1_000_000 : null;
             const out = typeof v.output_cost_per_token === 'number' ? v.output_cost_per_token * 1_000_000 : null;
             const cw  = typeof v.cache_creation_input_token_cost === 'number' ? v.cache_creation_input_token_cost * 1_000_000 : null;
             const cr  = typeof v.cache_read_input_token_cost === 'number' ? v.cache_read_input_token_cost * 1_000_000 : null;
-            if (inp == null || out == null) continue;
-            const minorMatch = modelId.match(/claude-(?:opus|sonnet|haiku)-\d+-(\d+)/);
-            const minor = minorMatch ? parseInt(minorMatch[1], 10) : 0;
-            const existing = byPrefix[prefix];
-            if (!existing || minor > existing.minor) {
-              byPrefix[prefix] = {
-                minor,
-                entry: {
-                  input: Math.round(inp * 10000) / 10000,
-                  output: Math.round(out * 10000) / 10000,
-                  cacheWrite: Math.round((cw ?? inp * 1.25) * 10000) / 10000,
-                  cacheRead: Math.round((cr ?? inp * 0.1) * 10000) / 10000,
-                },
-              };
+            if (inp != null && out != null) {
+              const existing = byPrefix[prefix];
+              if (!existing || minor > existing.minor) {
+                byPrefix[prefix] = {
+                  minor,
+                  entry: {
+                    input: Math.round(inp * 10000) / 10000,
+                    output: Math.round(out * 10000) / 10000,
+                    cacheWrite: Math.round((cw ?? inp * 1.25) * 10000) / 10000,
+                    cacheRead: Math.round((cr ?? inp * 0.1) * 10000) / 10000,
+                  },
+                };
+              }
+            }
+
+            const ctx = typeof v.max_input_tokens === 'number' ? v.max_input_tokens : null;
+            if (ctx != null) {
+              const existingCtx = byPrefixCtx[prefix];
+              if (!existingCtx || minor > existingCtx.minor) {
+                byPrefixCtx[prefix] = { minor, contextWindow: ctx };
+              }
             }
           }
           const fetched: Record<string, import('@claude-dashboard/shared').ModelPricingEntry> = {};
           for (const [prefix, { entry }] of Object.entries(byPrefix)) {
             fetched[prefix] = entry;
           }
-          if (Object.keys(fetched).length === 0) { resolve(); return; }
+          const fetchedCtx: Record<string, number> = {};
+          for (const [prefix, { contextWindow }] of Object.entries(byPrefixCtx)) {
+            fetchedCtx[prefix] = contextWindow;
+          }
+          if (Object.keys(fetched).length === 0 && Object.keys(fetchedCtx).length === 0) { resolve(); return; }
           const current = readConfig(CONFIG_FILE);
+          const fetchedAt = Date.now();
           const updated = {
             ...current,
             modelPricing: {
               custom: current.modelPricing?.custom ?? [],
               ...current.modelPricing,
               fetched,
-              fetchedAt: Date.now(),
+              fetchedAt,
+            },
+            modelContextWindows: {
+              custom: current.modelContextWindows?.custom ?? [],
+              ...current.modelContextWindows,
+              fetched: fetchedCtx,
+              fetchedAt,
             },
           };
           fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
@@ -594,7 +640,8 @@ app.whenReady().then(() => {
   let cfg = readConfig(CONFIG_FILE);
   const now = Date.now();
   const fetchedAt = cfg.modelPricing?.fetchedAt ?? 0;
-  if (now - fetchedAt > 24 * 60 * 60 * 1000) {
+  const contextWindowsEmpty = Object.keys(cfg.modelContextWindows?.fetched ?? {}).length === 0;
+  if (now - fetchedAt > 24 * 60 * 60 * 1000 || contextWindowsEmpty) {
     fetchAndCacheLiteLLMPricing().catch(() => {});
   }
   let MAX_HEIGHT = cfg.maxHeight ?? 700;
@@ -695,6 +742,7 @@ app.whenReady().then(() => {
   ipcMain.handle("save-config", (_event, partial: Record<string, unknown>) => {
     const current = readConfig(CONFIG_FILE);
     const partialPricing = partial.modelPricing as typeof current.modelPricing | undefined;
+    const partialContextWindows = partial.modelContextWindows as typeof current.modelContextWindows | undefined;
     const updated = {
       ...DEFAULT_CONFIG,
       ...current,
@@ -707,6 +755,9 @@ app.whenReady().then(() => {
       modelPricing: partialPricing != null
         ? { ...(current.modelPricing ?? { fetched: {}, custom: [] }), ...partialPricing }
         : current.modelPricing,
+      modelContextWindows: partialContextWindows != null
+        ? { ...(current.modelContextWindows ?? { fetched: {}, custom: [] }), ...partialContextWindows }
+        : current.modelContextWindows,
     };
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
@@ -716,12 +767,44 @@ app.whenReady().then(() => {
       detachedPanel.setOpacity(updated.pinnedPanelOpacity ?? 1);
     }
     updateTray();
+    // When context window overrides change, recalculate contextPct for all sessions
+    // immediately so cards update without waiting for the next Claude Code event.
+    if (partialContextWindows != null) {
+      const allSessions = readSessions(SESSIONS_FILE);
+      let changed = false;
+      for (const s of allSessions) {
+        // Sessions created before contextTokens/modelId were added lack these fields.
+        // Fall back to reading them directly from the transcript.
+        if ((s.contextTokens == null || s.modelId == null) && s.transcriptPath) {
+          const fromTranscript = readContextTokensFromTranscript(s.transcriptPath);
+          if (fromTranscript) {
+            s.contextTokens = fromTranscript.contextTokens;
+            s.modelId = fromTranscript.modelId;
+            changed = true;
+          }
+        }
+        if (s.contextTokens != null && s.modelId != null) {
+          const windowSize = modelContextWindowFromConfig(s.modelId, updated);
+          const newPct = Math.min(100, Math.round((s.contextTokens / windowSize) * 100));
+          if (s.contextPct !== newPct) {
+            s.contextPct = newPct;
+            changed = true;
+          }
+        }
+      }
+      if (changed) writeSessions(SESSIONS_FILE, allSessions);
+    }
     sendSessionsToPopover();
   });
 
   ipcMain.handle("refresh-pricing", async () => {
     await fetchAndCacheLiteLLMPricing();
     return readConfig(CONFIG_FILE).modelPricing;
+  });
+
+  ipcMain.handle("refresh-context-windows", async () => {
+    await fetchAndCacheLiteLLMPricing();
+    return readConfig(CONFIG_FILE).modelContextWindows;
   });
 
   ipcMain.handle("get-history", () => readHistory(HISTORY_FILE));

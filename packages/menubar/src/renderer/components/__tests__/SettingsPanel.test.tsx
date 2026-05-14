@@ -26,6 +26,14 @@ const mockConfig = {
     custom: [],
     fetchedAt: Date.now() - 1000,
   },
+  modelContextWindows: {
+    fetched: {
+      'claude-sonnet-4-6': 1_000_000,
+      'claude-opus-4-6': 1_000_000,
+    },
+    custom: [],
+    fetchedAt: Date.now() - 1000,
+  },
 };
 
 beforeEach(() => {
@@ -166,11 +174,12 @@ describe('SettingsPanel', () => {
 });
 
 describe('SettingsPanel — tab navigation', () => {
-  it('shows General and Cost tabs', async () => {
+  it('shows General, Cost, and Models tabs', async () => {
     render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'General' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cost' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Models' })).toBeInTheDocument();
     });
   });
 
@@ -202,6 +211,130 @@ describe('SettingsPanel — tab navigation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cost' }));
     await waitFor(() => {
       expect(screen.getByLabelText(/Show session cost/i)).toBeInTheDocument();
+    });
+  });
+
+  it('switches to Models tab and shows fetched context windows', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }));
+    await waitFor(() => {
+      expect(screen.getByText('claude-sonnet-4-6')).toBeInTheDocument();
+      expect(screen.getAllByText('1,000,000').length).toBeGreaterThan(0);
+    });
+  });
+
+  it('does not show stale timeout on Models tab', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }));
+    await waitFor(() => screen.getByText('claude-sonnet-4-6'));
+    expect(screen.queryByText(/Stale session timeout/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('SettingsPanel — Models tab overrides', () => {
+  beforeEach(() => {
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(mockConfig);
+      return Promise.resolve(undefined);
+    });
+  });
+
+  it('shows orange dot on overridden context window', async () => {
+    const configWithOverride = {
+      ...mockConfig,
+      modelContextWindows: {
+        fetched: { 'claude-sonnet-4-6': 1_000_000 },
+        custom: [{ prefix: 'claude-sonnet-4-6', contextWindow: 200_000 }],
+        fetchedAt: Date.now() - 1000,
+      },
+    };
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(configWithOverride);
+      return Promise.resolve(undefined);
+    });
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }));
+    await waitFor(() => screen.getByText('200,000'));
+    // Orange dot is visible (not opacity-0)
+    const dots = document.querySelectorAll('.bg-\\[\\#d97706\\]');
+    expect(dots.length).toBeGreaterThan(0);
+  });
+
+  it('shows Reset overrides button when custom entries exist', async () => {
+    const configWithOverride = {
+      ...mockConfig,
+      modelContextWindows: {
+        fetched: { 'claude-sonnet-4-6': 1_000_000 },
+        custom: [{ prefix: 'claude-sonnet-4-6', contextWindow: 200_000 }],
+        fetchedAt: Date.now() - 1000,
+      },
+    };
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(configWithOverride);
+      return Promise.resolve(undefined);
+    });
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Reset overrides' })).toBeInTheDocument();
+    });
+  });
+
+  it('shows confirmation step when Reset overrides is clicked', async () => {
+    const configWithOverride = {
+      ...mockConfig,
+      modelContextWindows: {
+        fetched: { 'claude-sonnet-4-6': 1_000_000 },
+        custom: [{ prefix: 'claude-sonnet-4-6', contextWindow: 200_000 }],
+        fetchedAt: Date.now() - 1000,
+      },
+    };
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(configWithOverride);
+      return Promise.resolve(undefined);
+    });
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }));
+    await waitFor(() => screen.getByRole('button', { name: 'Reset overrides' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset overrides' }));
+    await waitFor(() => {
+      expect(screen.getByText('Clear all overrides?')).toBeInTheDocument();
+      expect(screen.getByText('Yes')).toBeInTheDocument();
+    });
+  });
+
+  it('saves empty custom array when reset is confirmed', async () => {
+    const configWithOverride = {
+      ...mockConfig,
+      modelContextWindows: {
+        fetched: { 'claude-sonnet-4-6': 1_000_000 },
+        custom: [{ prefix: 'claude-sonnet-4-6', contextWindow: 200_000 }],
+        fetchedAt: Date.now() - 1000,
+      },
+    };
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve(configWithOverride);
+      return Promise.resolve(undefined);
+    });
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Models' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Models' }));
+    await waitFor(() => screen.getByRole('button', { name: 'Reset overrides' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset overrides' }));
+    await waitFor(() => screen.getByText('Yes'));
+    fireEvent.click(screen.getByText('Yes'));
+    await waitFor(() => {
+      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
+        'save-config',
+        expect.objectContaining({
+          modelContextWindows: expect.objectContaining({ custom: [] }),
+        })
+      );
     });
   });
 });

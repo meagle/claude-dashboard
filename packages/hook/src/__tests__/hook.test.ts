@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { processHookEvent, HookEvent, modelPricingFromConfig, calcTurnCost } from '../hook';
-import { readSessions } from '@claude-dashboard/shared';
+import { readSessions, modelContextWindowFromConfig } from '@claude-dashboard/shared';
 import { Session, DashboardConfig } from '@claude-dashboard/shared';
 
 function writeTranscript(dir: string, entries: object[]): string {
@@ -53,7 +53,9 @@ function makeSession(overrides: Partial<Session> = {}): Session {
     toolCount: 0,
     totalTokens: null,
     model: null,
+    modelId: null,
     contextPct: null,
+    contextTokens: null,
     bashStartedAt: null,
     gitSummary: null,
     gitAhead: null,
@@ -225,7 +227,9 @@ describe('processHookEvent — user-prompt', () => {
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.model).toBe('Haiku 4.5');
+    expect(s.modelId).toBe('claude-haiku-4-5-20251001');
     expect(s.contextPct).toBe(5); // 10000 / 200000 = 5%
+    expect(s.contextTokens).toBe(10000);
   });
 
   it('un-dismisses a dismissed session', () => {
@@ -443,5 +447,78 @@ describe('modelPricingFromConfig', () => {
   it('returns null for unknown model with no config override', () => {
     const p = modelPricingFromConfig('unknown-model-xyz', baseConfig);
     expect(p).toBeNull();
+  });
+});
+
+describe('modelContextWindowFromConfig', () => {
+  const baseConfig: DashboardConfig = {
+    columns: { elapsedTime: true, gitBranch: true, changedFiles: true, cost: false, subagents: true, lastAction: true, compactPaths: true, doneFooter: true, footerStyle: 'default' },
+    staleSessionMinutes: 30,
+    maxHeight: 700,
+    theme: 'light',
+    notifications: true,
+    notificationSound: true,
+    showBadgeCount: false,
+  };
+
+  it('returns 200000 default when no config and no known window', () => {
+    expect(modelContextWindowFromConfig('claude-haiku-4-5', baseConfig)).toBe(200_000);
+  });
+
+  it('returns hardcoded 1M for models in KNOWN_CONTEXT_WINDOWS when no config override', () => {
+    expect(modelContextWindowFromConfig('claude-opus-4-6', baseConfig)).toBe(1_000_000);
+    expect(modelContextWindowFromConfig('claude-sonnet-4-6', baseConfig)).toBe(1_000_000);
+  });
+
+  it('returns fetched value when config has fetched entry matching prefix', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelContextWindows: {
+        fetched: { 'claude-sonnet-4-6': 200_000 },
+        custom: [],
+      },
+    };
+    expect(modelContextWindowFromConfig('claude-sonnet-4-6-20250514', cfg)).toBe(200_000);
+  });
+
+  it('custom entry overrides fetched entry for same prefix', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelContextWindows: {
+        fetched: { 'claude-sonnet-4-6': 1_000_000 },
+        custom: [{ prefix: 'claude-sonnet-4-6', contextWindow: 200_000 }],
+      },
+    };
+    expect(modelContextWindowFromConfig('claude-sonnet-4-6-20250514', cfg)).toBe(200_000);
+  });
+
+  it('prefix matching — model variant matches parent prefix', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelContextWindows: {
+        fetched: { 'claude-haiku-4': 100_000 },
+        custom: [],
+      },
+    };
+    expect(modelContextWindowFromConfig('claude-haiku-4-5-20251001', cfg)).toBe(100_000);
+  });
+
+  it('custom entry with unknown prefix matches model by prefix', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelContextWindows: {
+        fetched: {},
+        custom: [{ prefix: 'my-proxy', contextWindow: 50_000 }],
+      },
+    };
+    expect(modelContextWindowFromConfig('my-proxy-v2', cfg)).toBe(50_000);
+  });
+
+  it('falls back to DEFAULT_CONTEXT_WINDOW for unknown model with no config', () => {
+    expect(modelContextWindowFromConfig('unknown-model-xyz', baseConfig)).toBe(200_000);
+  });
+
+  it('falls back to DEFAULT_CONTEXT_WINDOW when no config provided', () => {
+    expect(modelContextWindowFromConfig('unknown-model-xyz')).toBe(200_000);
   });
 });

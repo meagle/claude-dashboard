@@ -213,7 +213,7 @@ History is stored at `~/.config/claude-dashboard/history.json` and entries older
 
 ## Settings
 
-Click `⚙` in the popover to open the settings panel. The panel has two tabs: **General** and **Cost**.
+Click `⚙` in the popover to open the settings panel. The panel has three tabs: **General**, **Cost**, and **Models**.
 
 ### General tab
 
@@ -237,6 +237,13 @@ Click `⚙` in the popover to open the settings panel. The panel has two tabs: *
 - **Custom model prefixes** — add pricing for proxy models or future Claude versions using the **+ Add custom model** form. Custom entries take precedence over fetched prices.
 - **↻ Refresh** — force re-fetch the latest pricing from LiteLLM immediately.
 - **Show session cost** — display the estimated USD cost in the footer of done cards. API billing only — not meaningful on Pro or Max subscriptions.
+
+### Models tab
+
+- **Context window table** — shows the maximum context window (tokens) for each Claude model prefix, auto-fetched from LiteLLM on startup. Click any value to edit it inline; edited values are saved as custom overrides marked with an orange dot.
+- **Why this matters** — the context % shown on session cards is calculated against this window size. If your plan (e.g. Claude Pro) has a smaller context limit than the API default, override the model prefix here to get accurate readings.
+- **Custom model prefixes** — add context window sizes for proxy models or future Claude versions using the **+ Add custom model** form.
+- **Reset overrides** — clears all custom context window overrides and restores fetched values.
 
 Changes take effect immediately — no restart needed.
 

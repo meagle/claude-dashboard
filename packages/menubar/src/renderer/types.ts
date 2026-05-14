@@ -41,7 +41,9 @@ export interface SessionRow {
   toolCount: number;
   totalTokens: number | null;
   model: string | null;
+  modelId: string | null;
   contextPct: number | null;
+  contextTokens: number | null;
   bashStartedAt: number | null;
   gitSummary: string | null;
   gitAhead: number | null;
@@ -96,6 +98,11 @@ export interface DashboardConfig {
   modelPricing?: {
     fetched: Record<string, ModelPricingEntry>;
     custom: Array<{ prefix: string } & ModelPricingEntry>;
+    fetchedAt?: number;
+  };
+  modelContextWindows?: {
+    fetched: Record<string, number>;
+    custom: Array<{ prefix: string; contextWindow: number }>;
     fetchedAt?: number;
   };
 }

@@ -35,7 +35,9 @@ export interface Session {
   toolCount: number;            // total pre-tool events fired this session
   totalTokens: number | null;   // cumulative input + output tokens across all turns
   model: string | null;
+  modelId: string | null;
   contextPct: number | null;
+  contextTokens: number | null;
   bashStartedAt: number | null; // epoch ms when a Bash tool started (for stuck detection)
   gitSummary: string | null;    // e.g. "3 files changed, +42 -7"
   gitAhead: number | null;      // commits ahead of upstream
@@ -56,6 +58,36 @@ export interface ModelPricingEntry {
   cacheWrite: number;
   cacheRead: number;
   output: number;
+}
+
+export const DEFAULT_CONTEXT_WINDOW = 200_000;
+
+// Only models with non-200k context windows need entries here.
+export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
+  'claude-opus-4-7':   1_000_000,
+  'claude-opus-4-6':   1_000_000,
+  'claude-sonnet-4-6': 1_000_000,
+};
+
+export function modelContextWindowFromConfig(
+  modelId: string,
+  cfg?: DashboardConfig,
+): number {
+  if (cfg?.modelContextWindows?.custom) {
+    const sorted = [...cfg.modelContextWindows.custom].sort(
+      (a, b) => b.prefix.length - a.prefix.length,
+    );
+    const match = sorted.find((e) => modelId.startsWith(e.prefix));
+    if (match) return match.contextWindow;
+  }
+  if (cfg?.modelContextWindows?.fetched) {
+    const sorted = Object.entries(cfg.modelContextWindows.fetched).sort(
+      (a, b) => b[0].length - a[0].length,
+    );
+    const match = sorted.find(([prefix]) => modelId.startsWith(prefix));
+    if (match) return match[1];
+  }
+  return KNOWN_CONTEXT_WINDOWS[modelId] ?? DEFAULT_CONTEXT_WINDOW;
 }
 
 export interface DashboardConfig {
@@ -81,6 +113,11 @@ export interface DashboardConfig {
   modelPricing?: {
     fetched: Record<string, ModelPricingEntry>;
     custom: Array<{ prefix: string } & ModelPricingEntry>;
+    fetchedAt?: number;
+  };
+  modelContextWindows?: {
+    fetched: Record<string, number>;
+    custom: Array<{ prefix: string; contextWindow: number }>;
     fetchedAt?: number;
   };
 }

@@ -10,6 +10,9 @@ import {
   SubagentSummary,
   readConfig,
   ModelPricingEntry,
+  DEFAULT_CONTEXT_WINDOW,
+  KNOWN_CONTEXT_WINDOWS,
+  modelContextWindowFromConfig,
 } from '@claude-dashboard/shared';
 
 export type HookEvent =
@@ -61,18 +64,7 @@ export type HookEvent =
 
 const LOOP_THRESHOLD = 5;
 
-const DEFAULT_CONTEXT_WINDOW = 200_000;
 
-// Only models with non-200k context windows need entries here.
-const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
-  'claude-opus-4-7':   1_000_000,
-  'claude-opus-4-6':   1_000_000,
-  'claude-sonnet-4-6': 1_000_000,
-};
-
-function getModelContextWindow(modelId: string): number {
-  return KNOWN_CONTEXT_WINDOWS[modelId] ?? DEFAULT_CONTEXT_WINDOW;
-}
 
 function modelDisplayName(modelId: string): string {
   // Model IDs use dashes: claude-sonnet-4-6, claude-haiku-4-5-20251001
@@ -134,14 +126,16 @@ export function calcTurnCost(usage: Record<string, unknown>, modelId: string, cf
 interface TranscriptStats {
   text: string | null;
   model: string | null;
+  modelId: string | null;
   contextPct: number | null;
+  contextTokens: number | null;
   turns: number | null;
   costUsd: number | null;
   totalTokens: number | null;
 }
 
 const EMPTY_STATS: TranscriptStats = {
-  text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null,
+  text: null, model: null, modelId: null, contextPct: null, contextTokens: null, turns: null, costUsd: null, totalTokens: null,
 };
 
 function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
@@ -152,7 +146,9 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
 
     let text: string | null = null;
     let model: string | null = null;
+    let rawModelId: string | null = null;
     let contextPct: number | null = null;
+    let contextTokens: number | null = null;
     let turns = 0;
     let costUsd = 0;
     let cumulativeTokens = 0;
@@ -176,9 +172,11 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
             const lastTurnTokens =
               (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
               cacheRead + cacheCreate;
+            contextTokens = lastTurnTokens > 0 ? lastTurnTokens : null;
             contextPct = modelId && lastTurnTokens > 0
-              ? Math.min(100, Math.round((lastTurnTokens / getModelContextWindow(modelId)) * 100))
+              ? Math.min(100, Math.round((lastTurnTokens / modelContextWindowFromConfig(modelId, cfg)) * 100))
               : null;
+            rawModelId = modelId;
             model = modelId ? modelDisplayName(modelId) : null;
           }
           // Scan backwards within the current turn for the most recent text block.
@@ -225,7 +223,9 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
     return {
       text,
       model,
+      modelId: rawModelId,
       contextPct,
+      contextTokens,
       turns: turns > 0 ? turns : null,
       costUsd: costUsd > 0 ? Math.round(costUsd * 10000) / 10000 : null,
       totalTokens: cumulativeTokens > 0 ? cumulativeTokens : null,
@@ -368,7 +368,9 @@ function makeNewSession(event: { sessionId: string; pid: number; termSessionId: 
     toolCount: 0,
     totalTokens: null,
     model: null,
+    modelId: null,
     contextPct: null,
+    contextTokens: null,
     bashStartedAt: null,
     gitSummary: null,
     gitAhead: null,
@@ -436,7 +438,9 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(event.prompt && !event.prompt.startsWith('<') ? { lastPrompt: event.prompt } : {}),
       ...(stats.text ? { lastMessage: stats.text } : {}),
       ...(stats.model ? { model: stats.model } : {}),
+      ...(stats.modelId ? { modelId: stats.modelId } : {}),
       ...(stats.contextPct !== null ? { contextPct: stats.contextPct } : {}),
+      ...(stats.contextTokens !== null ? { contextTokens: stats.contextTokens } : {}),
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
@@ -467,7 +471,9 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       lastActivity: now,
       ...(freshPartial ? { partialResponse: freshPartial } : {}),
       ...(stats.contextPct !== null ? { contextPct: stats.contextPct } : {}),
+      ...(stats.contextTokens !== null ? { contextTokens: stats.contextTokens } : {}),
       ...(stats.model ? { model: stats.model } : {}),
+      ...(stats.modelId ? { modelId: stats.modelId } : {}),
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
@@ -554,7 +560,9 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       lastActivity: now,
       ...(stats.text ? { lastMessage: stats.text } : {}),
       ...(stats.model ? { model: stats.model } : {}),
+      ...(stats.modelId ? { modelId: stats.modelId } : {}),
       ...(stats.contextPct !== null ? { contextPct: stats.contextPct } : {}),
+      ...(stats.contextTokens !== null ? { contextTokens: stats.contextTokens } : {}),
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),

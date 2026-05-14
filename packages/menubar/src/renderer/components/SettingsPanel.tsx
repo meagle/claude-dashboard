@@ -166,7 +166,7 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
   return (
     <div className="px-3 pt-2 pb-3">
       <div className="rounded border border-accent/20 bg-accent/5 px-2.5 py-2 text-ui-sm text-faint mb-3 leading-relaxed space-y-1">
-        <div>Prices are fetched from <button onClick={() => shell.openExternal('https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json')} className="font-mono text-[10px] text-accent underline underline-offset-2 bg-transparent border-none cursor-pointer p-0 hover:opacity-70 transition-opacity break-all">raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json</button>, a community-maintained list of API list prices. All values are <span className="text-body">per million tokens</span>.</div>
+        <div>Prices are fetched from <button onClick={() => shell.openExternal('https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json')} className="text-accent underline underline-offset-2 bg-transparent border-none cursor-pointer p-0 hover:opacity-70 transition-opacity">LiteLLM model pricing data</button>, a community-maintained list of API list prices. All values are <span className="text-body">per million tokens</span>.</div>
         <div><span className="text-body">Click any price to edit it.</span> Edited values are saved as custom overrides — marked with an <span className="text-[#d97706]">●</span> orange dot and always take priority over fetched prices. Use <span className="text-body">Reset overrides</span> to clear them and restore fetched prices.</div>
       </div>
 
@@ -330,6 +330,253 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
   );
 }
 
+// ─── Models Tab ──────────────────────────────────────────────────────────────
+
+type ContextRow = { prefix: string; source: 'fetched' | 'custom'; contextWindow: number };
+
+function buildContextRows(
+  fetched: Record<string, number>,
+  custom: Array<{ prefix: string; contextWindow: number }>,
+): ContextRow[] {
+  const rows: ContextRow[] = Object.entries(fetched).map(([prefix, contextWindow]) => ({
+    prefix, source: 'fetched' as const, contextWindow,
+  }));
+  for (const c of custom) {
+    const idx = rows.findIndex((r) => r.prefix === c.prefix);
+    const row: ContextRow = { ...c, source: 'custom' };
+    if (idx >= 0) rows[idx] = row;
+    else rows.push(row);
+  }
+  return rows.sort((a, b) => a.prefix.localeCompare(b.prefix));
+}
+
+function isContextOverridden(
+  row: ContextRow,
+  fetchedWindows: Record<string, number>,
+): boolean {
+  if (row.source !== 'custom') return false;
+  const base = fetchedWindows[row.prefix];
+  if (base === undefined) return true;
+  return row.contextWindow !== base;
+}
+
+function ModelsTab() {
+  const [fetched, setFetched] = React.useState<Record<string, number>>({});
+  const [custom, setCustom] = React.useState<Array<{ prefix: string; contextWindow: number }>>([]);
+  const [fetchedAt, setFetchedAt] = React.useState<number | undefined>();
+  const [editPrefix, setEditPrefix] = React.useState<string | null>(null);
+  const [editValue, setEditValue] = React.useState('');
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [addForm, setAddForm] = React.useState({ prefix: '', contextWindow: '' });
+  const [confirmReset, setConfirmReset] = React.useState(false);
+
+  React.useEffect(() => {
+    ipcRenderer.invoke('get-config').then((cfg: { modelContextWindows?: { fetched?: Record<string, number>; custom?: Array<{ prefix: string; contextWindow: number }>; fetchedAt?: number } }) => {
+      setFetched(cfg.modelContextWindows?.fetched ?? {});
+      setCustom(cfg.modelContextWindows?.custom ?? []);
+      setFetchedAt(cfg.modelContextWindows?.fetchedAt);
+    });
+  }, []);
+
+  const saveContextWindows = (
+    nextFetched: Record<string, number>,
+    nextCustom: Array<{ prefix: string; contextWindow: number }>,
+    nextFetchedAt?: number,
+  ) => {
+    setFetched(nextFetched);
+    setCustom(nextCustom);
+    ipcRenderer.invoke('save-config', {
+      modelContextWindows: { fetched: nextFetched, custom: nextCustom, fetchedAt: nextFetchedAt ?? fetchedAt },
+    }).catch(() => {});
+  };
+
+  const commitEdit = (row: ContextRow) => {
+    const val = parseInt(editValue, 10);
+    if (isNaN(val) || val <= 0) { setEditPrefix(null); return; }
+    const nextCustom = custom.filter((c) => c.prefix !== row.prefix);
+    nextCustom.push({ prefix: row.prefix, contextWindow: val });
+    saveContextWindows(fetched, nextCustom);
+    setEditPrefix(null);
+  };
+
+  const deleteCustom = (prefix: string) => {
+    saveContextWindows(fetched, custom.filter((c) => c.prefix !== prefix));
+  };
+
+  const handleAdd = () => {
+    if (!addForm.prefix.trim()) return;
+    const val = parseInt(addForm.contextWindow, 10);
+    const contextWindow = isNaN(val) || val <= 0 ? 200_000 : val;
+    const nextCustom = custom.filter((c) => c.prefix !== addForm.prefix.trim());
+    nextCustom.push({ prefix: addForm.prefix.trim(), contextWindow });
+    saveContextWindows(fetched, nextCustom);
+    setAddForm({ prefix: '', contextWindow: '' });
+    setShowAdd(false);
+  };
+
+  const rows = buildContextRows(fetched, custom);
+  const lastUpdatedLabel = fetchedAt
+    ? (() => {
+        const diffMs = Date.now() - fetchedAt;
+        const diffH = Math.floor(diffMs / 3_600_000);
+        const diffM = Math.floor(diffMs / 60_000);
+        if (diffH >= 1) return `${diffH}h ago`;
+        if (diffM >= 1) return `${diffM}m ago`;
+        return 'just now';
+      })()
+    : null;
+
+  const CELL = 'text-ui-sm text-right text-faint px-1 py-1 border-b border-line/50';
+  const HDR  = 'text-ui-sm text-fainter text-right px-1 pb-1 border-b border-line font-normal';
+  const INPUT_CELL = 'w-24 bg-edge border border-accent text-bright text-ui text-right rounded px-1 py-0 no-spinners focus:outline-none';
+
+  return (
+    <div className="px-3 pt-2 pb-3">
+      <div className="rounded border border-accent/20 bg-accent/5 px-2.5 py-2 text-ui-sm text-faint mb-3 leading-relaxed space-y-1">
+        <div>Context window sizes are fetched from <button onClick={() => shell.openExternal('https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json')} className="text-accent underline underline-offset-2 bg-transparent border-none cursor-pointer p-0 hover:opacity-70 transition-opacity">LiteLLM model data</button>. These are used to calculate the context % shown on session cards.</div>
+        <div><span className="text-body">Click any value to edit it.</span> Edited values are saved as custom overrides — marked with an <span className="text-[#d97706]">●</span> orange dot. Override any model to match your account's actual context limit (e.g. Sonnet on Pro = 200,000). Use <span className="text-body">Reset overrides</span> to restore fetched values.</div>
+      </div>
+
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-ui-sm text-fainter uppercase tracking-wide">Model Context Windows</span>
+        <span className="text-ui-sm text-fainter flex items-center gap-2">
+          {lastUpdatedLabel && <span>Updated {lastUpdatedLabel}</span>}
+          {custom.length > 0 && (
+            confirmReset ? (
+              <span className="flex items-center gap-1.5">
+                <span className="text-[#d97706]">Clear all overrides?</span>
+                <button
+                  onClick={() => { saveContextWindows(fetched, []); setConfirmReset(false); }}
+                  className="text-bright bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity font-semibold"
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setConfirmReset(false)}
+                  className="text-soft bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity"
+                >
+                  No
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmReset(true)}
+                className="text-[#d97706] bg-transparent border-none cursor-pointer text-ui-sm p-0 hover:opacity-70 transition-opacity"
+              >
+                Reset overrides
+              </button>
+            )
+          )}
+        </span>
+      </div>
+
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className="text-left text-ui-sm text-fainter px-1 pb-1 border-b border-line font-normal">Prefix</th>
+            <th className={HDR}>Context window (tokens)</th>
+            <th className={HDR}></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.prefix} className="group">
+              <td className="text-ui-sm text-left px-1 py-1 border-b border-line/50">
+                <span className={`font-mono text-[10px] px-1 py-0.5 rounded ${row.source === 'custom' ? 'bg-tool/10 text-tool' : 'bg-model-bg text-accent'}`}>
+                  {row.prefix}
+                </span>
+              </td>
+              <td className={CELL}>
+                {editPrefix === row.prefix ? (
+                  <input
+                    type="number"
+                    autoFocus
+                    className={INPUT_CELL}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => commitEdit(row)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(row); if (e.key === 'Escape') setEditPrefix(null); }}
+                  />
+                ) : (
+                  <span
+                    className="cursor-pointer hover:text-bright transition-colors inline-flex items-center gap-1 justify-end w-full"
+                    onClick={() => { setEditPrefix(row.prefix); setEditValue(String(row.contextWindow)); }}
+                  >
+                    {row.contextWindow.toLocaleString('en-US')}
+                    <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${isContextOverridden(row, fetched) ? 'bg-[#d97706]' : 'opacity-0'}`} />
+                  </span>
+                )}
+              </td>
+              <td className={`${CELL} w-5`}>
+                {row.source === 'custom' && (
+                  <button
+                    onClick={() => deleteCustom(row.prefix)}
+                    className="text-fainter hover:text-danger bg-transparent border-none cursor-pointer text-sm leading-none p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    ×
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {custom.length > 0 && (
+        <div className="flex items-center gap-1.5 mt-1.5 text-ui-sm text-fainter">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#d97706] flex-shrink-0" />
+          <span>Overridden value — takes priority over the fetched context window</span>
+        </div>
+      )}
+
+      {showAdd ? (
+        <div className="mt-2 border border-line rounded p-2.5 bg-surface">
+          <div className="text-ui-sm text-bright font-semibold mb-2">Add custom model</div>
+          <div className="grid grid-cols-2 gap-1.5 mb-2">
+            <div className="col-span-2">
+              <div className="text-ui-sm text-fainter uppercase tracking-wide mb-0.5">Model prefix</div>
+              <input
+                type="text"
+                placeholder="e.g. claude-sonnet-4-6"
+                value={addForm.prefix}
+                onChange={(e) => setAddForm((f) => ({ ...f, prefix: e.target.value }))}
+                className="w-full bg-edge border border-line text-bright text-ui rounded px-1.5 py-0.5 focus:outline-none focus:border-accent font-mono"
+              />
+            </div>
+            <div className="col-span-2">
+              <div className="text-ui-sm text-fainter uppercase tracking-wide mb-0.5">Context window (tokens)</div>
+              <input
+                type="number"
+                placeholder="200000"
+                value={addForm.contextWindow}
+                onChange={(e) => setAddForm((f) => ({ ...f, contextWindow: e.target.value }))}
+                className="w-full bg-edge border border-line text-bright text-ui rounded px-1.5 py-0.5 no-spinners focus:outline-none focus:border-accent"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <button onClick={() => setShowAdd(false)} className="px-2.5 py-0.5 text-ui-sm text-soft bg-transparent border border-line rounded cursor-pointer hover:border-soft transition-colors">
+              Cancel
+            </button>
+            <button onClick={handleAdd} disabled={!addForm.prefix.trim()} className="px-2.5 py-0.5 text-ui-sm font-bold text-base bg-accent rounded border-none cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40">
+              Add
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowAdd(true)}
+          className="w-full mt-2 py-1.5 text-ui-sm text-accent bg-transparent border border-dashed border-accent/30 rounded cursor-pointer hover:bg-accent/5 hover:border-accent/50 transition-colors flex items-center justify-center gap-1"
+        >
+          + Add custom model
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function Toggle({
   id,
   checked,
@@ -365,7 +612,7 @@ export function SettingsPanel({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmUninstall, setConfirmUninstall] = useState(false);
   const [version, setVersion] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'general' | 'cost'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'cost' | 'models'>('general');
 
   useEffect(() => {
     // Pull app version from main process. Falls back to '—' if the
@@ -449,7 +696,7 @@ export function SettingsPanel({
   return (
     <div id="settings-panel">
       <div className="flex border-b border-line">
-        {(['general', 'cost'] as const).map((tab) => (
+        {(['general', 'cost', 'models'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -469,6 +716,7 @@ export function SettingsPanel({
           onShowCostChange={(v) => setAndSave('cost', v)}
         />
       )}
+      {activeTab === 'models' && <ModelsTab />}
       {activeTab === 'general' && <div className="px-3 pt-2 pb-3">
       {/* Stale timeout */}
       <div className="flex justify-between items-start py-1.75">
