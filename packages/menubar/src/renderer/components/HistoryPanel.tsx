@@ -4,6 +4,7 @@ import { HistoryRow } from '../types';
 import { compactPath, formatTokens } from '../utils/format';
 import { COPY_ICON } from './icons';
 import { HistoryCharts, HistoryChartsFilter, shortModel } from './HistoryCharts';
+import { modelColorFromConfig, modelBadgeStyle } from '../utils/modelColors';
 
 /* ─── Inline icons matching the SessionCard SVG vocabulary ─────────────── */
 
@@ -153,18 +154,22 @@ function groupByDay(sessions: HistoryRow[], showCost: boolean): DayGroup[] {
 /* ─── Pill primitives — match SessionCard / Header pill chrome ─────────── */
 
 function MetaPill({
-  icon, children, accent = false,
+  icon, children, accent = false, customStyle,
 }: {
   icon?: React.ReactNode;
   children: React.ReactNode;
   accent?: boolean;
+  customStyle?: React.CSSProperties;
 }) {
-  const cls = accent
+  const cls = customStyle
+    ? ''
+    : accent
     ? 'bg-tool/15 border-tool/40 text-tool'
     : 'bg-line/40 border-edge/60 text-soft';
   return (
     <span
       className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge border ${cls} text-[11px] font-mono leading-none whitespace-nowrap`}
+      style={customStyle}
     >
       {icon && <span className="inline-flex items-center text-fainter">{icon}</span>}
       <span className="tabular-nums">{children}</span>
@@ -253,9 +258,10 @@ interface HistoryEntryProps {
   s: HistoryRow;
   showCost: boolean;
   home: string;
+  modelColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
 }
 
-function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
+function HistoryEntry({ s, showCost, home, modelColors }: HistoryEntryProps) {
   const [pathCopied, setPathCopied] = useState(false);
 
   const turns = formatTurns(s.turns);
@@ -296,7 +302,13 @@ function HistoryEntry({ s, showCost, home }: HistoryEntryProps) {
           {tools && <MetaPill icon={TOOL_ICON}>{tools}</MetaPill>}
           {tokens && <MetaPill>{tokens}</MetaPill>}
           {cost && <MetaPill>{cost}</MetaPill>}
-          {model && <MetaPill accent>{model}</MetaPill>}
+          {model && (
+            <MetaPill
+              customStyle={modelBadgeStyle(modelColorFromConfig(s.model, modelColors))}
+            >
+              {model}
+            </MetaPill>
+          )}
         </span>
       </div>
 
@@ -500,6 +512,7 @@ function ActiveFilterBanner({
 interface HistoryPanelProps {
   showCost: boolean;
   home: string;
+  modelColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
 }
 
 const COLLAPSE_STORAGE_KEY = 'history-panel:expanded-groups';
@@ -533,7 +546,7 @@ function loadView(): 'charts' | 'list' {
   }
 }
 
-export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
+export function HistoryPanel({ showCost, home, modelColors }: HistoryPanelProps) {
   const [history, setHistory] = useState<HistoryRow[] | null>(null);
   const [query, setQuery] = useState('');
   const [range, setRange] = useState<RangeKey>('all');
@@ -670,7 +683,7 @@ export function HistoryPanel({ showCost, home }: HistoryPanelProps) {
                   {isOpen && (
                     <div className="flex flex-col gap-1.5">
                       {group.sessions.map((s) => (
-                        <HistoryEntry key={s.sessionId} s={s} showCost={showCost} home={home} />
+                        <HistoryEntry key={s.sessionId} s={s} showCost={showCost} home={home} modelColors={modelColors} />
                       ))}
                     </div>
                   )}

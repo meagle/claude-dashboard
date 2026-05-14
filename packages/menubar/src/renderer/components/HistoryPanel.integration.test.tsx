@@ -87,7 +87,7 @@ afterEach(() => {
 });
 
 async function mountPanel() {
-  const utils = render(<HistoryPanel showCost={true} home="/Users/test" />);
+  const utils = render(<HistoryPanel showCost={true} home="/Users/test" modelColors={{}} />);
   // Wait for the async ipc.invoke('get-history') resolution + setState.
   await act(async () => { await Promise.resolve(); });
   return utils;
