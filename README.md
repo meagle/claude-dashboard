@@ -247,6 +247,45 @@ Click `⚙` in the popover to open the settings panel. The panel has three tabs:
 
 Changes take effect immediately — no restart needed.
 
+## How cost is calculated
+
+Session cost (`costUsd`) is computed by the hook script each time it reads the transcript, then stored in `sessions.json` alongside the session data.
+
+### Per-turn accumulation
+
+The hook walks the transcript backward and calls `calcTurnCost()` for every assistant turn that has usage data. Each turn's cost is:
+
+```
+cost = (input_tokens × input_$/M
+      + cache_creation_input_tokens × cache_write_$/M
+      + cache_read_input_tokens × cache_read_$/M
+      + output_tokens × output_$/M) / 1_000_000
+```
+
+All turns are summed into a single `costUsd` value for the session. `totalTokens` (input + output across all turns) is accumulated the same way.
+
+### Pricing lookup order
+
+When computing a turn's cost the hook resolves the model price using this priority:
+
+1. **Custom overrides** — prices you edited inline in the Cost tab (stored in `config.json → modelPricing.custom`). Matched by model ID prefix.
+2. **Fetched LiteLLM prices** — auto-fetched on startup from [LiteLLM's community pricing table](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) and cached for 24 hours (stored in `config.json → modelPricing.fetched`). Also matched by prefix.
+3. **Hardcoded fallback** — a small table of Claude family prices baked into the hook binary, used when neither of the above matches.
+
+Custom overrides always win. To revert a model to its fetched price, use **Reset overrides** in the Cost tab.
+
+### When prices are applied
+
+The hook reads `~/.config/claude-dashboard/config.json` fresh on every invocation, so any pricing change you save in the Cost tab is picked up immediately by the next Claude Code turn. However, `costUsd` values already written to `sessions.json` or `history.json` are **not retroactively recalculated** — only new turns accumulate cost under the updated prices.
+
+### What the "Show session cost" toggle does
+
+The toggle in the Cost tab controls display only — it does not affect whether `costUsd` is computed. The hook always calculates and stores cost. Turning the toggle off hides the cost chip on session cards and the cost/token pills on history rows. The **History Charts** view always displays cost data regardless of this setting.
+
+### Subscriptions vs. API billing
+
+Cost figures reflect API token prices. They are not meaningful on Claude Pro or Max subscriptions, which are billed as a flat monthly fee with no per-token charges.
+
 ## macOS permissions
 
 If you see **"iTerm would like to access data from other apps"**, click **Allow** — this is needed to focus terminal windows when clicking a session card.

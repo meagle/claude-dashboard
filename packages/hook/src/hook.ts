@@ -109,9 +109,6 @@ export function modelPricingFromConfig(
   return null;
 }
 
-function modelPricing(modelId: string): ModelPricingEntry | null {
-  return modelPricingFromConfig(modelId);
-}
 
 export function calcTurnCost(usage: Record<string, unknown>, modelId: string, cfg?: ReturnType<typeof readConfig>): number {
   const p = modelPricingFromConfig(modelId, cfg);
