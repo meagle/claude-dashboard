@@ -92,27 +92,67 @@ describe('Header — view mode toggle', () => {
 });
 
 describe('Header — settings and history', () => {
-  it('calls onSettingsToggle when settings button is clicked', () => {
+  it('always renders all three nav tabs', () => {
+    render(<Header {...makeProps()} />);
+    expect(screen.getByTitle('Sessions')).toBeInTheDocument();
+    expect(screen.getByTitle('Session history')).toBeInTheDocument();
+    expect(screen.getByTitle('Settings')).toBeInTheDocument();
+  });
+
+  it('sessions tab is active when neither settings nor history is open', () => {
+    render(<Header {...makeProps({ isHistoryOpen: false, isSettingsOpen: false })} />);
+    expect(screen.getByTitle('Sessions')).toHaveClass('text-accent');
+    expect(screen.getByTitle('Session history')).not.toHaveClass('text-accent');
+    expect(screen.getByTitle('Settings')).not.toHaveClass('text-accent');
+  });
+
+  it('history tab is active when isHistoryOpen is true', () => {
+    render(<Header {...makeProps({ isHistoryOpen: true })} />);
+    expect(screen.getByTitle('Session history')).toHaveClass('text-accent');
+    expect(screen.getByTitle('Sessions')).not.toHaveClass('text-accent');
+  });
+
+  it('settings tab is active when isSettingsOpen is true', () => {
+    render(<Header {...makeProps({ isSettingsOpen: true })} />);
+    expect(screen.getByTitle('Settings')).toHaveClass('text-accent');
+    expect(screen.getByTitle('Sessions')).not.toHaveClass('text-accent');
+  });
+
+  it('calls onSettingsToggle when settings tab is clicked', () => {
     const props = makeProps();
     render(<Header {...props} />);
     fireEvent.click(screen.getByTitle('Settings'));
     expect(props.onSettingsToggle).toHaveBeenCalledOnce();
   });
 
-  it('shows "Session history" button when history is closed', () => {
-    render(<Header {...makeProps({ isHistoryOpen: false })} />);
-    expect(screen.getByTitle('Session history')).toBeInTheDocument();
-  });
-
-  it('shows "Back to sessions" button when history is open', () => {
-    render(<Header {...makeProps({ isHistoryOpen: true })} />);
-    expect(screen.getByTitle('Back to sessions')).toBeInTheDocument();
-  });
-
-  it('calls onHistoryToggle when history button is clicked', () => {
+  it('calls onHistoryToggle when history tab is clicked', () => {
     const props = makeProps();
     render(<Header {...props} />);
     fireEvent.click(screen.getByTitle('Session history'));
     expect(props.onHistoryToggle).toHaveBeenCalledOnce();
+  });
+
+  it('clicking sessions tab when history is open calls onHistoryToggle', () => {
+    const props = makeProps({ isHistoryOpen: true });
+    render(<Header {...props} />);
+    fireEvent.click(screen.getByTitle('Sessions'));
+    expect(props.onHistoryToggle).toHaveBeenCalledOnce();
+    expect(props.onSettingsToggle).not.toHaveBeenCalled();
+  });
+
+  it('clicking sessions tab when settings is open calls onSettingsToggle', () => {
+    const props = makeProps({ isSettingsOpen: true });
+    render(<Header {...props} />);
+    fireEvent.click(screen.getByTitle('Sessions'));
+    expect(props.onSettingsToggle).toHaveBeenCalledOnce();
+    expect(props.onHistoryToggle).not.toHaveBeenCalled();
+  });
+
+  it('clicking sessions tab when neither is open does nothing', () => {
+    const props = makeProps({ isHistoryOpen: false, isSettingsOpen: false });
+    render(<Header {...props} />);
+    fireEvent.click(screen.getByTitle('Sessions'));
+    expect(props.onHistoryToggle).not.toHaveBeenCalled();
+    expect(props.onSettingsToggle).not.toHaveBeenCalled();
   });
 });
