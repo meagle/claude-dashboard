@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ipcRenderer, shell } from "../utils/electron";
 import { DashboardConfig, ModelPricingEntry } from "../types";
-import { modelBadgeStyle } from "../utils/modelColors";
+import { modelBadgeStyle, modelColorFromConfig } from "../utils/modelColors";
 
 interface SettingsPanelProps {
   onSave: () => void;
@@ -96,12 +96,14 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
   const [showAdd, setShowAdd] = React.useState(false);
   const [addForm, setAddForm] = React.useState({ prefix: '', input: '', cacheWrite: '', cacheRead: '', output: '' });
   const [confirmReset, setConfirmReset] = React.useState(false);
+  const [modelColors, setModelColors] = React.useState<Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>>({});
 
   React.useEffect(() => {
-    ipcRenderer.invoke('get-config').then((cfg: { modelPricing?: { fetched?: Record<string, ModelPricingEntry>; custom?: Array<{ prefix: string } & ModelPricingEntry>; fetchedAt?: number } }) => {
+    ipcRenderer.invoke('get-config').then((cfg: { modelPricing?: { fetched?: Record<string, ModelPricingEntry>; custom?: Array<{ prefix: string } & ModelPricingEntry>; fetchedAt?: number }; modelColors?: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }> }) => {
       setFetched(cfg.modelPricing?.fetched ?? {});
       setCustom(cfg.modelPricing?.custom ?? []);
       setFetchedAt(cfg.modelPricing?.fetchedAt);
+      setModelColors(cfg.modelColors ?? {});
     });
   }, []);
 
@@ -218,7 +220,10 @@ function CostTab({ showCost, onShowCostChange }: CostTabProps) {
           {rows.map((row) => (
             <tr key={row.prefix} className="group">
               <td className="text-ui-sm text-left px-1 py-1 border-b border-line/50">
-                <span className={`font-mono text-[10px] px-1 py-0.5 rounded ${row.source === 'custom' ? 'bg-tool/10 text-tool' : 'bg-model-bg text-accent'}`}>
+                <span
+                  className="font-mono text-[10px] px-1 py-0.5 rounded"
+                  style={modelBadgeStyle(modelColorFromConfig(row.prefix, modelColors))}
+                >
                   {row.prefix}
                 </span>
               </td>

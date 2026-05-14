@@ -267,7 +267,7 @@ describe('SessionCard — grid footer', () => {
 describe('SessionCard — model colors', () => {
   it('applies configured model color to badge via inline style', () => {
     const { container } = renderCard(
-      { model: 'claude-sonnet-4-6' },
+      { model: 'Sonnet 4.6', modelId: 'claude-sonnet-4-6' },
       {
         showModel: true,
         modelColors: { 'claude-sonnet': { color: '#ff0000', badgeStyle: 'B' } },

@@ -304,7 +304,7 @@ function HistoryEntry({ s, showCost, home, modelColors }: HistoryEntryProps) {
           {cost && <MetaPill>{cost}</MetaPill>}
           {model && (
             <MetaPill
-              customStyle={modelBadgeStyle(modelColorFromConfig(s.model, modelColors))}
+              customStyle={modelBadgeStyle(modelColorFromConfig(s.modelId, modelColors))}
             >
               {model}
             </MetaPill>

@@ -75,8 +75,8 @@ function buildModelColors(
   const configuredColors: Record<string, string> = {};
   for (const r of rows) {
     const shortName = shortModel(r.model);
-    if (r.model && !(shortName in configuredColors)) {
-      const entry = modelColorFromConfig(r.model, configColors);
+    if (r.modelId && !(shortName in configuredColors)) {
+      const entry = modelColorFromConfig(r.modelId, configColors);
       if (entry) configuredColors[shortName] = entry.color;
     }
   }
