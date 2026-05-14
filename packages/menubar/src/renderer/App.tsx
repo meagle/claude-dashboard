@@ -200,7 +200,7 @@ export function App() {
           onThemeChange={applyTheme}
         />
       ) : historyOpen ? (
-        <HistoryPanel showCost={cardConfig.showCost} home={home} />
+        <HistoryPanel showCost={cardConfig.showCost} home={home} modelColors={cardConfig.modelColors} />
       ) : (
         <div
           id="sessions"
