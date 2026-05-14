@@ -62,9 +62,9 @@ const CLOCK_ICON = (
   </svg>
 );
 
-const HOME_ICON = (
+const TERMINAL_ICON = (
   <svg viewBox="0 0 16 16" width="13" height="13" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-    <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6-.707.707L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.063-.354-6-6zM8 2.707l5 5V13.5a.5.5 0 0 1-.5.5H10v-4a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v4H3.5a.5.5 0 0 1-.5-.5V7.707l5-5z"/>
+    <path d="M0 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3zm9.5 5.5h-3a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm-6.354-.354a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146z"/>
   </svg>
 );
 
@@ -129,6 +129,7 @@ const VIEW_CYCLE: Record<ViewMode, { icon: React.ReactNode; title: string }> = {
 };
 
 const BTN = 'bg-transparent border-none cursor-pointer text-soft text-base px-0.5 leading-none transition-colors duration-150 focus:outline-none';
+const TAB_BTN = 'w-[26px] h-[22px] flex items-center justify-center cursor-pointer border-none rounded transition-colors duration-150 focus:outline-none';
 
 /* ─── Live activity pills ───────────────────────────────────────────────── */
 
@@ -270,20 +271,32 @@ export function Header({
         >
           {cycle.icon}
         </button>
-        <button
-          title={isHistoryOpen ? 'Back to sessions' : 'Session history'}
-          className={`${BTN} ${isHistoryOpen ? 'text-accent' : 'hover:text-bright'}`}
-          onClick={onHistoryToggle}
-        >
-          {isHistoryOpen ? HOME_ICON : CLOCK_ICON}
-        </button>
-        <button
-          title="Settings"
-          className={`${BTN} ${isSettingsOpen ? 'text-accent' : 'hover:text-bright'}`}
-          onClick={onSettingsToggle}
-        >
-          {GEAR_ICON}
-        </button>
+        <span className="flex items-center gap-0.5 bg-line/20 rounded-md p-0.5">
+          <button
+            title="Sessions"
+            className={`${TAB_BTN} ${!isHistoryOpen && !isSettingsOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
+            onClick={() => {
+              if (isHistoryOpen) onHistoryToggle();
+              else if (isSettingsOpen) onSettingsToggle();
+            }}
+          >
+            {TERMINAL_ICON}
+          </button>
+          <button
+            title="Session history"
+            className={`${TAB_BTN} ${isHistoryOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
+            onClick={onHistoryToggle}
+          >
+            {CLOCK_ICON}
+          </button>
+          <button
+            title="Settings"
+            className={`${TAB_BTN} ${isSettingsOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
+            onClick={onSettingsToggle}
+          >
+            {GEAR_ICON}
+          </button>
+        </span>
         {isDetached && (
           <span className="flex items-center gap-2">
             <button
