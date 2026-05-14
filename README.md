@@ -245,6 +245,13 @@ Click `⚙` in the popover to open the settings panel. The panel has three tabs:
 - **Custom model prefixes** — add context window sizes for proxy models or future Claude versions using the **+ Add custom model** form.
 - **Reset overrides** — clears all custom context window overrides and restores fetched values.
 
+**Model colors:** Each model row has a color swatch and A/B/C style selector. Click the swatch (or edit the hex field) to set a color; the style toggle controls how the badge renders:
+- **A** — tinted background with colored text
+- **B** — solid color background with white text
+- **C** — ghost style with translucent background and a colored border
+
+Colors apply consistently everywhere a model name appears: session card footer badges, history panel session pills, and history chart segments. Default color for all models is `#D97757` (Claude orange).
+
 Changes take effect immediately — no restart needed.
 
 ## How cost is calculated
