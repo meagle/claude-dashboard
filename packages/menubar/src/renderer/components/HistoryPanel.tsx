@@ -168,7 +168,7 @@ function MetaPill({
     : 'bg-line/40 border-edge/60 text-soft';
   return (
     <span
-      className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge border ${cls} text-[11px] font-mono leading-none whitespace-nowrap`}
+      className={`inline-flex items-center gap-1 px-1.5 py-[1px] rounded-badge ${customStyle ? '' : 'border'} ${cls} text-[11px] font-mono leading-none whitespace-nowrap`}
       style={customStyle}
     >
       {icon && <span className="inline-flex items-center text-fainter">{icon}</span>}
