@@ -34,6 +34,10 @@ const mockConfig = {
     custom: [],
     fetchedAt: Date.now() - 1000,
   },
+  modelColors: {
+    'claude-sonnet-4-6': { color: '#D97757', badgeStyle: 'A' as const },
+    'claude-opus-4-6':   { color: '#D97757', badgeStyle: 'A' as const },
+  },
 };
 
 beforeEach(() => {
@@ -335,6 +339,24 @@ describe('SettingsPanel — Models tab overrides', () => {
           modelContextWindows: expect.objectContaining({ custom: [] }),
         })
       );
+    });
+  });
+
+  it('renders color hex input for each model row in Models tab', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    fireEvent.click(screen.getByText('Models'));
+    await waitFor(() => {
+      const hexInputs = screen.getAllByDisplayValue('#D97757');
+      expect(hexInputs.length).toBeGreaterThan(0);
+    });
+  });
+
+  it('renders A/B/C style buttons for each model row in Models tab', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    fireEvent.click(screen.getByText('Models'));
+    await waitFor(() => {
+      const aBtns = screen.getAllByText('A');
+      expect(aBtns.length).toBeGreaterThan(0);
     });
   });
 });

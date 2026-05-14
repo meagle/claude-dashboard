@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { ipcRenderer, shell } from "../utils/electron";
 import { DashboardConfig, ModelPricingEntry } from "../types";
+import { modelBadgeStyle } from "../utils/modelColors";
 
 interface SettingsPanelProps {
   onSave: () => void;
@@ -361,6 +362,9 @@ function isContextOverridden(
 }
 
 function ModelsTab() {
+  type ModelColorEntry = { color: string; badgeStyle: 'A' | 'B' | 'C' };
+  const DEFAULT_MODEL_COLOR: ModelColorEntry = { color: '#D97757', badgeStyle: 'A' };
+
   const [fetched, setFetched] = React.useState<Record<string, number>>({});
   const [custom, setCustom] = React.useState<Array<{ prefix: string; contextWindow: number }>>([]);
   const [fetchedAt, setFetchedAt] = React.useState<number | undefined>();
@@ -369,12 +373,18 @@ function ModelsTab() {
   const [showAdd, setShowAdd] = React.useState(false);
   const [addForm, setAddForm] = React.useState({ prefix: '', contextWindow: '' });
   const [confirmReset, setConfirmReset] = React.useState(false);
+  const [modelColors, setModelColors] = React.useState<Record<string, ModelColorEntry>>({});
+  const [colorDrafts, setColorDrafts] = React.useState<Record<string, string>>({});
 
   React.useEffect(() => {
-    ipcRenderer.invoke('get-config').then((cfg: { modelContextWindows?: { fetched?: Record<string, number>; custom?: Array<{ prefix: string; contextWindow: number }>; fetchedAt?: number } }) => {
+    ipcRenderer.invoke('get-config').then((cfg: {
+      modelContextWindows?: { fetched?: Record<string, number>; custom?: Array<{ prefix: string; contextWindow: number }>; fetchedAt?: number };
+      modelColors?: Record<string, ModelColorEntry>;
+    }) => {
       setFetched(cfg.modelContextWindows?.fetched ?? {});
       setCustom(cfg.modelContextWindows?.custom ?? []);
       setFetchedAt(cfg.modelContextWindows?.fetchedAt);
+      setModelColors(cfg.modelColors ?? {});
     });
   }, []);
 
@@ -403,6 +413,29 @@ function ModelsTab() {
     saveContextWindows(fetched, custom.filter((c) => c.prefix !== prefix));
   };
 
+  const saveModelColors = (next: Record<string, ModelColorEntry>) => {
+    setModelColors(next);
+    ipcRenderer.invoke('save-config', { modelColors: next }).catch(() => {});
+  };
+
+  const handleColorChange = (prefix: string, color: string) => {
+    const existing = modelColors[prefix] ?? DEFAULT_MODEL_COLOR;
+    saveModelColors({ ...modelColors, [prefix]: { ...existing, color } });
+  };
+
+  const handleStyleChange = (prefix: string, badgeStyle: 'A' | 'B' | 'C') => {
+    const existing = modelColors[prefix] ?? DEFAULT_MODEL_COLOR;
+    saveModelColors({ ...modelColors, [prefix]: { ...existing, badgeStyle } });
+  };
+
+  const commitHex = (prefix: string) => {
+    const val = colorDrafts[prefix] ?? '';
+    if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+      handleColorChange(prefix, val);
+    }
+    setColorDrafts((prev) => { const next = { ...prev }; delete next[prefix]; return next; });
+  };
+
   const handleAdd = () => {
     if (!addForm.prefix.trim()) return;
     const val = parseInt(addForm.contextWindow, 10);
@@ -410,6 +443,9 @@ function ModelsTab() {
     const nextCustom = custom.filter((c) => c.prefix !== addForm.prefix.trim());
     nextCustom.push({ prefix: addForm.prefix.trim(), contextWindow });
     saveContextWindows(fetched, nextCustom);
+    if (!modelColors[addForm.prefix.trim()]) {
+      saveModelColors({ ...modelColors, [addForm.prefix.trim()]: DEFAULT_MODEL_COLOR });
+    }
     setAddForm({ prefix: '', contextWindow: '' });
     setShowAdd(false);
   };
@@ -474,51 +510,129 @@ function ModelsTab() {
         <thead>
           <tr>
             <th className="text-left text-ui-sm text-fainter px-1 pb-1 border-b border-line font-normal">Prefix</th>
-            <th className={HDR}>Context window (tokens)</th>
+            <th className={HDR}>Context (tokens)</th>
+            <th className={HDR}>Color</th>
+            <th className={HDR}>Style</th>
             <th className={HDR}></th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.prefix} className="group">
-              <td className="text-ui-sm text-left px-1 py-1 border-b border-line/50">
-                <span className={`font-mono text-[10px] px-1 py-0.5 rounded ${row.source === 'custom' ? 'bg-tool/10 text-tool' : 'bg-model-bg text-accent'}`}>
-                  {row.prefix}
-                </span>
-              </td>
-              <td className={CELL}>
-                {editPrefix === row.prefix ? (
-                  <input
-                    type="number"
-                    autoFocus
-                    className={INPUT_CELL}
-                    value={editValue}
-                    onChange={(e) => setEditValue(e.target.value)}
-                    onBlur={() => commitEdit(row)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(row); if (e.key === 'Escape') setEditPrefix(null); }}
-                  />
-                ) : (
+          {rows.map((row) => {
+            const colorEntry = modelColors[row.prefix] ?? DEFAULT_MODEL_COLOR;
+            const hexDraft = colorDrafts[row.prefix];
+            return (
+              <tr key={row.prefix} className="group">
+                {/* Column 1: Prefix badge — live preview */}
+                <td className="text-ui-sm text-left px-1 py-1 border-b border-line/50">
                   <span
-                    className="cursor-pointer hover:text-bright transition-colors inline-flex items-center gap-1 justify-end w-full"
-                    onClick={() => { setEditPrefix(row.prefix); setEditValue(String(row.contextWindow)); }}
+                    className="font-mono text-[10px] px-1 py-0.5 rounded"
+                    style={modelBadgeStyle(colorEntry)}
                   >
-                    {row.contextWindow.toLocaleString('en-US')}
-                    <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${isContextOverridden(row, fetched) ? 'bg-[#d97706]' : 'opacity-0'}`} />
+                    {row.prefix}
                   </span>
-                )}
-              </td>
-              <td className={`${CELL} w-5`}>
-                {row.source === 'custom' && (
-                  <button
-                    onClick={() => deleteCustom(row.prefix)}
-                    className="text-fainter hover:text-danger bg-transparent border-none cursor-pointer text-sm leading-none p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    ×
-                  </button>
-                )}
-              </td>
-            </tr>
-          ))}
+                </td>
+
+                {/* Column 2: Context window */}
+                <td className={CELL}>
+                  {editPrefix === row.prefix ? (
+                    <input
+                      type="number"
+                      autoFocus
+                      className={INPUT_CELL}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={() => commitEdit(row)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(row); if (e.key === 'Escape') setEditPrefix(null); }}
+                    />
+                  ) : (
+                    <span
+                      className="cursor-pointer hover:text-bright transition-colors inline-flex items-center gap-1 justify-end w-full"
+                      onClick={() => { setEditPrefix(row.prefix); setEditValue(String(row.contextWindow)); }}
+                    >
+                      {row.contextWindow.toLocaleString('en-US')}
+                      <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${isContextOverridden(row, fetched) ? 'bg-[#d97706]' : 'opacity-0'}`} />
+                    </span>
+                  )}
+                </td>
+
+                {/* Column 3: Color picker */}
+                <td className="text-ui-sm px-1 py-1 border-b border-line/50 text-center">
+                  <div className="inline-flex items-center gap-1">
+                    <span
+                      style={{
+                        width: 16, height: 16, borderRadius: 3,
+                        background: colorEntry.color,
+                        cursor: 'pointer',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        display: 'inline-block',
+                        flexShrink: 0,
+                      }}
+                      onClick={() => {
+                        const el = document.getElementById(`color-input-${row.prefix}`);
+                        if (el) el.click();
+                      }}
+                    />
+                    <input
+                      id={`color-input-${row.prefix}`}
+                      type="color"
+                      value={colorEntry.color}
+                      onChange={(e) => handleColorChange(row.prefix, e.target.value)}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+                    />
+                    <input
+                      type="text"
+                      value={hexDraft ?? colorEntry.color}
+                      onChange={(e) => setColorDrafts((prev) => ({ ...prev, [row.prefix]: e.target.value }))}
+                      onBlur={() => commitHex(row.prefix)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitHex(row.prefix); }}
+                      className="font-mono bg-edge border border-line text-bright rounded focus:outline-none focus:border-accent"
+                      style={{ width: 56, fontSize: 10, padding: '1px 4px', textAlign: 'center' }}
+                    />
+                  </div>
+                </td>
+
+                {/* Column 4: Badge style A/B/C */}
+                <td className="text-ui-sm px-1 py-1 border-b border-line/50 text-center">
+                  <div className="inline-flex gap-0.5">
+                    {(['A', 'B', 'C'] as const).map((s) => {
+                      const active = colorEntry.badgeStyle === s;
+                      const r = parseInt(colorEntry.color.slice(1, 3), 16);
+                      const g = parseInt(colorEntry.color.slice(3, 5), 16);
+                      const b = parseInt(colorEntry.color.slice(5, 7), 16);
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => handleStyleChange(row.prefix, s)}
+                          className="font-mono bg-transparent border cursor-pointer rounded"
+                          style={{
+                            fontSize: 10,
+                            padding: '1px 5px',
+                            borderColor: active ? colorEntry.color : '#474747',
+                            color: active ? colorEntry.color : '#666',
+                            background: active ? `rgba(${r},${g},${b},0.15)` : 'transparent',
+                          }}
+                        >
+                          {s}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </td>
+
+                {/* Column 5: Delete (custom rows only) */}
+                <td className={`${CELL} w-5`}>
+                  {row.source === 'custom' && (
+                    <button
+                      onClick={() => deleteCustom(row.prefix)}
+                      className="text-fainter hover:text-danger bg-transparent border-none cursor-pointer text-sm leading-none p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
 
