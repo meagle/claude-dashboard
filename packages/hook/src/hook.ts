@@ -8,6 +8,8 @@ import {
   Session,
   TaskSummary,
   SubagentSummary,
+  readConfig,
+  ModelPricingEntry,
 } from '@claude-dashboard/shared';
 
 export type HookEvent =
@@ -84,13 +86,7 @@ function modelDisplayName(modelId: string): string {
 
 // Cost per million tokens (USD), by model family
 // Prices: input / cache_write / cache_read / output
-interface ModelPricing {
-  input: number;
-  cacheWrite: number;
-  cacheRead: number;
-  output: number;
-}
-const MODEL_PRICING: Array<[prefix: string, pricing: ModelPricing]> = [
+const MODEL_PRICING: Array<[prefix: string, pricing: ModelPricingEntry]> = [
   ['claude-opus-4',    { input: 15,   cacheWrite: 18.75, cacheRead: 1.5,  output: 75  }],
   ['claude-sonnet-4',  { input: 3,    cacheWrite: 3.75,  cacheRead: 0.3,  output: 15  }],
   ['claude-haiku-4',   { input: 0.8,  cacheWrite: 1,     cacheRead: 0.08, output: 4   }],
@@ -99,15 +95,34 @@ const MODEL_PRICING: Array<[prefix: string, pricing: ModelPricing]> = [
   ['claude-haiku-3',   { input: 0.25, cacheWrite: 0.3,   cacheRead: 0.03, output: 1.25}],
 ];
 
-function modelPricing(modelId: string): ModelPricing | null {
+export function modelPricingFromConfig(
+  modelId: string,
+  cfg?: ReturnType<typeof readConfig>,
+): ModelPricingEntry | null {
+  if (cfg?.modelPricing?.custom) {
+    for (const c of cfg.modelPricing.custom) {
+      if (modelId.startsWith(c.prefix)) {
+        return { input: c.input, cacheWrite: c.cacheWrite, cacheRead: c.cacheRead, output: c.output };
+      }
+    }
+  }
+  if (cfg?.modelPricing?.fetched) {
+    for (const [prefix, p] of Object.entries(cfg.modelPricing.fetched)) {
+      if (modelId.startsWith(prefix)) return p;
+    }
+  }
   for (const [prefix, p] of MODEL_PRICING) {
     if (modelId.startsWith(prefix)) return p;
   }
   return null;
 }
 
-function calcTurnCost(usage: Record<string, unknown>, modelId: string): number {
-  const p = modelPricing(modelId);
+function modelPricing(modelId: string): ModelPricingEntry | null {
+  return modelPricingFromConfig(modelId);
+}
+
+export function calcTurnCost(usage: Record<string, unknown>, modelId: string, cfg?: ReturnType<typeof readConfig>): number {
+  const p = modelPricingFromConfig(modelId, cfg);
   if (!p) return 0;
   const inp   = typeof usage.input_tokens                === 'number' ? usage.input_tokens                : 0;
   const cw    = typeof usage.cache_creation_input_tokens === 'number' ? usage.cache_creation_input_tokens : 0;
@@ -129,7 +144,7 @@ const EMPTY_STATS: TranscriptStats = {
   text: null, model: null, contextPct: null, turns: null, costUsd: null, totalTokens: null,
 };
 
-function readLastAssistantStats(transcriptPath: string, endTurnOnly = false): TranscriptStats {
+function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
   try {
     const fsSync = require('fs') as typeof import('fs');
     const content = fsSync.readFileSync(transcriptPath, 'utf8');
@@ -198,7 +213,7 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false): Tr
           }
         }
         if (entry.type === 'assistant' && entry.message?.usage && entry.message?.model && entry.message.model !== '<synthetic>') {
-          costUsd += calcTurnCost(entry.message.usage as Record<string, unknown>, entry.message.model as string);
+          costUsd += calcTurnCost(entry.message.usage as Record<string, unknown>, entry.message.model as string, cfg);
           const u = entry.message.usage as Record<string, unknown>;
           cumulativeTokens +=
             (typeof u.input_tokens  === 'number' ? u.input_tokens  : 0) +
@@ -222,11 +237,11 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false): Tr
 // The transcript may be written concurrently with the Stop hook firing.
 // Retry until we find stats whose text differs from the previous turn's message.
 // previousMessage: the last known assistant message before this turn started.
-function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage: string | null): TranscriptStats {
+function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage: string | null, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
   for (let attempt = 0; attempt < 6; attempt++) {
     // endTurnOnly=true ensures we only accept the actual final message (stop_reason='end_turn'),
     // not an intermediate text written before a tool call (stop_reason='tool_use').
-    const stats = readLastAssistantStats(transcriptPath, true);
+    const stats = readLastAssistantStats(transcriptPath, true, cfg);
     // Accept only if we got something new (different from the prior turn's message)
     if (stats.text && stats.text !== previousMessage) return stats;
     if (attempt < 5) {
@@ -369,7 +384,7 @@ function makeNewSession(event: { sessionId: string; pid: number; termSessionId: 
   };
 }
 
-export function processHookEvent(event: HookEvent, sessionsFile: string): void {
+export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: ReturnType<typeof readConfig>): void {
   const sessions = readSessions(sessionsFile);
   const existing = sessions.find((s) => s.sessionId === event.sessionId);
   let session: Session = existing ?? makeNewSession(event);
@@ -403,7 +418,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // Transcript is fully written by the time the NEXT prompt is submitted,
     // so read it here to capture the previous turn's response + model/context/cost stats.
     const stats = event.transcriptPath
-      ? readLastAssistantStats(event.transcriptPath)
+      ? readLastAssistantStats(event.transcriptPath, false, cfg)
       : EMPTY_STATS;
     // Refresh branch/worktree on each turn in case session was created before worktree was set up
     const freshBranch   = getGitBranch(event.workingDir);
@@ -441,7 +456,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // Read full transcript stats: model, contextPct, turns, cost, tokens, and partial text.
     // Ignore partial text if it matches lastMessage — transcript not yet updated this turn.
     const stats = session.transcriptPath
-      ? readLastAssistantStats(session.transcriptPath)
+      ? readLastAssistantStats(session.transcriptPath, false, cfg)
       : EMPTY_STATS;
     const freshPartial = stats.text && stats.text !== session.lastMessage ? stats.text : null;
 
@@ -505,7 +520,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     // Transcript is written between PreToolUse and PostToolUse, so read it now
     // to capture the text Claude wrote before this tool call.
     const postStats = session.transcriptPath
-      ? readLastAssistantStats(session.transcriptPath)
+      ? readLastAssistantStats(session.transcriptPath, false, cfg)
       : EMPTY_STATS;
     const freshPostPartial = postStats.text && postStats.text !== session.lastMessage ? postStats.text : null;
 
@@ -526,7 +541,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string): void {
     };
   } else if (event.type === 'stop') {
     const stats = event.transcriptPath
-      ? readLastAssistantStatsWithRetry(event.transcriptPath, session.lastMessage)
+      ? readLastAssistantStatsWithRetry(event.transcriptPath, session.lastMessage, cfg)
       : EMPTY_STATS;
     const gitSummary = getGitSummary(event.workingDir);
     const gitAhead = getGitAhead(event.workingDir);
@@ -591,6 +606,8 @@ if (require.main === module) {
   // iTerm2 injects TERM_SESSION_ID; inherited by Claude Code and its children
   const termSessionId = process.env.TERM_SESSION_ID ?? null;
   const sessionsFile = path.join(os.homedir(), '.config', 'claude-dashboard', 'sessions.json');
+  const configFile = path.join(os.homedir(), '.config', 'claude-dashboard', 'config.json');
+  const dashConfig = readConfig(configFile);
 
   let stdinData = '';
   process.stdin.setEncoding('utf8');
@@ -671,7 +688,7 @@ if (require.main === module) {
       const fsSync = require('fs');
       const dir = path.dirname(sessionsFile);
       if (!fsSync.existsSync(dir)) fsSync.mkdirSync(dir, { recursive: true });
-      processHookEvent(event, sessionsFile);
+      processHookEvent(event, sessionsFile, dashConfig);
     } catch {
       // Hook failures must be silent to avoid blocking Claude sessions
       process.exit(0);

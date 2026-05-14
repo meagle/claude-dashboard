@@ -10,6 +10,13 @@ export interface SubagentSummary {
   status: 'running' | 'done';
 }
 
+export interface ModelPricingEntry {
+  input: number;
+  cacheWrite: number;
+  cacheRead: number;
+  output: number;
+}
+
 export interface SessionRow {
   sessionId: string;
   pid: number;
@@ -86,4 +93,9 @@ export interface DashboardConfig {
   notificationSound: boolean;
   showBadgeCount?: boolean;
   pinnedPanelOpacity?: number;
+  modelPricing?: {
+    fetched: Record<string, ModelPricingEntry>;
+    custom: Array<{ prefix: string } & ModelPricingEntry>;
+    fetchedAt?: number;
+  };
 }

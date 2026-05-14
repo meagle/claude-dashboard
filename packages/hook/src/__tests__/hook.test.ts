@@ -1,9 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { processHookEvent, HookEvent } from '../hook';
+import { processHookEvent, HookEvent, modelPricingFromConfig, calcTurnCost } from '../hook';
 import { readSessions } from '@claude-dashboard/shared';
-import { Session } from '@claude-dashboard/shared';
+import { Session, DashboardConfig } from '@claude-dashboard/shared';
 
 function writeTranscript(dir: string, entries: object[]): string {
   const p = path.join(dir, 'transcript.jsonl');
@@ -381,5 +381,67 @@ describe('processHookEvent — toolSummary via post-tool', () => {
   it('returns null summary for unknown tools', () => {
     firePostTool('UnknownTool', { something: 'value' });
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBeNull();
+  });
+});
+
+describe('modelPricingFromConfig', () => {
+  const baseConfig: DashboardConfig = {
+    columns: { elapsedTime: true, gitBranch: true, changedFiles: true, cost: false, subagents: true, lastAction: true, compactPaths: true, doneFooter: true, footerStyle: 'default' },
+    staleSessionMinutes: 30,
+    maxHeight: 700,
+    theme: 'light',
+    notifications: true,
+    notificationSound: true,
+    showBadgeCount: false,
+  };
+
+  it('returns hardcoded price when no config override', () => {
+    const p = modelPricingFromConfig('claude-sonnet-4-6', baseConfig);
+    expect(p).not.toBeNull();
+    expect(p!.input).toBe(3);
+    expect(p!.output).toBe(15);
+  });
+
+  it('returns fetched price when config has fetched entry for prefix', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelPricing: {
+        fetched: { 'claude-sonnet-4': { input: 2, cacheWrite: 2.5, cacheRead: 0.2, output: 10 } },
+        custom: [],
+      },
+    };
+    const p = modelPricingFromConfig('claude-sonnet-4-6', cfg);
+    expect(p!.input).toBe(2);
+    expect(p!.output).toBe(10);
+  });
+
+  it('custom entry overrides fetched entry for same prefix', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelPricing: {
+        fetched: { 'claude-sonnet-4': { input: 2, cacheWrite: 2.5, cacheRead: 0.2, output: 10 } },
+        custom: [{ prefix: 'claude-sonnet-4', input: 1, cacheWrite: 1.25, cacheRead: 0.1, output: 5 }],
+      },
+    };
+    const p = modelPricingFromConfig('claude-sonnet-4-6', cfg);
+    expect(p!.input).toBe(1);
+    expect(p!.output).toBe(5);
+  });
+
+  it('custom entry with unknown prefix matches model id', () => {
+    const cfg: DashboardConfig = {
+      ...baseConfig,
+      modelPricing: {
+        fetched: {},
+        custom: [{ prefix: 'my-proxy', input: 0.5, cacheWrite: 0.6, cacheRead: 0.05, output: 2 }],
+      },
+    };
+    const p = modelPricingFromConfig('my-proxy-v2', cfg);
+    expect(p!.input).toBe(0.5);
+  });
+
+  it('returns null for unknown model with no config override', () => {
+    const p = modelPricingFromConfig('unknown-model-xyz', baseConfig);
+    expect(p).toBeNull();
   });
 });

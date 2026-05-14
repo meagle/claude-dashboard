@@ -51,6 +51,13 @@ export interface Session {
   appName?: string | null;
 }
 
+export interface ModelPricingEntry {
+  input: number;
+  cacheWrite: number;
+  cacheRead: number;
+  output: number;
+}
+
 export interface DashboardConfig {
   columns: {
     elapsedTime: boolean;
@@ -71,6 +78,11 @@ export interface DashboardConfig {
   notificationSound: boolean;
   showBadgeCount: boolean;
   pinnedPanelOpacity?: number;
+  modelPricing?: {
+    fetched: Record<string, ModelPricingEntry>;
+    custom: Array<{ prefix: string } & ModelPricingEntry>;
+    fetchedAt?: number;
+  };
 }
 
 export interface ArchivedSession extends Session {

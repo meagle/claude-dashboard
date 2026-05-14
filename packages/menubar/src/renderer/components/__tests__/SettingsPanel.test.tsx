@@ -19,6 +19,13 @@ const mockConfig = {
     cost: false,
     footerStyle: 'default',
   },
+  modelPricing: {
+    fetched: {
+      'claude-sonnet-4': { input: 3, cacheWrite: 3.75, cacheRead: 0.3, output: 15 },
+    },
+    custom: [],
+    fetchedAt: Date.now() - 1000,
+  },
 };
 
 beforeEach(() => {
@@ -154,6 +161,47 @@ describe('SettingsPanel', () => {
         'save-config',
         expect.objectContaining({ showBadgeCount: true })
       );
+    });
+  });
+});
+
+describe('SettingsPanel — tab navigation', () => {
+  it('shows General and Cost tabs', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'General' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cost' })).toBeInTheDocument();
+    });
+  });
+
+  it('shows stale timeout on General tab by default', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => {
+      expect(screen.getByText(/Stale session timeout/i)).toBeInTheDocument();
+    });
+  });
+
+  it('does not show session cost toggle on General tab', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'General' }));
+    expect(screen.queryByLabelText(/Show session cost/i)).not.toBeInTheDocument();
+  });
+
+  it('switches to Cost tab and shows pricing table', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Cost' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cost' }));
+    await waitFor(() => {
+      expect(screen.getByText('claude-sonnet-4')).toBeInTheDocument();
+    });
+  });
+
+  it('shows Show session cost toggle on Cost tab', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('button', { name: 'Cost' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cost' }));
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Show session cost/i)).toBeInTheDocument();
     });
   });
 });

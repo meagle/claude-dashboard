@@ -213,7 +213,9 @@ History is stored at `~/.config/claude-dashboard/history.json` and entries older
 
 ## Settings
 
-Click `⚙` in the popover to open the settings panel. Options:
+Click `⚙` in the popover to open the settings panel. The panel has two tabs: **General** and **Cost**.
+
+### General tab
 
 | Setting                            | Description                                                            |
 | ---------------------------------- | ---------------------------------------------------------------------- |
@@ -226,9 +228,15 @@ Click `⚙` in the popover to open the settings panel. Options:
 | Show model & context               | Show model name and context usage bar on active/idle cards             |
 | Show model & context on done cards | Show model name and context usage bar on completed cards               |
 | Compact paths                      | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`)          |
-| Show session cost                  | Display the USD cost in the footer of done cards (API billing only)    |
 | Footer style                       | **Default** shows horizontal stat chips; **Grid** shows a 6-cell labeled grid (Model, Context, Cost, Tokens, Tools, Turns) centered at the bottom of each card |
 | Show agent count in menu bar       | Show a numeric count of active sessions next to the tray icon (off by default) |
+
+### Cost tab
+
+- **Model pricing table** — shows current prices per million tokens for each Claude model family, auto-fetched from [LiteLLM's pricing data](https://github.com/BerriAI/litellm) on startup (cached for 24 hours). Click any price cell to edit it inline; edited values are saved as custom overrides.
+- **Custom model prefixes** — add pricing for proxy models or future Claude versions using the **+ Add custom model** form. Custom entries take precedence over fetched prices.
+- **↻ Refresh** — force re-fetch the latest pricing from LiteLLM immediately.
+- **Show session cost** — display the estimated USD cost in the footer of done cards. API billing only — not meaningful on Pro or Max subscriptions.
 
 Changes take effect immediately — no restart needed.
 
