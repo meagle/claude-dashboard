@@ -120,6 +120,7 @@ export interface DashboardConfig {
     custom: Array<{ prefix: string; contextWindow: number }>;
     fetchedAt?: number;
   };
+  modelColors?: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
 }
 
 export interface ArchivedSession extends Session {
@@ -145,4 +146,9 @@ export const DEFAULT_CONFIG: DashboardConfig = {
   notifications: true,
   notificationSound: true,
   showBadgeCount: false,
+  modelColors: {
+    'claude-sonnet': { color: '#D97757', badgeStyle: 'A' },
+    'claude-opus':   { color: '#D97757', badgeStyle: 'A' },
+    'claude-haiku':  { color: '#D97757', badgeStyle: 'A' },
+  },
 };
