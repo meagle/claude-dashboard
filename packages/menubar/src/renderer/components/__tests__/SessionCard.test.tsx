@@ -264,6 +264,23 @@ describe('SessionCard — grid footer', () => {
   });
 });
 
+describe('SessionCard — model colors', () => {
+  it('applies configured model color to badge via inline style', () => {
+    const { container } = renderCard(
+      { model: 'claude-sonnet-4-6' },
+      {
+        showModel: true,
+        modelColors: { 'claude-sonnet': { color: '#ff0000', badgeStyle: 'B' } },
+      },
+    );
+    // Style B: background = color, text = white
+    const badge = container.querySelector('[data-testid="model-badge"]');
+    expect(badge).not.toBeNull();
+    expect((badge as HTMLElement).style.background).toBe('rgb(255, 0, 0)');
+    expect((badge as HTMLElement).style.color).toBe('rgb(255, 255, 255)');
+  });
+});
+
 describe('SessionCard — flash animation', () => {
   it('applies flash animation when isNew is true', () => {
     const session = makeSession({ sessionId: 'a', status: 'done' });

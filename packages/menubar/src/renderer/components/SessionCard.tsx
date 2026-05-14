@@ -11,6 +11,7 @@ import {
   extractGitChanges,
 } from "../utils/format";
 import { accentColor, dotColor } from "../utils/statusColors";
+import { modelColorFromConfig, modelBadgeStyle } from "../utils/modelColors";
 import { COPY_ICON } from "./icons";
 
 // ── Inline icons ──────────────────────────────────────────────────────────
@@ -198,7 +199,12 @@ function GridFooter({
     cells.push(
       <div key="model" className={CELL}>
         <span className={LABEL}>Model</span>
-        <span className={`${VALUE} text-accent font-bold`}>{s.model}</span>
+        <span
+          className={`${VALUE} font-bold`}
+          style={{ color: modelColorFromConfig(s.model, cfg.modelColors)?.color ?? '#5acce0' }}
+        >
+          {s.model}
+        </span>
       </div>
     );
   }
@@ -554,7 +560,11 @@ export function SessionCard({
     ) : (
       <div className="mt-2.5 border-t border-line pt-2 flex items-center justify-between gap-2">
         {cfg.showModel && s.model && (
-          <span className="bg-model-bg text-accent text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono">
+          <span
+            data-testid="model-badge"
+            className="text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono"
+            style={modelBadgeStyle(modelColorFromConfig(s.model, cfg.modelColors))}
+          >
             {s.model}
           </span>
         )}
