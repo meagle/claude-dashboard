@@ -49,28 +49,40 @@ afterEach(() => {
 });
 
 describe('App pinned panel opacity', () => {
-  it('sets --panel-idle-opacity CSS variable to configured value in detached mode', () => {
+  it('sends detached-hover true on mouseenter in detached mode', () => {
     window.location.hash = '#detached';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.5);
 
-    const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.style.getPropertyValue('--panel-idle-opacity')).toBe('0.5');
+    fireEvent.mouseEnter(container.firstElementChild as HTMLElement);
+    expect(vi.mocked(ipcRenderer.send)).toHaveBeenCalledWith('detached-hover', true);
   });
 
-  it('applies panel-hover-fade class in detached mode for CSS hover transitions', () => {
+  it('sends detached-hover false on mouseleave in detached mode', () => {
     window.location.hash = '#detached';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.5);
 
-    const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.classList.contains('panel-hover-fade')).toBe(true);
+    fireEvent.mouseLeave(container.firstElementChild as HTMLElement);
+    expect(vi.mocked(ipcRenderer.send)).toHaveBeenCalledWith('detached-hover', false);
   });
 
-  it('does not apply panel-hover-fade class when not in detached mode', () => {
+  it('does not send detached-hover events when not in detached mode', () => {
     window.location.hash = '';
+    const { getHandler } = setupSessionsHandler();
+    const { container } = render(<App />);
+    emitSessions(getHandler(), 0.5);
+
+    vi.mocked(ipcRenderer.send).mockClear();
+    fireEvent.mouseEnter(container.firstElementChild as HTMLElement);
+    fireEvent.mouseLeave(container.firstElementChild as HTMLElement);
+    expect(vi.mocked(ipcRenderer.send)).not.toHaveBeenCalledWith('detached-hover', expect.anything());
+  });
+
+  it('does not apply panel-hover-fade class in detached mode', () => {
+    window.location.hash = '#detached';
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
     emitSessions(getHandler(), 0.5);
@@ -79,13 +91,22 @@ describe('App pinned panel opacity', () => {
     expect(wrapper.classList.contains('panel-hover-fade')).toBe(false);
   });
 
-  it('does not set --panel-idle-opacity when not in detached mode', () => {
-    window.location.hash = '';
+  it('sends detached-hover true when mouse leaves but settings panel is open', async () => {
+    window.location.hash = '#detached';
+    vi.mocked(ipcRenderer.invoke).mockImplementation((channel: string) => {
+      if (channel === 'get-config') return Promise.resolve({ staleSessionMinutes: 30, notifications: true, notificationSound: true, showBadgeCount: false, pinnedPanelOpacity: 0.5, columns: { gitBranch: true, changedFiles: true, subagents: false, lastAction: true, compactPaths: true, cost: false, footerStyle: 'default' } });
+      return Promise.resolve(undefined);
+    });
     const { getHandler } = setupSessionsHandler();
-    const { container } = render(<App />);
-    emitSessions(getHandler(), 0.25);
+    const { container, getByTitle } = render(<App />);
+    emitSessions(getHandler(), 0.5);
 
-    const wrapper = container.firstElementChild as HTMLElement;
-    expect(wrapper.style.getPropertyValue('--panel-idle-opacity')).toBe('');
+    // Open settings
+    await act(async () => { fireEvent.click(getByTitle('Settings')); });
+    vi.mocked(ipcRenderer.send).mockClear();
+
+    // Mouse leaves — should still be opaque because settings is open
+    fireEvent.mouseLeave(container.firstElementChild as HTMLElement);
+    expect(vi.mocked(ipcRenderer.send)).toHaveBeenCalledWith('detached-hover', true);
   });
 });

@@ -148,6 +148,7 @@ let trayIconCtrl: TrayIconController | null = null;
 let showBadgeCount = false;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
+let isDetachedOpaque = false;
 let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 const prevStatusMap = new Map<string, string>();
@@ -506,6 +507,73 @@ if (!gotLock) {
   process.exit(0);
 }
 
+function litellmModelToPrefix(modelId: string): string | null {
+  const m = modelId.match(/^(claude-(?:opus|sonnet|haiku)-\d+)/);
+  return m ? m[1] : null;
+}
+
+async function fetchAndCacheLiteLLMPricing(): Promise<void> {
+  const https = await import('https');
+  const url = 'https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json';
+  return new Promise((resolve) => {
+    https.get(url, (res) => {
+      let data = '';
+      res.on('data', (chunk: Buffer) => (data += chunk.toString()));
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data) as Record<string, Record<string, unknown>>;
+          const byPrefix: Record<string, { minor: number; entry: import('@claude-dashboard/shared').ModelPricingEntry }> = {};
+          for (const [modelId, v] of Object.entries(json)) {
+            if (!modelId.startsWith('claude-')) continue;
+            const prefix = litellmModelToPrefix(modelId);
+            if (!prefix) continue;
+            const inp = typeof v.input_cost_per_token === 'number' ? v.input_cost_per_token * 1_000_000 : null;
+            const out = typeof v.output_cost_per_token === 'number' ? v.output_cost_per_token * 1_000_000 : null;
+            const cw  = typeof v.cache_creation_input_token_cost === 'number' ? v.cache_creation_input_token_cost * 1_000_000 : null;
+            const cr  = typeof v.cache_read_input_token_cost === 'number' ? v.cache_read_input_token_cost * 1_000_000 : null;
+            if (inp == null || out == null) continue;
+            const minorMatch = modelId.match(/claude-(?:opus|sonnet|haiku)-\d+-(\d+)/);
+            const minor = minorMatch ? parseInt(minorMatch[1], 10) : 0;
+            const existing = byPrefix[prefix];
+            if (!existing || minor > existing.minor) {
+              byPrefix[prefix] = {
+                minor,
+                entry: {
+                  input: Math.round(inp * 10000) / 10000,
+                  output: Math.round(out * 10000) / 10000,
+                  cacheWrite: Math.round((cw ?? inp * 1.25) * 10000) / 10000,
+                  cacheRead: Math.round((cr ?? inp * 0.1) * 10000) / 10000,
+                },
+              };
+            }
+          }
+          const fetched: Record<string, import('@claude-dashboard/shared').ModelPricingEntry> = {};
+          for (const [prefix, { entry }] of Object.entries(byPrefix)) {
+            fetched[prefix] = entry;
+          }
+          if (Object.keys(fetched).length === 0) { resolve(); return; }
+          const current = readConfig(CONFIG_FILE);
+          const updated = {
+            ...current,
+            modelPricing: {
+              custom: current.modelPricing?.custom ?? [],
+              ...current.modelPricing,
+              fetched,
+              fetchedAt: Date.now(),
+            },
+          };
+          fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
+        } catch {
+          // Silently ignore — old cached data remains
+        }
+        resolve();
+      });
+      res.on('error', () => resolve());
+    }).on('error', () => resolve());
+  });
+}
+
 app.whenReady().then(() => {
   installHook();
 
@@ -524,6 +592,11 @@ app.whenReady().then(() => {
   });
 
   let cfg = readConfig(CONFIG_FILE);
+  const now = Date.now();
+  const fetchedAt = cfg.modelPricing?.fetchedAt ?? 0;
+  if (now - fetchedAt > 24 * 60 * 60 * 1000) {
+    fetchAndCacheLiteLLMPricing().catch(() => {});
+  }
   let MAX_HEIGHT = cfg.maxHeight ?? 700;
   showBadgeCount = cfg.showBadgeCount ?? false;
   let cachedHeight = MAX_HEIGHT;
@@ -621,6 +694,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle("save-config", (_event, partial: Record<string, unknown>) => {
     const current = readConfig(CONFIG_FILE);
+    const partialPricing = partial.modelPricing as typeof current.modelPricing | undefined;
     const updated = {
       ...DEFAULT_CONFIG,
       ...current,
@@ -630,13 +704,24 @@ app.whenReady().then(() => {
         ...current.columns,
         ...((partial.columns as object) ?? {}),
       },
+      modelPricing: partialPricing != null
+        ? { ...(current.modelPricing ?? { fetched: {}, custom: [] }), ...partialPricing }
+        : current.modelPricing,
     };
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2));
     MAX_HEIGHT = updated.maxHeight ?? 700;
     showBadgeCount = updated.showBadgeCount ?? false;
+    if (detachedPanel && !detachedPanel.isDestroyed() && !isDetachedOpaque) {
+      detachedPanel.setOpacity(updated.pinnedPanelOpacity ?? 1);
+    }
     updateTray();
     sendSessionsToPopover();
+  });
+
+  ipcMain.handle("refresh-pricing", async () => {
+    await fetchAndCacheLiteLLMPricing();
+    return readConfig(CONFIG_FILE).modelPricing;
   });
 
   ipcMain.handle("get-history", () => readHistory(HISTORY_FILE));
@@ -729,6 +814,9 @@ app.whenReady().then(() => {
     });
     detachedPanel.on("move", savePanelBounds);
 
+    const initialOpacity = readConfig(CONFIG_FILE).pinnedPanelOpacity ?? 1;
+    detachedPanel.setOpacity(initialOpacity);
+
     detachedPanel.webContents.on("did-finish-load", () => {
       if (detachedPanel && !detachedPanel.isDestroyed()) {
         detachedPanel.webContents.send(
@@ -741,6 +829,16 @@ app.whenReady().then(() => {
       if (panelSaveTimer) clearTimeout(panelSaveTimer);
       detachedPanel = null;
     });
+  });
+
+  ipcMain.on("detached-hover", (_event, isHovered: boolean) => {
+    isDetachedOpaque = isHovered;
+    if (!detachedPanel || detachedPanel.isDestroyed()) return;
+    if (isHovered) {
+      detachedPanel.setOpacity(1);
+    } else {
+      detachedPanel.setOpacity(readConfig(CONFIG_FILE).pinnedPanelOpacity ?? 1);
+    }
   });
 
   ipcMain.handle("set-always-on-top", (event, value: boolean) => {

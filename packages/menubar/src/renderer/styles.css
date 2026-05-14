@@ -155,15 +155,6 @@
   }
 }
 
-/* Detached panel idle opacity — controlled by --panel-idle-opacity CSS var.
-   Using CSS :hover avoids React state changes (and the resize-to-fit they trigger). */
-.panel-hover-fade {
-  opacity: var(--panel-idle-opacity, 1);
-  transition: opacity 200ms ease;
-}
-.panel-hover-fade:hover {
-  opacity: 1;
-}
 
 @layer utilities {
   /* Number inputs without spin buttons */

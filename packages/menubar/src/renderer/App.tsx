@@ -138,12 +138,43 @@ export function App() {
 
   const handleClose = () => window.close();
 
-  const idleOpacity = isDetached ? (cardConfig.pinnedPanelOpacity ?? 1) : 1;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const isHoveredRef = useRef(false);
+  const settingsOpenRef = useRef(settingsOpen);
+  const historyOpenRef = useRef(historyOpen);
+  settingsOpenRef.current = settingsOpen;
+  historyOpenRef.current = historyOpen;
+
+  // DOM hover listeners — use refs to avoid stale closures from the one-time effect
+  useEffect(() => {
+    if (!isDetached) return;
+    const el = rootRef.current;
+    if (!el) return;
+    const syncOpacity = () => {
+      const opaque = isHoveredRef.current || settingsOpenRef.current || historyOpenRef.current;
+      ipcRenderer.send("detached-hover", opaque);
+    };
+    const onEnter = () => { isHoveredRef.current = true; ipcRenderer.send("detached-hover", true); };
+    const onLeave = () => { isHoveredRef.current = false; syncOpacity(); };
+    el.addEventListener("mouseenter", onEnter);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mouseenter", onEnter);
+      el.removeEventListener("mouseleave", onLeave);
+    };
+  }, [isDetached]);
+
+  // Keep panel opaque while settings or history is open
+  useEffect(() => {
+    if (!isDetached) return;
+    const opaque = isHoveredRef.current || settingsOpen || historyOpen;
+    ipcRenderer.send("detached-hover", opaque);
+  }, [settingsOpen, historyOpen, isDetached]);
 
   return (
     <div
-      className={`flex flex-col flex-1 min-h-0 bg-base${isDetached ? " panel-hover-fade" : ""}`}
-      style={isDetached ? ({ "--panel-idle-opacity": idleOpacity } as React.CSSProperties) : undefined}
+      ref={rootRef}
+      className="flex flex-col flex-1 min-h-0 bg-base"
     >
       <Header
         isDetached={isDetached}
