@@ -489,6 +489,7 @@ function buildSessionsPayload() {
       footerStyle: config.columns.footerStyle ?? 'default',
       theme: config.theme ?? "light",
       pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
+      modelColors: config.modelColors ?? {},
     },
     home: os.homedir(),
   };
