@@ -1,5 +1,5 @@
 appId: com.meagle.claude-dashboard
-productName: Claude Dashboard
+productName: Claude Agent Dashboard
 copyright: Copyright © 2026
 electronVersion: "30.5.1"
 
@@ -14,7 +14,7 @@ mac:
   # entitlementsInherit: build/entitlements.mac.plist
 
 dmg:
-  title: Claude Dashboard
+  title: Claude Agent Dashboard
   sign: false
 
 files:

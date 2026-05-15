@@ -16,11 +16,11 @@ export type ViewMode = 'card' | 'compact';
  * ────────────────────────────────────────────────────────────────────── */
 function BrandMark({ pulse }: { pulse: boolean }) {
   return (
-    <span className="relative inline-flex items-center justify-center w-[18px] h-[18px] shrink-0">
+    <span className="relative inline-flex items-center justify-center w-[20px] h-[16px] shrink-0">
       {pulse && (
         <span
           aria-hidden
-          className="absolute inset-0 rounded-full animate-status-pulse"
+          className="absolute inset-0 rounded animate-status-pulse"
           style={{
             background:
               'radial-gradient(circle, var(--color-accent) 0%, transparent 70%)',
@@ -29,25 +29,25 @@ function BrandMark({ pulse }: { pulse: boolean }) {
         />
       )}
       <svg
-        viewBox="0 0 18 18"
-        width="18"
-        height="18"
+        viewBox="0 0 20 16"
+        width="20"
+        height="16"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden
       >
         <defs>
-          <linearGradient id="claude-mark-grad" x1="0" y1="0" x2="18" y2="18" gradientUnits="userSpaceOnUse">
+          <linearGradient id="card-mark-grad" x1="0" y1="0" x2="20" y2="16" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="var(--color-accent)" />
             <stop offset="100%" stopColor="var(--color-tool)" />
           </linearGradient>
         </defs>
-        {/* Outer ring */}
-        <circle cx="9" cy="9" r="7" stroke="url(#claude-mark-grad)" strokeWidth="1.5" />
-        {/* Orbit tick (top-right) – a subtle "active" cue */}
-        <circle cx="14.2" cy="4.2" r="1.4" fill="url(#claude-mark-grad)" />
-        {/* Nucleus */}
-        <circle cx="9" cy="9" r="2" fill="url(#claude-mark-grad)" />
+        {/* Card body — dim fill */}
+        <rect x="1.5" y="1.5" width="17" height="13" rx="2.5" fill="url(#card-mark-grad)" opacity="0.22" />
+        {/* Left accent bar */}
+        <rect x="1.5" y="1.5" width="4" height="13" rx="2.5" fill="url(#card-mark-grad)" />
+        {/* Status dot */}
+        <circle cx="16.5" cy="4.5" r="2" fill="url(#card-mark-grad)" />
       </svg>
     </span>
   );
@@ -224,10 +224,10 @@ export function Header({
       {/* ── Left: brand mark + wordmark + live activity pills ─────────── */}
       <span className="flex items-center gap-2 min-w-0">
         <BrandMark pulse={anyRunning} />
-        <span className="font-bold text-bright text-[13px] tracking-tight">Claude</span>
+        <span className="font-bold text-bright text-[13px] tracking-tight truncate min-w-0">Agent Dashboard</span>
 
         {counts.total > 0 && !isHistoryOpen && !isSettingsOpen && (
-          <span className="flex items-center gap-1 ml-1">
+          <span className="flex items-center gap-1 ml-1 shrink-0">
             <span className="text-fainter/70 text-xs">·</span>
             <StatusPill
               count={counts.active}
