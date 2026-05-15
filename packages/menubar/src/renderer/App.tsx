@@ -156,8 +156,12 @@ export function App() {
   const isHoveredRef = useRef(false);
   const settingsOpenRef = useRef(settingsOpen);
   const historyOpenRef = useRef(historyOpen);
+  const isCollapsedRef = useRef(isCollapsed);
+  const collapsedAlwaysOpaqueRef = useRef(cardConfig.collapsedAlwaysOpaque ?? false);
   settingsOpenRef.current = settingsOpen;
   historyOpenRef.current = historyOpen;
+  isCollapsedRef.current = isCollapsed;
+  collapsedAlwaysOpaqueRef.current = cardConfig.collapsedAlwaysOpaque ?? false;
 
   // DOM hover listeners — use refs to avoid stale closures from the one-time effect
   useEffect(() => {
@@ -165,7 +169,9 @@ export function App() {
     const el = rootRef.current;
     if (!el) return;
     const syncOpacity = () => {
-      const opaque = isHoveredRef.current || settingsOpenRef.current || historyOpenRef.current;
+      const opaque = isHoveredRef.current
+        || (!isCollapsedRef.current && (settingsOpenRef.current || historyOpenRef.current))
+        || (isCollapsedRef.current && collapsedAlwaysOpaqueRef.current);
       ipcRenderer.send("detached-hover", opaque);
     };
     const onEnter = () => { isHoveredRef.current = true; ipcRenderer.send("detached-hover", true); };
@@ -178,12 +184,14 @@ export function App() {
     };
   }, [isDetached]);
 
-  // Keep panel opaque while settings or history is open
+  // Keep panel opaque while settings or history is open (expanded only), or when collapsed + always-opaque is on
   useEffect(() => {
     if (!isDetached) return;
-    const opaque = isHoveredRef.current || settingsOpen || historyOpen;
+    const opaque = isHoveredRef.current
+      || (!isCollapsed && (settingsOpen || historyOpen))
+      || (isCollapsed && (cardConfig.collapsedAlwaysOpaque ?? false));
     ipcRenderer.send("detached-hover", opaque);
-  }, [settingsOpen, historyOpen, isDetached]);
+  }, [settingsOpen, historyOpen, isCollapsed, cardConfig.collapsedAlwaysOpaque, isDetached]);
 
   return (
     <div

@@ -110,6 +110,7 @@ export interface DashboardConfig {
   notificationSound: boolean;
   showBadgeCount: boolean;
   pinnedPanelOpacity?: number;
+  collapsedAlwaysOpaque?: boolean;
   modelPricing?: {
     fetched: Record<string, ModelPricingEntry>;
     custom: Array<{ prefix: string } & ModelPricingEntry>;

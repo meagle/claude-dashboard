@@ -204,6 +204,9 @@ export function CompactSessionRow({
               {s.gitAhead != null && s.gitAhead > 0 && cfg.showGitSummary && (
                 <span className="ml-1 text-branch">↑{s.gitAhead}</span>
               )}
+              {worktreeLabel && (
+                <span className="ml-2 text-branch whitespace-nowrap shrink-0">🌿 {worktreeLabel}</span>
+              )}
             </>
           )}
         </span>

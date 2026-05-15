@@ -335,6 +335,14 @@ async function resizeToContent(
     onHeight(clamped);
     const [width] = win.getSize();
     isProgrammaticResize = true;
+    // When collapsed, temporarily remove the minimum-height constraint so the window
+    // can shrink to header-only height; restore it when expanded.
+    if (flag === 'collapsed') {
+      win.setMinimumSize(currentMinWidth, 0);
+    } else {
+      const minH = currentViewMode !== 'card' ? MIN_HEIGHT_COMPACT : MIN_HEIGHT_CARD;
+      win.setMinimumSize(currentMinWidth, minH);
+    }
     win.setSize(Math.max(width, currentMinWidth), clamped);
     isProgrammaticResize = false;
   } catch {
@@ -501,6 +509,7 @@ function buildSessionsPayload() {
       footerStyle: config.columns.footerStyle ?? 'default',
       theme: config.theme ?? "light",
       pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
+      collapsedAlwaysOpaque: config.collapsedAlwaysOpaque ?? false,
       modelColors: config.modelColors ?? {},
     },
     home: os.homedir(),

@@ -388,6 +388,9 @@ export function SessionCard({
             {s.gitAhead != null && s.gitAhead > 0 && cfg.showGitSummary && (
               <span className="ml-1 text-branch">↑{s.gitAhead}</span>
             )}
+            {worktreeLabel && (
+              <span className="ml-2 text-branch whitespace-nowrap">🌿 {worktreeLabel}</span>
+            )}
           </>
         )}
       </span>

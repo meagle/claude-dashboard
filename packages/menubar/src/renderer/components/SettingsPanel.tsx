@@ -25,6 +25,7 @@ interface FormState {
   showBadgeCount: boolean;
   footerStyle: "default" | "grid";
   pinnedPanelOpacity: number;
+  collapsedAlwaysOpaque: boolean;
 }
 
 const DEFAULTS: FormState = {
@@ -43,6 +44,7 @@ const DEFAULTS: FormState = {
   showBadgeCount: false,
   footerStyle: "default",
   pinnedPanelOpacity: 1,
+  collapsedAlwaysOpaque: false,
 };
 
 
@@ -760,6 +762,7 @@ export function SettingsPanel({
         showBadgeCount: config.showBadgeCount ?? false,
         footerStyle: (config.columns?.footerStyle as "default" | "grid" | undefined) ?? "default",
         pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
+        collapsedAlwaysOpaque: config.collapsedAlwaysOpaque ?? false,
       });
     });
   }, []);
@@ -772,6 +775,7 @@ export function SettingsPanel({
     notificationSound: f.notificationSound,
     showBadgeCount: f.showBadgeCount,
     pinnedPanelOpacity: f.pinnedPanelOpacity,
+    collapsedAlwaysOpaque: f.collapsedAlwaysOpaque,
     columns: {
       gitBranch: f.gitBranch,
       changedFiles: f.changedFiles,
@@ -923,6 +927,17 @@ export function SettingsPanel({
             {Math.round((1 - form.pinnedPanelOpacity) * 100)}%
           </span>
         </div>
+      </div>
+
+      <div className={ROW}>
+        <label htmlFor="collapsed-always-opaque" className={LABEL}>
+          Collapsed panel always opaque
+        </label>
+        <Toggle
+          id="collapsed-always-opaque"
+          checked={form.collapsedAlwaysOpaque}
+          onChange={(v) => setAndSave("collapsedAlwaysOpaque", v)}
+        />
       </div>
 
       <hr className="border-line my-1" />

@@ -234,7 +234,7 @@ export function Header({
   return (
     <div
       id="header"
-      className="flex justify-between items-center px-3 pb-1.5 border-b border-line shrink-0 gap-2"
+      className={`flex justify-between items-center px-3 pb-1.5 shrink-0 gap-2 ${isCollapsed ? '' : 'border-b border-line'}`}
     >
       {/* ── Left: brand mark + wordmark + live activity pills ─────────── */}
       <span className="flex items-center gap-2 min-w-0">
@@ -248,22 +248,22 @@ export function Header({
         <BrandMark pulse={anyRunning} />
         <span className="font-bold text-bright text-[13px] tracking-tight truncate min-w-0">Agent Dashboard</span>
 
-        {counts.total > 0 && !isHistoryOpen && !isSettingsOpen && (
+        {counts.total > 0 && (
           <span className="flex items-center gap-1 ml-1 shrink-0">
             <span className="text-fainter/70 text-xs">·</span>
-            <StatusPill
-              count={counts.active}
-              label="active"
-              colorClass="text-badge-active"
-              pulse
-              title={`${counts.active} active session${counts.active === 1 ? '' : 's'}`}
-            />
             <StatusPill
               count={counts.waiting}
               label="waiting"
               colorClass="text-badge-waiting"
               pulse
               title={`${counts.waiting} waiting on input or permission`}
+            />
+            <StatusPill
+              count={counts.active}
+              label="active"
+              colorClass="text-badge-active"
+              pulse
+              title={`${counts.active} active session${counts.active === 1 ? '' : 's'}`}
             />
             <StatusPill
               count={counts.inactive}
@@ -277,7 +277,7 @@ export function Header({
 
       {/* ── Right: functional controls ────────────────────── */}
       <span className="flex items-center gap-2.5 shrink-0">
-        {!isCollapsed && !isDetached && (
+        {!isDetached && (
           <button
             title="Open as standalone panel"
             className={`${BTN} hover:text-bright`}

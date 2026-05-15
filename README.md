@@ -15,8 +15,8 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - Hover a done card to reveal the `✕` dismiss button and clear it from the list
 - Pop out a standalone always-on-top panel with the `⧉` button
 - Toggle between **card** and **compact** view modes with the layout button in the header
-- Click the **chevron** (▼/▶) at the left of the header to collapse the panel to header-only — just the brand, pills, and controls. Click again to expand. State persists across restarts.
-- The header shows live activity pills — **active**, **waiting**, and **inactive** (done + idle) counts at a glance
+- Click the **chevron** (▼/▶) at the left of the header to collapse the panel to header-only — just the brand, pills, and controls. Click again to expand. State persists across restarts. The `⧉` popout button remains visible when collapsed.
+- The header shows live activity pills — **waiting**, **active**, and **inactive** (done + idle) counts at a glance. Pills are always visible regardless of which panel is open.
 - Click `🕐` to open the session history panel — a 30-day log of completed sessions grouped by day with cost totals
 
 **Tray icon** uses a circle-dot design that matches the dashboard's brand mark and adapts to your menu bar:
@@ -198,7 +198,7 @@ Click the layout button in the header to cycle through three view modes:
 | **Card** | Full cards with prompt, tool row, task progress, git info, and context bar |
 | **Compact** | 2-line rows — identity + branch on line 1, task preview + context bar on line 2 |
 
-Each mode shows: status dot, project name, branch pill, worktree pill, task/prompt preview, loop chip, context bar, token count, ⌘-key shortcut, and elapsed time. The compact view uses a fixed-width trailing cluster so context bars and token columns line up vertically across rows.
+Each mode shows: status dot, project name, branch pill, worktree indicator (🌿 name), task/prompt preview, loop chip, context bar, token count, ⌘-key shortcut, and elapsed time. The compact view uses a fixed-width trailing cluster so context bars and token columns line up vertically across rows.
 
 The selected view mode is remembered across sessions and synced between the popover and the standalone panel. Window width is saved per mode so each view can have its own preferred width.
 
@@ -231,6 +231,8 @@ Click `⚙` in the popover to open the settings panel. The panel has three tabs:
 | Compact paths                      | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`)          |
 | Footer style                       | **Default** shows horizontal stat chips; **Grid** shows a 6-cell labeled grid (Model, Context, Cost, Tokens, Tools, Turns) centered at the bottom of each card |
 | Show agent count in menu bar       | Show a numeric count of active sessions next to the tray icon (off by default) |
+| Pinned panel opacity               | Transparency level of the floating panel when not hovered                      |
+| Collapsed panel always opaque      | Keep the floating panel at full opacity when it is in collapsed (header-only) mode |
 
 ### Cost tab
 
