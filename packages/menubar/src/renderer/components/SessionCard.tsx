@@ -448,11 +448,7 @@ export function SessionCard({
     const toolName = s.currentTool ?? (s.errorState ? s.loopTool : null);
     if (toolName) {
       streamRow = (
-        <div
-          className={`mt-1.5 text-sm flex items-start gap-1.5 break-words ${
-            s.errorState ? "text-badge-loop" : "text-tool"
-          }`}
-        >
+        <div className="mt-1.5 text-sm flex items-start gap-1.5 break-words text-badge-active">
           {TOOL_ICON}
           <span className="min-w-0">
             <span className="font-mono">{toolName}</span>

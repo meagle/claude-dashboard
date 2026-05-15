@@ -5,7 +5,9 @@
  * detached panel.
  *
  * Usage:
- *   node scripts/demo.js
+ *   node scripts/demo.js          # 10-second countdown
+ *   node scripts/demo.js --now    # skip countdown, start immediately
+ *   node scripts/demo.js -n       # same
  *
  * Ctrl+C to stop and clean up.
  */
@@ -124,12 +126,17 @@ function session(overrides) {
 // ── Demo sequence ─────────────────────────────────────────────────────────────
 
 async function run() {
-  console.log("🎬  Demo starting in 10 seconds — get QuickTime ready!\n");
-  for (let i = 10; i >= 1; i--) {
-    process.stdout.write(`    ${i}...\r`);
-    await sleep(1000);
+  const skipCountdown = process.argv.includes("--now") || process.argv.includes("-n");
+  if (skipCountdown) {
+    console.log("🎬  Demo starting now — open the dashboard!\n");
+  } else {
+    console.log("🎬  Demo starting in 10 seconds — get QuickTime ready!\n");
+    for (let i = 10; i >= 1; i--) {
+      process.stdout.write(`    ${i}...\r`);
+      await sleep(1000);
+    }
+    console.log("    ▶ Recording! Open the dashboard now.          \n");
   }
-  console.log("    ▶ Recording! Open the dashboard now.          \n");
 
   // Backup existing sessions
   let backup = null;
@@ -272,8 +279,8 @@ async function run() {
   write([s1_resume, s2_input, s3]);
   await sleep(2500);
 
-  // ── Step 7: Session 3 enters a loop ───────────────────────────────────────
-  console.log("Step 7/10 — Session 3 stuck in loop");
+  // ── Step 7: Session 3 enters a tool loop (errorState) ────────────────────
+  console.log("Step 7/10 — Session 3 in tool loop (observe green sidebar + text)");
   const s3_loop = {
     ...s3,
     status: "active",
@@ -281,12 +288,12 @@ async function run() {
     lastToolSummary: "stripe-v2/migrate.sh",
     errorState: true,
     loopTool: "Bash",
-    loopCount: 4,
+    loopCount: 5,
     lastActivity: Date.now(),
     toolCount: 14,
   };
   write([s1_resume, s2_input, s3_loop]);
-  await sleep(3000);
+  await sleep(6000);
 
   // ── Step 8: Worktree session recovers and finishes ─────────────────────────
   console.log("Step 8/10 — Worktree session done");

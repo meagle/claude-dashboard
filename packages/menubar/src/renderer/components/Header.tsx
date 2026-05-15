@@ -142,15 +142,14 @@ const TAB_BTN = 'w-[26px] h-[22px] flex items-center justify-center cursor-point
 interface Counts {
   active: number;
   waiting: number;
-  inactive: number;  // done + idle (excludes errorState sessions)
-  total: number;     // only counts non-errorState sessions
+  inactive: number;  // done + idle
+  total: number;
 }
 
 function computeCounts(sessions: SessionRow[] | undefined): Counts {
   const c: Counts = { active: 0, waiting: 0, inactive: 0, total: 0 };
   if (!sessions) return c;
   for (const s of sessions) {
-    if (s.errorState) continue;  // not surfaced in any pill; excluded from total
     c.total++;
     if (s.status === 'active') c.active++;
     else if (s.status === 'waiting_permission' || s.status === 'waiting_input') c.waiting++;

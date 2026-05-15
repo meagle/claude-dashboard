@@ -239,11 +239,10 @@ describe('Header — status pills', () => {
     expect(screen.queryByText('inactive')).not.toBeInTheDocument();
   });
 
-  it('errorState sessions do not count toward inactive', () => {
-    // errorState=true sessions are "looping" — excluded from all pills
+  it('errorState sessions count toward their status pill like any other session', () => {
     const sessions = [makeSession({ status: 'done', errorState: true })];
     render(<Header {...makeProps({ sessions })} />);
-    expect(screen.queryByText('inactive')).not.toBeInTheDocument();
+    expect(screen.queryByText('inactive')).toBeInTheDocument();
   });
 });
 

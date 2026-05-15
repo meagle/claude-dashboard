@@ -6,10 +6,10 @@ type Status = SessionRow['status'];
 const STATUSES: Status[] = ['active', 'waiting_permission', 'waiting_input', 'done', 'idle'];
 
 describe('accentColor', () => {
-  it('returns loop color when errorState is true, regardless of status', () => {
-    for (const status of STATUSES) {
-      expect(accentColor(status, true)).toBe('bg-badge-loop');
-    }
+  it('returns status-based color even when errorState is true', () => {
+    expect(accentColor('active', true)).toBe('bg-branch');
+    expect(accentColor('done', true)).toBe('bg-badge-done');
+    expect(accentColor('waiting_permission', true)).toBe('bg-badge-waiting');
   });
 
   it('returns waiting color for waiting_permission', () => {
@@ -34,10 +34,10 @@ describe('accentColor', () => {
 });
 
 describe('dotColor', () => {
-  it('returns loop color when errorState is true, regardless of status', () => {
-    for (const status of STATUSES) {
-      expect(dotColor(status, true)).toBe('text-badge-loop');
-    }
+  it('returns status-based color even when errorState is true', () => {
+    expect(dotColor('active', true)).toBe('text-badge-active');
+    expect(dotColor('done', true)).toBe('text-badge-done');
+    expect(dotColor('waiting_permission', true)).toBe('text-badge-waiting');
   });
 
   it('returns waiting color for waiting_permission', () => {
