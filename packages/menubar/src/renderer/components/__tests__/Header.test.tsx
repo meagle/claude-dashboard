@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Header, ViewMode } from '../Header';
+import { SessionRow } from '../../types';
 
 function makeProps(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
   return {
@@ -154,5 +155,92 @@ describe('Header — settings and history', () => {
     fireEvent.click(screen.getByTitle('Sessions'));
     expect(props.onHistoryToggle).not.toHaveBeenCalled();
     expect(props.onSettingsToggle).not.toHaveBeenCalled();
+  });
+});
+
+function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
+  return {
+    sessionId: 'test',
+    pid: 1,
+    termSessionId: null,
+    workingDir: '/test',
+    dirName: 'test',
+    branch: null,
+    worktree: null,
+    status: 'active',
+    currentTool: null,
+    lastTool: null,
+    lastToolAt: null,
+    lastToolSummary: null,
+    lastPrompt: null,
+    lastMessage: null,
+    currentTask: null,
+    tasks: [],
+    subagents: [],
+    completionPct: 0,
+    costUsd: null,
+    turns: null,
+    toolCount: 0,
+    totalTokens: null,
+    model: null,
+    modelId: null,
+    contextPct: null,
+    contextTokens: null,
+    bashStartedAt: null,
+    gitSummary: null,
+    gitAhead: null,
+    transcriptPath: null,
+    partialResponse: null,
+    errorState: false,
+    loopTool: null,
+    loopCount: 0,
+    startedAt: 0,
+    turnStartedAt: null,
+    lastActivity: 0,
+    dismissed: false,
+    appName: null,
+    ...overrides,
+  };
+}
+
+describe('Header — status pills', () => {
+  it('shows inactive pill when there are done or idle sessions', () => {
+    const sessions = [
+      makeSession({ status: 'done' }),
+      makeSession({ status: 'idle' }),
+    ];
+    render(<Header {...makeProps({ sessions })} />);
+    expect(screen.getByText('inactive')).toBeInTheDocument();
+  });
+
+  it('inactive pill count combines done and idle sessions', () => {
+    const sessions = [
+      makeSession({ status: 'done' }),
+      makeSession({ status: 'done' }),
+      makeSession({ status: 'idle' }),
+    ];
+    render(<Header {...makeProps({ sessions })} />);
+    // The StatusPill renders count in a separate span — find the pill container
+    const pill = screen.getByTitle('3 inactive sessions');
+    expect(pill).toBeInTheDocument();
+  });
+
+  it('does not show loop pill at all', () => {
+    const sessions = [makeSession({ status: 'active', errorState: true })];
+    render(<Header {...makeProps({ sessions })} />);
+    expect(screen.queryByText('loop')).not.toBeInTheDocument();
+  });
+
+  it('does not show inactive pill when count is 0', () => {
+    const sessions = [makeSession({ status: 'active' })];
+    render(<Header {...makeProps({ sessions })} />);
+    expect(screen.queryByText('inactive')).not.toBeInTheDocument();
+  });
+
+  it('errorState sessions do not count toward inactive', () => {
+    // errorState=true sessions are "looping" — excluded from all pills
+    const sessions = [makeSession({ status: 'done', errorState: true })];
+    render(<Header {...makeProps({ sessions })} />);
+    expect(screen.queryByText('inactive')).not.toBeInTheDocument();
   });
 });

@@ -136,20 +136,19 @@ const TAB_BTN = 'w-[26px] h-[22px] flex items-center justify-center cursor-point
 interface Counts {
   active: number;
   waiting: number;
-  error: number;
-  done: number;
-  total: number;
+  inactive: number;  // done + idle (excludes errorState sessions)
+  total: number;     // only counts non-errorState sessions
 }
 
 function computeCounts(sessions: SessionRow[] | undefined): Counts {
-  const c: Counts = { active: 0, waiting: 0, error: 0, done: 0, total: 0 };
+  const c: Counts = { active: 0, waiting: 0, inactive: 0, total: 0 };
   if (!sessions) return c;
   for (const s of sessions) {
+    if (s.errorState) continue;  // not surfaced in any pill; excluded from total
     c.total++;
-    if (s.errorState) c.error++;
-    else if (s.status === 'active') c.active++;
+    if (s.status === 'active') c.active++;
     else if (s.status === 'waiting_permission' || s.status === 'waiting_input') c.waiting++;
-    else if (s.status === 'done') c.done++;
+    else if (s.status === 'done' || s.status === 'idle') c.inactive++;
   }
   return c;
 }
@@ -244,10 +243,10 @@ export function Header({
               title={`${counts.waiting} waiting on input or permission`}
             />
             <StatusPill
-              count={counts.error}
-              label="loop"
-              colorClass="text-badge-loop"
-              title={`${counts.error} session${counts.error === 1 ? '' : 's'} in a loop`}
+              count={counts.inactive}
+              label="inactive"
+              colorClass="text-badge-done"
+              title={`${counts.inactive} inactive session${counts.inactive === 1 ? '' : 's'}`}
             />
           </span>
         )}
