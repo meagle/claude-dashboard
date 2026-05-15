@@ -3,14 +3,14 @@ import type { Tray, NativeImage } from 'electron';
 import { deflateSync } from 'zlib';
 import type { Session } from '@claude-dashboard/shared';
 
-// Canvas: 40×32 buffer @2x → 20×16pt effective in the menubar
-const W = 40;
-const H = 32;
+// Canvas: 44×44 buffer @2x → 22×22pt effective in the menubar (standard macOS tray size)
+const W = 44;
+const H = 44;
 
-// Session-card geometry (in buffer pixels)
-const CARD_X1 = 3.5, CARD_Y1 = 2.5, CARD_X2 = 36.5, CARD_Y2 = 29.5, CARD_R = 3.5;
-const BAR_X2 = CARD_X1 + 6;        // left accent bar
-const DOT_CX = 31, DOT_CY = 8.5, DOT_R = 3.5;  // status dot
+// Session-card geometry (in buffer pixels) — wide card within square canvas
+const CARD_X1 = 3, CARD_Y1 = 7, CARD_X2 = 41, CARD_Y2 = 37, CARD_R = 4;
+const BAR_X2 = CARD_X1 + 8;        // left accent bar
+const DOT_CX = 36, DOT_CY = 13, DOT_R = 5;  // status dot
 const CARD_DIM = 0.22;              // card body opacity relative to bar/dot
 
 const PULSE_FRAME_COUNT = 20;

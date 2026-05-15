@@ -631,6 +631,7 @@ async function fetchAndCacheLiteLLMPricing(): Promise<void> {
 }
 
 app.whenReady().then(() => {
+  app.setName('Claude Agent Dashboard');
   installHook();
 
   // Hide from dock — this is a menu bar only app
