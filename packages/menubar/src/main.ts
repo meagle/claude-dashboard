@@ -723,6 +723,7 @@ app.whenReady().then(() => {
 
   tray.on("click", () => {
     if (detachedPanel && !detachedPanel.isDestroyed()) {
+      if (popover && !popover.isDestroyed()) popover.hide();
       if (detachedPanel.isMinimized()) detachedPanel.restore();
       detachedPanel.show();
       detachedPanel.focus();

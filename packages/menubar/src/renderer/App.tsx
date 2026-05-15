@@ -136,7 +136,7 @@ export function App() {
         const v = e.newValue;
         setViewMode(v === "oneline" ? "compact" : (v as ViewMode | null) ?? "card");
       }
-      if (e.key === "panelCollapsed" && isDetached) {
+      if (e.key === "panelCollapsed" && window.location.hash === "#detached") {
         setIsCollapsed(e.newValue === "true");
       }
     };
