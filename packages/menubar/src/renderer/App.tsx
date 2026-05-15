@@ -67,7 +67,7 @@ export function App() {
   });
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() =>
-    localStorage.getItem('panelCollapsed') === 'true'
+    localStorage.getItem("panelCollapsed") === "true"
   );
   const isDetached = window.location.hash === "#detached";
 
@@ -110,7 +110,7 @@ export function App() {
   const handleCollapseToggle = () => {
     setIsCollapsed((c) => {
       const next = !c;
-      localStorage.setItem('panelCollapsed', String(next));
+      localStorage.setItem("panelCollapsed", String(next));
       return next;
     });
   };
@@ -133,6 +133,9 @@ export function App() {
       if (e.key === "viewMode") {
         const v = e.newValue;
         setViewMode(v === "oneline" ? "compact" : (v as ViewMode | null) ?? "card");
+      }
+      if (e.key === "panelCollapsed") {
+        setIsCollapsed(e.newValue === "true");
       }
     };
     window.addEventListener("storage", handler);
