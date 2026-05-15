@@ -722,6 +722,12 @@ app.whenReady().then(() => {
   });
 
   tray.on("click", () => {
+    if (detachedPanel && !detachedPanel.isDestroyed()) {
+      if (detachedPanel.isMinimized()) detachedPanel.restore();
+      detachedPanel.show();
+      detachedPanel.focus();
+      return;
+    }
     if (!popover || popover.isDestroyed()) return;
     if (popover.isVisible()) {
       popover.hide();
