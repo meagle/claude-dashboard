@@ -233,13 +233,15 @@ export function Header({
     >
       {/* ── Left: brand mark + wordmark + live activity pills ─────────── */}
       <span className="flex items-center gap-2 min-w-0 min-h-[26px]">
-        <button
-          title={isCollapsed ? 'Expand panel' : 'Collapse panel'}
-          className={`${BTN} hover:text-bright`}
-          onClick={onCollapseToggle}
-        >
-          {isCollapsed ? CHEVRON_RIGHT_ICON : CHEVRON_DOWN_ICON}
-        </button>
+        {isDetached && (
+          <button
+            title={isCollapsed ? 'Expand panel' : 'Collapse panel'}
+            className={`${BTN} hover:text-bright`}
+            onClick={onCollapseToggle}
+          >
+            {isCollapsed ? CHEVRON_RIGHT_ICON : CHEVRON_DOWN_ICON}
+          </button>
+        )}
         <BrandMark pulse={anyRunning} />
         <span className="font-bold text-bright text-[13px] tracking-tight truncate min-w-0">Agent Dashboard</span>
 

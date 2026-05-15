@@ -248,18 +248,24 @@ describe('Header — status pills', () => {
 });
 
 describe('Header — collapse toggle', () => {
-  it('shows "Collapse panel" button when not collapsed', () => {
-    render(<Header {...makeProps({ isCollapsed: false })} />);
+  it('does not show collapse button in popover mode', () => {
+    render(<Header {...makeProps({ isDetached: false })} />);
+    expect(screen.queryByTitle('Collapse panel')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Expand panel')).not.toBeInTheDocument();
+  });
+
+  it('shows "Collapse panel" button when detached and not collapsed', () => {
+    render(<Header {...makeProps({ isDetached: true, isCollapsed: false })} />);
     expect(screen.getByTitle('Collapse panel')).toBeInTheDocument();
   });
 
-  it('shows "Expand panel" button when collapsed', () => {
-    render(<Header {...makeProps({ isCollapsed: true })} />);
+  it('shows "Expand panel" button when detached and collapsed', () => {
+    render(<Header {...makeProps({ isDetached: true, isCollapsed: true })} />);
     expect(screen.getByTitle('Expand panel')).toBeInTheDocument();
   });
 
-  it('calls onCollapseToggle when the collapse button is clicked', () => {
-    const props = makeProps({ isCollapsed: false });
+  it('calls onCollapseToggle when the collapse button is clicked in detached mode', () => {
+    const props = makeProps({ isDetached: true, isCollapsed: false });
     render(<Header {...props} />);
     fireEvent.click(screen.getByTitle('Collapse panel'));
     expect(props.onCollapseToggle).toHaveBeenCalledOnce();
