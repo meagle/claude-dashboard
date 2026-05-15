@@ -7,6 +7,7 @@ import {
   Menu,
   Notification,
   shell,
+  screen,
 } from "electron";
 import * as path from "path";
 import * as os from "os";
@@ -150,6 +151,14 @@ let showBadgeCount = false;
 let popover: BrowserWindow | null = null;
 let detachedPanel: BrowserWindow | null = null;
 let isDetachedOpaque = false;
+let detachedHoverPoll: ReturnType<typeof setInterval> | null = null;
+
+function stopDetachedHoverPoll() {
+  if (detachedHoverPoll) {
+    clearInterval(detachedHoverPoll);
+    detachedHoverPoll = null;
+  }
+}
 let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 const prevStatusMap = new Map<string, string>();
@@ -910,6 +919,7 @@ app.whenReady().then(() => {
       }
     });
     detachedPanel.on("closed", () => {
+      stopDetachedHoverPoll();
       if (panelSaveTimer) clearTimeout(panelSaveTimer);
       detachedPanel = null;
     });
@@ -919,9 +929,39 @@ app.whenReady().then(() => {
     isDetachedOpaque = isHovered;
     if (!detachedPanel || detachedPanel.isDestroyed()) return;
     if (isHovered) {
+      stopDetachedHoverPoll();
       detachedPanel.setOpacity(1);
     } else {
-      detachedPanel.setOpacity(readConfig(CONFIG_FILE).pinnedPanelOpacity ?? 1);
+      // The header's -webkit-app-region:drag suppresses mouse events, causing a
+      // spurious mouseleave when the cursor moves from content into the drag region.
+      // Verify the cursor actually left the window before going transparent.
+      const cursor = screen.getCursorScreenPoint();
+      const bounds = detachedPanel.getBounds();
+      const inside =
+        cursor.x >= bounds.x && cursor.x < bounds.x + bounds.width &&
+        cursor.y >= bounds.y && cursor.y < bounds.y + bounds.height;
+      if (inside) {
+        // Cursor is in the drag region — stay opaque and poll for actual exit.
+        stopDetachedHoverPoll();
+        detachedHoverPoll = setInterval(() => {
+          if (!detachedPanel || detachedPanel.isDestroyed() || isDetachedOpaque) {
+            stopDetachedHoverPoll();
+            return;
+          }
+          const cur = screen.getCursorScreenPoint();
+          const b = detachedPanel.getBounds();
+          const stillInside =
+            cur.x >= b.x && cur.x < b.x + b.width &&
+            cur.y >= b.y && cur.y < b.y + b.height;
+          if (!stillInside) {
+            stopDetachedHoverPoll();
+            detachedPanel.setOpacity(readConfig(CONFIG_FILE).pinnedPanelOpacity ?? 1);
+          }
+        }, 50);
+      } else {
+        stopDetachedHoverPoll();
+        detachedPanel.setOpacity(readConfig(CONFIG_FILE).pinnedPanelOpacity ?? 1);
+      }
     }
   });
 

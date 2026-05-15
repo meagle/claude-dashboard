@@ -200,8 +200,8 @@ function GridFooter({
       <div key="model" className={CELL}>
         <span className={LABEL}>Model</span>
         <span
-          className={`${VALUE} font-bold`}
-          style={{ color: modelColorFromConfig(s.modelId, cfg.modelColors)?.color ?? '#5acce0' }}
+          className="font-mono text-[10px] px-1 py-0.5 rounded"
+          style={modelBadgeStyle(modelColorFromConfig(s.modelId, cfg.modelColors))}
         >
           {s.model}
         </span>
@@ -562,7 +562,7 @@ export function SessionCard({
         {cfg.showModel && s.model && (
           <span
             data-testid="model-badge"
-            className="text-ui font-bold px-1.5 py-px rounded-badge shrink-0 font-mono"
+            className="font-mono text-[10px] px-1 py-0.5 rounded shrink-0"
             style={modelBadgeStyle(modelColorFromConfig(s.modelId, cfg.modelColors))}
           >
             {s.model}
