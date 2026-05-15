@@ -66,6 +66,9 @@ export function App() {
     return (saved as ViewMode | null) ?? "card";
   });
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() =>
+    localStorage.getItem('panelCollapsed') === 'true'
+  );
   const isDetached = window.location.hash === "#detached";
 
   // Apply saved theme on mount
@@ -102,6 +105,14 @@ export function App() {
   const handleHistoryToggle = () => {
     setHistoryOpen((o) => !o);
     setSettingsOpen(false);
+  };
+
+  const handleCollapseToggle = () => {
+    setIsCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem('panelCollapsed', String(next));
+      return next;
+    });
   };
 
   const handleViewModeChange = () =>
@@ -182,37 +193,41 @@ export function App() {
         isHistoryOpen={historyOpen}
         viewMode={viewMode}
         alwaysOnTop={alwaysOnTop}
+        isCollapsed={isCollapsed}
         onSettingsToggle={handleSettingsToggle}
         onHistoryToggle={handleHistoryToggle}
         onViewModeChange={handleViewModeChange}
+        onCollapseToggle={handleCollapseToggle}
         onPopout={handlePopout}
         onPinToggle={handlePinToggle}
         onClose={handleClose}
         sessions={sessions}
       />
-      {settingsOpen ? (
-        <SettingsPanel
-          onSave={() => {
-            setSettingsOpen(false);
-            ipcRenderer.send("resize-to-fit");
-          }}
-          onCancel={() => setSettingsOpen(false)}
-          onThemeChange={applyTheme}
-        />
-      ) : historyOpen ? (
-        <HistoryPanel showCost={cardConfig.showCost} home={home} modelColors={cardConfig.modelColors} />
-      ) : (
-        <div
-          id="sessions"
-          className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${viewMode !== "card" ? "overflow-x-hidden" : "gap-1.5 px-2 pt-1.5"}`}
-        >
-          <SessionList
-            sessions={sessions}
-            cardConfig={cardConfig}
-            home={home}
-            viewMode={viewMode}
+      {!isCollapsed && (
+        settingsOpen ? (
+          <SettingsPanel
+            onSave={() => {
+              setSettingsOpen(false);
+              ipcRenderer.send("resize-to-fit");
+            }}
+            onCancel={() => setSettingsOpen(false)}
+            onThemeChange={applyTheme}
           />
-        </div>
+        ) : historyOpen ? (
+          <HistoryPanel showCost={cardConfig.showCost} home={home} modelColors={cardConfig.modelColors} />
+        ) : (
+          <div
+            id="sessions"
+            className={`flex flex-col overflow-y-auto flex-1 min-h-0 ${viewMode !== "card" ? "overflow-x-hidden" : "gap-1.5 px-2 pt-1.5"}`}
+          >
+            <SessionList
+              sessions={sessions}
+              cardConfig={cardConfig}
+              home={home}
+              viewMode={viewMode}
+            />
+          </div>
+        )
       )}
     </div>
   );

@@ -111,3 +111,46 @@ describe('App pinned panel opacity', () => {
     expect(vi.mocked(ipcRenderer.send)).toHaveBeenCalledWith('detached-hover', true);
   });
 });
+
+describe('App — collapse', () => {
+  afterEach(() => {
+    localStorage.removeItem('panelCollapsed');
+  });
+
+  it('renders session list when not collapsed', () => {
+    localStorage.removeItem('panelCollapsed');
+    const { getHandler } = setupSessionsHandler();
+    const { container } = render(<App />);
+    emitSessions(getHandler(), 1);
+    expect(container.querySelector('#sessions')).toBeInTheDocument();
+  });
+
+  it('hides session list when panelCollapsed is "true" in localStorage', () => {
+    localStorage.setItem('panelCollapsed', 'true');
+    const { getHandler } = setupSessionsHandler();
+    const { container } = render(<App />);
+    emitSessions(getHandler(), 1);
+    expect(container.querySelector('#sessions')).not.toBeInTheDocument();
+  });
+
+  it('toggles collapse when collapse button is clicked', async () => {
+    localStorage.removeItem('panelCollapsed');
+    const { getHandler } = setupSessionsHandler();
+    const { container, getByTitle } = render(<App />);
+    emitSessions(getHandler(), 1);
+
+    expect(container.querySelector('#sessions')).toBeInTheDocument();
+    await act(async () => { fireEvent.click(getByTitle('Collapse panel')); });
+    expect(container.querySelector('#sessions')).not.toBeInTheDocument();
+  });
+
+  it('persists collapsed state to localStorage', async () => {
+    localStorage.removeItem('panelCollapsed');
+    const { getHandler } = setupSessionsHandler();
+    const { getByTitle } = render(<App />);
+    emitSessions(getHandler(), 1);
+
+    await act(async () => { fireEvent.click(getByTitle('Collapse panel')); });
+    expect(localStorage.getItem('panelCollapsed')).toBe('true');
+  });
+});
