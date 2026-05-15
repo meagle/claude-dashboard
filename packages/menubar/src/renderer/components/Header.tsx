@@ -4,23 +4,17 @@ import { SessionRow } from '../types';
 export type ViewMode = 'card' | 'compact';
 
 /* ─── Brand mark ──────────────────────────────────────────────────────────
- * A compact "orbit" mark that echoes the cyan→violet gradient used on
- * context bars, session-key pills, and status dots. Replaces the 🤖 emoji.
- *
- *    ╭─╮           outer ring (cyan → violet gradient stroke)
- *    │ · │         inner nucleus dot (accent)
- *    ╰─╯
- *
+ * Circle + center dot + orbit dot — mirrors the tray icon geometry.
  * When any session is actively running we add a soft pulsing ring behind
  * the mark — mirrors the `animate-status-pulse` used across SessionCard.
  * ────────────────────────────────────────────────────────────────────── */
 function BrandMark({ pulse }: { pulse: boolean }) {
   return (
-    <span className="relative inline-flex items-center justify-center w-[20px] h-[16px] shrink-0">
+    <span className="relative inline-flex items-center justify-center w-[16px] h-[16px] shrink-0">
       {pulse && (
         <span
           aria-hidden
-          className="absolute inset-0 rounded animate-status-pulse"
+          className="absolute inset-0 rounded-full animate-status-pulse"
           style={{
             background:
               'radial-gradient(circle, var(--color-accent) 0%, transparent 70%)',
@@ -29,25 +23,25 @@ function BrandMark({ pulse }: { pulse: boolean }) {
         />
       )}
       <svg
-        viewBox="0 0 20 16"
-        width="20"
+        viewBox="0 0 16 16"
+        width="16"
         height="16"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         aria-hidden
       >
         <defs>
-          <linearGradient id="card-mark-grad" x1="0" y1="0" x2="20" y2="16" gradientUnits="userSpaceOnUse">
+          <linearGradient id="orbit-mark-grad" x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
             <stop offset="0%" stopColor="var(--color-accent)" />
             <stop offset="100%" stopColor="var(--color-tool)" />
           </linearGradient>
         </defs>
-        {/* Card body — dim fill */}
-        <rect x="1.5" y="1.5" width="17" height="13" rx="2.5" fill="url(#card-mark-grad)" opacity="0.22" />
-        {/* Left accent bar */}
-        <rect x="1.5" y="1.5" width="4" height="13" rx="2.5" fill="url(#card-mark-grad)" />
-        {/* Status dot */}
-        <circle cx="16.5" cy="4.5" r="2" fill="url(#card-mark-grad)" />
+        {/* Outer ring */}
+        <circle cx="8" cy="8" r="6" stroke="url(#orbit-mark-grad)" strokeWidth="1.5" />
+        {/* Center dot */}
+        <circle cx="8" cy="8" r="2" fill="url(#orbit-mark-grad)" />
+        {/* Orbit dot */}
+        <circle cx="12.6" cy="3.7" r="1.2" fill="url(#orbit-mark-grad)" />
       </svg>
     </span>
   );

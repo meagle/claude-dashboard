@@ -3,25 +3,19 @@ import type { Tray, NativeImage } from 'electron';
 import { deflateSync } from 'zlib';
 import type { Session } from '@claude-dashboard/shared';
 
-// Canvas: 44×44 buffer @2x → 22×22pt effective in the menubar (standard macOS tray size)
-const W = 44;
-const H = 44;
+// BrandMark geometry (normalized 0–1, based on SVG viewBox 0 0 16 16)
+const OUTER_R = 6 / 16;
+const OUTER_HALF_STROKE = 0.75 / 16;
+const CENTER_R = 2 / 16;
+const ORBIT_CX = 12.6 / 16;
+const ORBIT_CY = 3.7 / 16;
+const ORBIT_R = 1.2 / 16;
 
-// Session-card geometry (in buffer pixels) — wide card within square canvas
-const CARD_X1 = 3, CARD_Y1 = 7, CARD_X2 = 41, CARD_Y2 = 37, CARD_R = 4;
-const BAR_X2 = CARD_X1 + 8;        // left accent bar
-const DOT_CX = 36, DOT_CY = 13, DOT_R = 5;  // status dot
-const CARD_DIM = 0.22;              // card body opacity relative to bar/dot
-
-const PULSE_FRAME_COUNT = 20;
-// Cosine curve: starts at 1.0, dips to 0.4, returns to 1.0 over 2 seconds
-const PULSE_OPACITIES = Array.from({ length: PULSE_FRAME_COUNT }, (_, i) =>
-  0.7 + 0.3 * Math.cos((2 * Math.PI * i) / PULSE_FRAME_COUNT)
-);
-const GREEN = '#00e676';
-const ORANGE = '#ff6d00';
+const PULSE_OPACITIES = [1.0, 0.65, 0.4, 0.65] as const;
+const GREEN = '#3fb950';
+const ORANGE = '#f0883e';
 const WHITE = '#ffffff';
-const FRAME_MS = 100;
+const FRAME_MS = 500;
 
 type TrayState = 'idle' | 'active' | 'permission';
 
@@ -30,41 +24,28 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
-function inRR(px: number, py: number, x1: number, y1: number, x2: number, y2: number, r: number): boolean {
-  if (px < x1 || px > x2 || py < y1 || py > y2) return false;
-  if (px < x1 + r && py < y1 + r) return Math.hypot(px - x1 - r, py - y1 - r) <= r;
-  if (px > x2 - r && py < y1 + r) return Math.hypot(px - x2 + r, py - y1 - r) <= r;
-  if (px < x1 + r && py > y2 - r) return Math.hypot(px - x1 - r, py - y2 + r) <= r;
-  if (px > x2 - r && py > y2 - r) return Math.hypot(px - x2 + r, py - y2 + r) <= r;
-  return true;
-}
-
-// opacity applies to the whole icon so all elements pulse together.
-function renderPixels(r: number, g: number, b: number, opacity: number): Uint8Array {
-  const pixels = new Uint8Array(W * H * 4);
+function renderPixels(size: number, r: number, g: number, b: number, opacity: number): Uint8Array {
+  const pixels = new Uint8Array(size * size * 4);
   const SAMPLES = 4;
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      let cardHits = 0, barHits = 0, dotHits = 0;
+  for (let py = 0; py < size; py++) {
+    for (let px = 0; px < size; px++) {
+      let hits = 0;
       for (let sy = 0; sy < SAMPLES; sy++) {
         for (let sx = 0; sx < SAMPLES; sx++) {
-          const x = px + (sx + 0.5) / SAMPLES;
-          const y = py + (sy + 0.5) / SAMPLES;
-          if (inRR(x, y, CARD_X1, CARD_Y1, CARD_X2, CARD_Y2, CARD_R)) cardHits++;
-          if (inRR(x, y, CARD_X1, CARD_Y1, BAR_X2, CARD_Y2, CARD_R)) barHits++;
-          const dx = x - DOT_CX, dy = y - DOT_CY;
-          if (Math.sqrt(dx * dx + dy * dy) <= DOT_R) dotHits++;
+          const x = (px + (sx + 0.5) / SAMPLES) / size;
+          const y = (py + (sy + 0.5) / SAMPLES) / size;
+          const dx = x - 0.5, dy = y - 0.5;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          const onRing = d >= OUTER_R - OUTER_HALF_STROKE && d <= OUTER_R + OUTER_HALF_STROKE;
+          const inCenter = d <= CENTER_R;
+          const ox = x - ORBIT_CX, oy = y - ORBIT_CY;
+          const inOrbit = Math.sqrt(ox * ox + oy * oy) <= ORBIT_R;
+          if (onRing || inCenter || inOrbit) hits++;
         }
       }
-      const total = SAMPLES * SAMPLES;
-      const layerAlpha = Math.max(
-        (cardHits / total) * CARD_DIM,
-        barHits / total,
-        dotHits / total,
-      ) * opacity;
-      const alpha = Math.round(layerAlpha * 255);
+      const alpha = Math.round((hits / (SAMPLES * SAMPLES)) * opacity * 255);
       if (alpha > 0) {
-        const i = (py * W + px) * 4;
+        const i = (py * size + px) * 4;
         pixels[i] = r; pixels[i + 1] = g; pixels[i + 2] = b; pixels[i + 3] = alpha;
       }
     }
@@ -96,20 +77,20 @@ function pngChunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([len, t, data, crcBuf]);
 }
 
-function encodePng(pixels: Uint8Array): Buffer {
-  const row = 1 + W * 4;
-  const raw = Buffer.alloc(H * row);
-  for (let y = 0; y < H; y++) {
+function encodePng(size: number, pixels: Uint8Array): Buffer {
+  const row = 1 + size * 4;
+  const raw = Buffer.alloc(size * row);
+  for (let y = 0; y < size; y++) {
     raw[y * row] = 0; // filter: None
-    for (let x = 0; x < W; x++) {
-      const s = (y * W + x) * 4;
+    for (let x = 0; x < size; x++) {
+      const s = (y * size + x) * 4;
       const d = y * row + 1 + x * 4;
       raw[d] = pixels[s]!; raw[d + 1] = pixels[s + 1]!;
       raw[d + 2] = pixels[s + 2]!; raw[d + 3] = pixels[s + 3]!;
     }
   }
   const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(W, 0); ihdr.writeUInt32BE(H, 4);
+  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4);
   ihdr[8] = 8; ihdr[9] = 6; // 8-bit depth, RGBA color type
   return Buffer.concat([
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), // PNG signature
@@ -121,7 +102,7 @@ function encodePng(pixels: Uint8Array): Buffer {
 
 function buildFrame(color: string, opacity: number): NativeImage {
   const [r, g, b] = hexToRgb(color);
-  const buf = encodePng(renderPixels(r, g, b, opacity));
+  const buf = encodePng(32, renderPixels(32, r, g, b, opacity));
   return nativeImage.createFromBuffer(buf, { scaleFactor: 2.0 });
 }
 
