@@ -275,9 +275,9 @@ export function Header({
         )}
       </span>
 
-      {/* ── Right: functional controls (unchanged) ────────────────────── */}
+      {/* ── Right: functional controls ────────────────────── */}
       <span className="flex items-center gap-2.5 shrink-0">
-        {!isDetached && (
+        {!isCollapsed && !isDetached && (
           <button
             title="Open as standalone panel"
             className={`${BTN} hover:text-bright`}
@@ -286,39 +286,43 @@ export function Header({
             {POPOUT_ICON}
           </button>
         )}
-        <button
-          title={cycle.title}
-          className={`${BTN} ${isNonCard ? 'text-accent' : 'hover:text-bright'}`}
-          onClick={onViewModeChange}
-        >
-          {cycle.icon}
-        </button>
-        <span className="flex items-center gap-0.5 bg-line/20 rounded-md p-0.5">
+        {!isCollapsed && (
           <button
-            title="Sessions"
-            className={`${TAB_BTN} ${!isHistoryOpen && !isSettingsOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
-            onClick={() => {
-              if (isHistoryOpen) onHistoryToggle();
-              else if (isSettingsOpen) onSettingsToggle();
-            }}
+            title={cycle.title}
+            className={`${BTN} ${isNonCard ? 'text-accent' : 'hover:text-bright'}`}
+            onClick={onViewModeChange}
           >
-            {TERMINAL_ICON}
+            {cycle.icon}
           </button>
-          <button
-            title="Session history"
-            className={`${TAB_BTN} ${isHistoryOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
-            onClick={onHistoryToggle}
-          >
-            {CLOCK_ICON}
-          </button>
-          <button
-            title="Settings"
-            className={`${TAB_BTN} ${isSettingsOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
-            onClick={onSettingsToggle}
-          >
-            {GEAR_ICON}
-          </button>
-        </span>
+        )}
+        {!isCollapsed && (
+          <span className="flex items-center gap-0.5 bg-line/20 rounded-md p-0.5">
+            <button
+              title="Sessions"
+              className={`${TAB_BTN} ${!isHistoryOpen && !isSettingsOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
+              onClick={() => {
+                if (isHistoryOpen) onHistoryToggle();
+                else if (isSettingsOpen) onSettingsToggle();
+              }}
+            >
+              {TERMINAL_ICON}
+            </button>
+            <button
+              title="Session history"
+              className={`${TAB_BTN} ${isHistoryOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
+              onClick={onHistoryToggle}
+            >
+              {CLOCK_ICON}
+            </button>
+            <button
+              title="Settings"
+              className={`${TAB_BTN} ${isSettingsOpen ? 'text-accent bg-accent/10' : 'text-soft hover:text-bright'}`}
+              onClick={onSettingsToggle}
+            >
+              {GEAR_ICON}
+            </button>
+          </span>
+        )}
         {isDetached && (
           <span className="flex items-center gap-2">
             <button

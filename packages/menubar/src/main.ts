@@ -269,14 +269,16 @@ async function resizeToContent(
 ) {
   if (!win || win.isDestroyed()) return;
   try {
-    // Returns [height, isSettings] — settings is never capped by maxHeight
-    const [h, isSettings] = await win.webContents.executeJavaScript(
+    // Returns [height, flag] where flag: true=settings (uncapped), 'collapsed'=header-only (no floor)
+    const [h, flag] = await win.webContents.executeJavaScript(
       "(function(){" +
         '  var hdr = document.getElementById("header");' +
         '  var sp  = document.getElementById("settings-panel");' +
         '  var hp  = document.getElementById("history-panel");' +
         '  var ses = document.getElementById("sessions");' +
         "  var hh  = hdr ? hdr.offsetHeight : 0;" +
+        // When collapsed: no sessions, settings, or history panel — just the header bar
+        "  if (!sp && !hp && !ses) return [hh + 8, 'collapsed'];" +
         // Settings panel has no flex-1 so scrollHeight is reliable; never cap it
         "  if (sp) return [hh + sp.scrollHeight + 24, true];" +
         // For sessions and history: flex-1 stretches the container to fill the window,
@@ -326,8 +328,9 @@ async function resizeToContent(
         "  return [hh + contentH(ses, 6) + 8, false];" +
         "})()",
     );
+    const isSettings = flag === true;
     const cap = isSettings ? 2400 : maxHeight;
-    const floor = currentViewMode !== 'card' ? 60 : 120;
+    const floor = flag === 'collapsed' ? 0 : (currentViewMode !== 'card' ? 60 : 120);
     const clamped = Math.max(floor, Math.min(Math.ceil(h), cap));
     onHeight(clamped);
     const [width] = win.getSize();
