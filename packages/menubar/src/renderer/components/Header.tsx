@@ -228,10 +228,11 @@ export function Header({
   return (
     <div
       id="header"
-      className={`flex justify-between items-center px-3 pb-1.5 shrink-0 gap-2 ${isCollapsed ? '' : 'border-b border-line'}`}
+      className="flex justify-between items-center px-3 pb-1.5 shrink-0 gap-2 border-b border-line"
+      style={isCollapsed ? { borderBottomColor: 'transparent' } : undefined}
     >
       {/* ── Left: brand mark + wordmark + live activity pills ─────────── */}
-      <span className="flex items-center gap-2 min-w-0">
+      <span className="flex items-center gap-2 min-w-0 min-h-[26px]">
         <button
           title={isCollapsed ? 'Expand panel' : 'Collapse panel'}
           className={`${BTN} hover:text-bright`}

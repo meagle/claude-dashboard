@@ -988,14 +988,17 @@ app.whenReady().then(() => {
     currentViewMode = mode;
     currentMinWidth = mode !== 'card' ? MIN_WIDTH_COMPACT : MIN_WIDTH_CARD;
     const minH = mode !== 'card' ? MIN_HEIGHT_COMPACT : MIN_HEIGHT_CARD;
-    const targetW = mode !== 'card' ? windowState.compactWidth : windowState.cardWidth;
     isProgrammaticResize = true;
     for (const win of [popover, detachedPanel]) {
       if (!win || win.isDestroyed()) continue;
       win.setMinimumSize(currentMinWidth, minH);
-      const [, h] = win.getSize();
+      const [curW, h] = win.getSize();
+      const targetW = Math.max(curW, currentMinWidth);
       win.setSize(targetW, h);
+      if (mode !== 'card') windowState.compactWidth = targetW;
+      else windowState.cardWidth = targetW;
     }
+    writeWindowState(windowState);
     isProgrammaticResize = false;
   });
 
