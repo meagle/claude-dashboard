@@ -11,9 +11,11 @@ function makeProps(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
     isHistoryOpen: false,
     viewMode: 'card' as ViewMode,
     alwaysOnTop: true,
+    isCollapsed: false,
     onSettingsToggle: vi.fn(),
     onHistoryToggle: vi.fn(),
     onViewModeChange: vi.fn(),
+    onCollapseToggle: vi.fn(),
     onPopout: vi.fn(),
     onPinToggle: vi.fn(),
     onClose: vi.fn(),
@@ -24,7 +26,7 @@ function makeProps(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
 describe('Header — popover mode', () => {
   it('renders the title', () => {
     render(<Header {...makeProps()} />);
-    expect(screen.getByText('Claude')).toBeInTheDocument();
+    expect(screen.getByText('Agent Dashboard')).toBeInTheDocument();
   });
 
   it('shows popout button', () => {
@@ -242,5 +244,24 @@ describe('Header — status pills', () => {
     const sessions = [makeSession({ status: 'done', errorState: true })];
     render(<Header {...makeProps({ sessions })} />);
     expect(screen.queryByText('inactive')).not.toBeInTheDocument();
+  });
+});
+
+describe('Header — collapse toggle', () => {
+  it('shows "Collapse panel" button when not collapsed', () => {
+    render(<Header {...makeProps({ isCollapsed: false })} />);
+    expect(screen.getByTitle('Collapse panel')).toBeInTheDocument();
+  });
+
+  it('shows "Expand panel" button when collapsed', () => {
+    render(<Header {...makeProps({ isCollapsed: true })} />);
+    expect(screen.getByTitle('Expand panel')).toBeInTheDocument();
+  });
+
+  it('calls onCollapseToggle when the collapse button is clicked', () => {
+    const props = makeProps({ isCollapsed: false });
+    render(<Header {...props} />);
+    fireEvent.click(screen.getByTitle('Collapse panel'));
+    expect(props.onCollapseToggle).toHaveBeenCalledOnce();
   });
 });
