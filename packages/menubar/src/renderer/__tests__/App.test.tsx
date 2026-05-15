@@ -165,4 +165,20 @@ describe('App — collapse', () => {
     await act(async () => { fireEvent.click(getByTitle('Collapse panel')); });
     expect(localStorage.getItem('panelCollapsed')).toBe('true');
   });
+
+  it('does not collapse popover when storage event fires panelCollapsed=true', () => {
+    localStorage.removeItem('panelCollapsed');
+    const { getHandler } = setupSessionsHandler();
+    const { container } = render(<App />);
+    emitSessions(getHandler(), 1);
+
+    // Simulate a cross-window StorageEvent (detached panel collapsing)
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'panelCollapsed',
+      newValue: 'true',
+      storageArea: localStorage,
+    }));
+
+    expect(container.querySelector('#sessions')).toBeInTheDocument();
+  });
 });
