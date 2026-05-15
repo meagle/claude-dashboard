@@ -15,7 +15,8 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - Hover a done card to reveal the `✕` dismiss button and clear it from the list
 - Pop out a standalone always-on-top panel with the `⧉` button
 - Toggle between **card** and **compact** view modes with the layout button in the header
-- The header shows live activity pills — active, waiting, and loop counts at a glance
+- Click the **chevron** (▼/▶) at the left of the header to collapse the panel to header-only — just the brand, pills, and controls. Click again to expand. State persists across restarts.
+- The header shows live activity pills — **active**, **waiting**, and **inactive** (done + idle) counts at a glance
 - Click `🕐` to open the session history panel — a 30-day log of completed sessions grouped by day with cost totals
 
 **Tray icon** uses a circle-dot design that matches the dashboard's brand mark and adapts to your menu bar:
