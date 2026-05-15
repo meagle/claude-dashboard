@@ -115,6 +115,7 @@ describe('App pinned panel opacity', () => {
 describe('App — collapse', () => {
   afterEach(() => {
     localStorage.removeItem('panelCollapsed');
+    window.location.hash = '';
   });
 
   it('renders session list when not collapsed', () => {
@@ -125,7 +126,16 @@ describe('App — collapse', () => {
     expect(container.querySelector('#sessions')).toBeInTheDocument();
   });
 
-  it('hides session list when panelCollapsed is "true" in localStorage', () => {
+  it('starts expanded in popover mode even if panelCollapsed is "true" in localStorage', () => {
+    localStorage.setItem('panelCollapsed', 'true');
+    const { getHandler } = setupSessionsHandler();
+    const { container } = render(<App />);
+    emitSessions(getHandler(), 1);
+    expect(container.querySelector('#sessions')).toBeInTheDocument();
+  });
+
+  it('starts collapsed in detached mode when panelCollapsed is "true" in localStorage', () => {
+    window.location.hash = '#detached';
     localStorage.setItem('panelCollapsed', 'true');
     const { getHandler } = setupSessionsHandler();
     const { container } = render(<App />);
@@ -133,7 +143,8 @@ describe('App — collapse', () => {
     expect(container.querySelector('#sessions')).not.toBeInTheDocument();
   });
 
-  it('toggles collapse when collapse button is clicked', async () => {
+  it('toggles collapse when collapse button is clicked in detached mode', async () => {
+    window.location.hash = '#detached';
     localStorage.removeItem('panelCollapsed');
     const { getHandler } = setupSessionsHandler();
     const { container, getByTitle } = render(<App />);
@@ -145,6 +156,7 @@ describe('App — collapse', () => {
   });
 
   it('persists collapsed state to localStorage', async () => {
+    window.location.hash = '#detached';
     localStorage.removeItem('panelCollapsed');
     const { getHandler } = setupSessionsHandler();
     const { getByTitle } = render(<App />);

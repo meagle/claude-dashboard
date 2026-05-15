@@ -67,7 +67,9 @@ export function App() {
   });
   const [alwaysOnTop, setAlwaysOnTop] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() =>
-    localStorage.getItem("panelCollapsed") === "true"
+    window.location.hash === "#detached"
+      ? localStorage.getItem("panelCollapsed") === "true"
+      : false
   );
   const isDetached = window.location.hash === "#detached";
 
