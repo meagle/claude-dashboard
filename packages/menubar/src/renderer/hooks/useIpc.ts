@@ -20,6 +20,7 @@ const DEFAULT_CARD_CONFIG: CardConfig = {
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,
+  showDesktopPresence: true,
   modelColors: {
     'claude-sonnet': { color: '#D97757', badgeStyle: 'A' },
     'claude-opus':   { color: '#D97757', badgeStyle: 'A' },

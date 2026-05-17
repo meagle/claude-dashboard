@@ -12,7 +12,7 @@ import {
 } from "../utils/format";
 import { accentColor, dotColor } from "../utils/statusColors";
 import { modelColorFromConfig, modelBadgeStyle } from "../utils/modelColors";
-import { COPY_ICON } from "./icons";
+import { COPY_ICON, CLAUDE_ICON } from "./icons";
 
 // ── Inline icons ──────────────────────────────────────────────────────────
 const BRANCH_ICON = (
@@ -123,6 +123,7 @@ const IDE_APPS = new Set([
 
 function appIcon(appName: string): React.ReactNode {
   const lower = appName.toLowerCase();
+  if (lower.includes('claude')) return CLAUDE_ICON;
   return IDE_APPS.has(lower) ? IDE_ICON : TERMINAL_ICON;
 }
 

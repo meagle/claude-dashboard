@@ -26,6 +26,7 @@ import {
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
 import { TrayIconController } from "./trayIcon";
+import { createDesktopSessionWatcher, DesktopSessionWatcher } from "./desktopSessions";
 
 const MIN_WIDTH_CARD = 530;
 const MIN_WIDTH_COMPACT = 530;
@@ -161,6 +162,7 @@ function stopDetachedHoverPoll() {
 }
 let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
+let desktopWatcher: DesktopSessionWatcher | null = null;
 const prevStatusMap = new Map<string, string>();
 
 // Cache isAlive results for 2s to avoid spawning ps on every chokidar tick
@@ -481,7 +483,10 @@ function refreshGitInfo() {
 
 function buildSessionsPayload() {
   const config = readConfig(CONFIG_FILE);
-  const sessions = getActiveSessions();
+  const sessions = [
+    ...getActiveSessions(),
+    ...(desktopWatcher?.getSessions() ?? []),
+  ];
   const priority = (s: { status: string }) =>
     s.status === "waiting_permission"
       ? 0
@@ -510,6 +515,7 @@ function buildSessionsPayload() {
       theme: config.theme ?? "light",
       pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
       collapsedAlwaysOpaque: config.collapsedAlwaysOpaque ?? false,
+      showDesktopPresence: config.showDesktopPresence ?? true,
       modelColors: config.modelColors ?? {},
     },
     home: os.homedir(),
@@ -1031,6 +1037,14 @@ app.whenReady().then(() => {
     scheduleGitRefresh();
   });
 
+  // Initialize Claude Desktop session watcher
+  desktopWatcher = createDesktopSessionWatcher(HISTORY_FILE);
+  desktopWatcher.onChange(() => {
+    updateTray();
+    sendSessionsToPopover();
+    setTimeout(doResize, 100);
+  });
+
   updateTray();
   gitRefreshInterval = setInterval(refreshGitInfo, 10_000);
 
@@ -1067,6 +1081,8 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (gitRefreshInterval) clearInterval(gitRefreshInterval);
   if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+  desktopWatcher?.destroy();
+  desktopWatcher = null;
   trayIconCtrl?.destroy();
   trayIconCtrl = null;
   tray?.destroy();

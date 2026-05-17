@@ -4,6 +4,7 @@ import { ipcRenderer, clipboard } from "../utils/electron";
 import { SessionRow, CardConfig } from "../types";
 import { SessionCard } from "./SessionCard";
 import { CompactSessionRow } from "./CompactSessionRow";
+import { DesktopPresenceCard } from "./DesktopPresenceCard";
 import { ViewMode } from "./Header";
 
 interface SessionListProps {
@@ -21,14 +22,18 @@ export function SessionList({
 }: SessionListProps) {
   const prevNonDoneIds = useRef<Set<string>>(new Set());
 
+  // Separate desktop presence from regular sessions
+  const hasDesktop = cardConfig.showDesktopPresence && sessions.some((s) => s.source === 'desktop');
+  const regularSessions = sessions.filter((s) => s.source !== 'desktop');
+
   const newSessionIds = new Set<string>();
-  for (const s of sessions) {
+  for (const s of regularSessions) {
     if (s.status === "done" && prevNonDoneIds.current.has(s.sessionId)) {
       newSessionIds.add(s.sessionId);
     }
   }
   prevNonDoneIds.current = new Set(
-    sessions.filter((s) => s.status !== "done").map((s) => s.sessionId),
+    regularSessions.filter((s) => s.status !== "done").map((s) => s.sessionId),
   );
 
   const handleFocus = useCallback(
@@ -46,7 +51,7 @@ export function SessionList({
     clipboard.writeText(workingDir);
   }, []);
 
-  if (sessions.length === 0) {
+  if (regularSessions.length === 0 && !hasDesktop) {
     return (
       <div className="text-faint text-[13px] text-center py-8">
         No active Claude sessions
@@ -57,7 +62,7 @@ export function SessionList({
   if (viewMode === 'compact') {
     return (
       <div className="flex flex-col">
-        {sessions.map((session) => (
+        {regularSessions.map((session) => (
           <CompactSessionRow
             key={session.sessionId}
             session={session}
@@ -65,13 +70,14 @@ export function SessionList({
             onFocus={handleFocus}
           />
         ))}
+        {hasDesktop && <DesktopPresenceCard viewMode="compact" />}
       </div>
     );
   }
 
   return (
     <AnimatePresence mode="popLayout" initial={false}>
-      {sessions.map((session) => (
+      {regularSessions.map((session) => (
         <motion.div
           key={session.sessionId}
           layout
@@ -91,6 +97,18 @@ export function SessionList({
           />
         </motion.div>
       ))}
+      {hasDesktop && (
+        <motion.div
+          key="desktop-presence"
+          layout
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10, transition: { duration: 0.3 } }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <DesktopPresenceCard viewMode="card" />
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 }

@@ -23,6 +23,7 @@ interface FormState {
   notifications: boolean;
   notificationSound: boolean;
   showBadgeCount: boolean;
+  showDesktopPresence: boolean;
   footerStyle: "default" | "grid";
   pinnedPanelOpacity: number;
   collapsedAlwaysOpaque: boolean;
@@ -42,6 +43,7 @@ const DEFAULTS: FormState = {
   notifications: true,
   notificationSound: true,
   showBadgeCount: false,
+  showDesktopPresence: true,
   footerStyle: "default",
   pinnedPanelOpacity: 1,
   collapsedAlwaysOpaque: false,
@@ -760,6 +762,7 @@ export function SettingsPanel({
         notifications: config.notifications ?? true,
         notificationSound: config.notificationSound ?? true,
         showBadgeCount: config.showBadgeCount ?? false,
+        showDesktopPresence: config.showDesktopPresence ?? true,
         footerStyle: (config.columns?.footerStyle as "default" | "grid" | undefined) ?? "default",
         pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
         collapsedAlwaysOpaque: config.collapsedAlwaysOpaque ?? false,
@@ -774,6 +777,7 @@ export function SettingsPanel({
     notifications: f.notifications,
     notificationSound: f.notificationSound,
     showBadgeCount: f.showBadgeCount,
+    showDesktopPresence: f.showDesktopPresence,
     pinnedPanelOpacity: f.pinnedPanelOpacity,
     collapsedAlwaysOpaque: f.collapsedAlwaysOpaque,
     columns: {
@@ -1053,6 +1057,21 @@ export function SettingsPanel({
           id="show-badge-count"
           checked={form.showBadgeCount}
           onChange={(v) => setAndSave("showBadgeCount", v)}
+        />
+      </div>
+      <div className={ROW}>
+        <div>
+          <label htmlFor="show-desktop-presence" className={LABEL}>
+            Show Claude Desktop card
+          </label>
+          <div className={DESC}>
+            Display a presence card when Claude Desktop is running
+          </div>
+        </div>
+        <Toggle
+          id="show-desktop-presence"
+          checked={form.showDesktopPresence}
+          onChange={(v) => setAndSave("showDesktopPresence", v)}
         />
       </div>
 

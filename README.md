@@ -77,6 +77,8 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 **Stale sessions** (no activity for 30 minutes by default) are pruned automatically — no cleanup needed.
 
+**Claude Desktop presence card:** When Claude Desktop is running, a compact card appears at the bottom of the session list (below all Claude Code sessions). It shows the Claude icon, an "App is running" subtext, and a "● Running" pill. Clicking the card opens Claude Desktop. The card disappears automatically when Claude Desktop quits. It is excluded from the active/inactive session counts in the header. Can be turned off in Settings → General → "Show Claude Desktop card".
+
 ## Requirements
 
 - macOS
@@ -231,6 +233,7 @@ Click `⚙` in the popover to open the settings panel. The panel has three tabs:
 | Compact paths                      | Abbreviate middle path segments (e.g. `~/c/claude-dashboard`)          |
 | Footer style                       | **Default** shows horizontal stat chips; **Grid** shows a 6-cell labeled grid (Model, Context, Cost, Tokens, Tools, Turns) centered at the bottom of each card |
 | Show agent count in menu bar       | Show a numeric count of active sessions next to the tray icon (off by default) |
+| Show Claude Desktop card           | Show a presence card at the bottom of the list when Claude Desktop is running (on by default) |
 | Pinned panel opacity               | Transparency level of the floating panel when not hovered                      |
 | Collapsed panel always opaque      | Keep the floating panel at full opacity when it is in collapsed (header-only) mode |
 

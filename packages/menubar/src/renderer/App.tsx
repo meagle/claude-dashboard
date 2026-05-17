@@ -214,7 +214,7 @@ export function App() {
         onPopout={handlePopout}
         onPinToggle={handlePinToggle}
         onClose={handleClose}
-        sessions={sessions}
+        sessions={sessions.filter((s) => s.source !== "desktop")}
       />
       {!isCollapsed && (
         settingsOpen ? (

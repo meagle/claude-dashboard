@@ -51,6 +51,7 @@ export interface Session {
   lastActivity: number;
   dismissed: boolean;
   appName?: string | null;
+  source?: 'claude-code' | 'desktop';
 }
 
 export interface ModelPricingEntry {
@@ -109,6 +110,7 @@ export interface DashboardConfig {
   notifications: boolean;
   notificationSound: boolean;
   showBadgeCount: boolean;
+  showDesktopPresence?: boolean;
   pinnedPanelOpacity?: number;
   collapsedAlwaysOpaque?: boolean;
   modelPricing?: {
@@ -147,6 +149,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
   notifications: true,
   notificationSound: true,
   showBadgeCount: false,
+  showDesktopPresence: true,
   modelColors: {
     'claude-sonnet': { color: '#D97757', badgeStyle: 'A' },
     'claude-opus':   { color: '#D97757', badgeStyle: 'A' },

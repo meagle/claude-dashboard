@@ -57,6 +57,7 @@ export interface SessionRow {
   lastActivity: number;
   dismissed: boolean;
   appName?: string | null;
+  source?: 'claude-code' | 'desktop';
 }
 
 export interface HistoryRow extends SessionRow {
@@ -76,6 +77,7 @@ export interface CardConfig {
   theme: 'light' | 'dark';
   pinnedPanelOpacity: number;
   collapsedAlwaysOpaque: boolean;
+  showDesktopPresence: boolean;
   modelColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
 }
 
@@ -96,6 +98,7 @@ export interface DashboardConfig {
   notifications: boolean;
   notificationSound: boolean;
   showBadgeCount?: boolean;
+  showDesktopPresence?: boolean;
   pinnedPanelOpacity?: number;
   modelPricing?: {
     fetched: Record<string, ModelPricingEntry>;
