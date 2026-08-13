@@ -113,6 +113,7 @@ export interface DashboardConfig {
   showDesktopPresence?: boolean;
   pinnedPanelOpacity?: number;
   collapsedAlwaysOpaque?: boolean;
+  openPanelOnLaunch?: boolean;
   modelPricing?: {
     fetched: Record<string, ModelPricingEntry>;
     custom: Array<{ prefix: string } & ModelPricingEntry>;
@@ -150,6 +151,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
   notificationSound: true,
   showBadgeCount: false,
   showDesktopPresence: true,
+  openPanelOnLaunch: true,
   modelColors: {
     'claude-sonnet': { color: '#D97757', badgeStyle: 'A' },
     'claude-opus':   { color: '#D97757', badgeStyle: 'A' },

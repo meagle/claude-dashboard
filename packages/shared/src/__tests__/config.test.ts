@@ -21,6 +21,10 @@ describe('readConfig', () => {
     expect(readConfig(filePath)).toEqual(DEFAULT_CONFIG);
   });
 
+  it('defaults openPanelOnLaunch to true', () => {
+    expect(readConfig(filePath).openPanelOnLaunch).toBe(true);
+  });
+
   it('merges partial config with defaults', () => {
     fs.writeFileSync(filePath, JSON.stringify({ theme: 'light' }), 'utf8');
     const result = readConfig(filePath);
