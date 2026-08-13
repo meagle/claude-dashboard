@@ -227,11 +227,11 @@ export function Header({
   return (
     <div
       id="header"
-      className="flex justify-between items-center px-3 pb-1.5 shrink-0 gap-2 border-b border-line"
+      className="flex items-center px-3 pb-1.5 shrink-0 gap-2 border-b border-line"
       style={isCollapsed ? { borderBottomColor: 'transparent' } : undefined}
     >
-      {/* ── Left: brand mark + wordmark + live activity pills ─────────── */}
-      <span className="flex items-center gap-2 min-w-0 min-h-[26px]">
+      {/* ── Left: brand mark ─────────────────────────────────────────── */}
+      <span className="flex items-center gap-2 shrink-0 min-h-[26px]">
         {isDetached && (
           <button
             title={isCollapsed ? 'Expand panel' : 'Collapse panel'}
@@ -242,11 +242,12 @@ export function Header({
           </button>
         )}
         <BrandMark pulse={anyRunning} />
-        <span className="font-bold text-bright text-[13px] tracking-tight truncate min-w-0">Agent Dashboard</span>
+      </span>
 
-        {counts.total > 0 && (
-          <span className="flex items-center gap-1 ml-1 shrink-0">
-            <span className="text-fainter/70 text-xs">·</span>
+      {/* ── Center: live activity pills, centered in remaining space ──── */}
+      <span className="flex-1 flex items-center justify-center min-w-0">
+        {counts.total > 0 ? (
+          <span className="flex items-center gap-1 shrink-0">
             <StatusPill
               count={counts.waiting}
               label="waiting"
@@ -268,6 +269,8 @@ export function Header({
               title={`${counts.inactive} inactive session${counts.inactive === 1 ? '' : 's'}`}
             />
           </span>
+        ) : (
+          <span className="text-faint text-[13px] truncate min-w-0">No agents running</span>
         )}
       </span>
 

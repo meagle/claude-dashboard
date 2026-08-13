@@ -24,9 +24,15 @@ function makeProps(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
 }
 
 describe('Header — popover mode', () => {
-  it('renders the title', () => {
+  it('shows a fallback message when there are no sessions', () => {
     render(<Header {...makeProps()} />);
-    expect(screen.getByText('Agent Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('No agents running')).toBeInTheDocument();
+  });
+
+  it('hides the fallback message when sessions are present', () => {
+    const sessions: SessionRow[] = [makeSession({ status: 'active' })];
+    render(<Header {...makeProps({ sessions })} />);
+    expect(screen.queryByText('No agents running')).not.toBeInTheDocument();
   });
 
   it('shows popout button', () => {
