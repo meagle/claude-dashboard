@@ -314,7 +314,8 @@ packages/
   hook/       Claude Code hook script (compiled to ~/.config/claude-dashboard/hook.js)
   menubar/    Electron tray app + popover
 scripts/
-  install.sh  Build + install
+  install.sh    Build + install
+  mov-to-gif.sh Convert a QuickTime screen recording to an animated GIF (used for docs/demo.gif)
 ```
 
 ## Development

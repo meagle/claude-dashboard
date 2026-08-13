@@ -1,0 +1,9 @@
+// .vscode/settings.json or Cursor equivalent
+{
+  "files.exclude": {
+    ".claude/worktrees": true
+  },
+  "search.exclude": {
+    ".claude/worktrees": true
+  }
+}
