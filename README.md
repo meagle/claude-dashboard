@@ -189,7 +189,7 @@ The install script:
 npm start -w packages/menubar
 ```
 
-Right-click the tray icon to quit.
+Right-click the tray icon for **Pop Out Panel** and **Quit Claude Dashboard**.
 
 ## View modes
 
@@ -207,6 +207,8 @@ The selected view mode is remembered across sessions and synced between the popo
 ## Standalone panel
 
 Click `⧉` in the popover header to open a persistent floating panel. It receives the same live updates as the popover and stays visible regardless of what you click. Use the pin button to toggle whether it floats above all other windows — a **filled pin** means always-on-top is enabled, an **outline pin** means it is a normal window. The panel remembers its position and size between launches.
+
+By default the panel opens automatically when the app launches, so the dashboard stays reachable even if the tray icon gets hidden in macOS's menu-bar overflow. Turn this off with the **Open panel on launch** setting, or reopen it any time via the tray icon's right-click menu (**Pop Out Panel**).
 
 ## Session history
 
@@ -236,6 +238,7 @@ Click `⚙` in the popover to open the settings panel. The panel has three tabs:
 | Show Claude Desktop card           | Show a presence card at the bottom of the list when Claude Desktop is running (on by default) |
 | Pinned panel opacity               | Transparency level of the floating panel when not hovered                      |
 | Collapsed panel always opaque      | Keep the floating panel at full opacity when it is in collapsed (header-only) mode |
+| Open panel on launch               | Automatically open the standalone floating panel when the app starts (on by default) |
 
 ### Cost tab
 
