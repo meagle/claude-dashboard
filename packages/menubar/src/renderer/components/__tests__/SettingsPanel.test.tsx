@@ -175,6 +175,26 @@ describe('SettingsPanel', () => {
       );
     });
   });
+
+  it('reflects openPanelOnLaunch: true by default when not present in config', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => {
+      const toggle = screen.getByRole('checkbox', { name: /open panel on launch/i }) as HTMLInputElement;
+      expect(toggle.checked).toBe(true);
+    });
+  });
+
+  it('saves openPanelOnLaunch: false when toggle is switched off', async () => {
+    render(<SettingsPanel onSave={vi.fn()} onCancel={vi.fn()} onThemeChange={vi.fn()} />);
+    await waitFor(() => screen.getByRole('checkbox', { name: /open panel on launch/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /open panel on launch/i }));
+    await waitFor(() => {
+      expect(vi.mocked(ipcRenderer.invoke)).toHaveBeenCalledWith(
+        'save-config',
+        expect.objectContaining({ openPanelOnLaunch: false })
+      );
+    });
+  });
 });
 
 describe('SettingsPanel — tab navigation', () => {

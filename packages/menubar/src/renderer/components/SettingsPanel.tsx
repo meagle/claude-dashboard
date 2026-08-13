@@ -27,6 +27,7 @@ interface FormState {
   footerStyle: "default" | "grid";
   pinnedPanelOpacity: number;
   collapsedAlwaysOpaque: boolean;
+  openPanelOnLaunch: boolean;
 }
 
 const DEFAULTS: FormState = {
@@ -47,6 +48,7 @@ const DEFAULTS: FormState = {
   footerStyle: "default",
   pinnedPanelOpacity: 1,
   collapsedAlwaysOpaque: false,
+  openPanelOnLaunch: true,
 };
 
 
@@ -766,6 +768,7 @@ export function SettingsPanel({
         footerStyle: (config.columns?.footerStyle as "default" | "grid" | undefined) ?? "default",
         pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,
         collapsedAlwaysOpaque: config.collapsedAlwaysOpaque ?? false,
+        openPanelOnLaunch: config.openPanelOnLaunch ?? true,
       });
     });
   }, []);
@@ -780,6 +783,7 @@ export function SettingsPanel({
     showDesktopPresence: f.showDesktopPresence,
     pinnedPanelOpacity: f.pinnedPanelOpacity,
     collapsedAlwaysOpaque: f.collapsedAlwaysOpaque,
+    openPanelOnLaunch: f.openPanelOnLaunch,
     columns: {
       gitBranch: f.gitBranch,
       changedFiles: f.changedFiles,
@@ -941,6 +945,17 @@ export function SettingsPanel({
           id="collapsed-always-opaque"
           checked={form.collapsedAlwaysOpaque}
           onChange={(v) => setAndSave("collapsedAlwaysOpaque", v)}
+        />
+      </div>
+
+      <div className={ROW}>
+        <label htmlFor="open-panel-on-launch" className={LABEL}>
+          Open panel on launch
+        </label>
+        <Toggle
+          id="open-panel-on-launch"
+          checked={form.openPanelOnLaunch}
+          onChange={(v) => setAndSave("openPanelOnLaunch", v)}
         />
       </div>
 

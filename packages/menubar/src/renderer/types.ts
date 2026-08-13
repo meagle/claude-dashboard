@@ -100,6 +100,7 @@ export interface DashboardConfig {
   showBadgeCount?: boolean;
   showDesktopPresence?: boolean;
   pinnedPanelOpacity?: number;
+  openPanelOnLaunch?: boolean;
   modelPricing?: {
     fetched: Record<string, ModelPricingEntry>;
     custom: Array<{ prefix: string } & ModelPricingEntry>;
