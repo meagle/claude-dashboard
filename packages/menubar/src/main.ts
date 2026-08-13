@@ -661,6 +661,8 @@ app.whenReady().then(() => {
   tray.on("right-click", () => {
     tray!.popUpContextMenu(
       Menu.buildFromTemplate([
+        { label: "Pop Out Panel", click: () => openDetachedPanel() },
+        { type: "separator" },
         { label: "Quit Claude Dashboard", click: () => app.quit() },
       ]),
     );
@@ -880,7 +882,7 @@ app.whenReady().then(() => {
     );
   });
 
-  ipcMain.on("open-detached-panel", () => {
+  function openDetachedPanel() {
     if (detachedPanel && !detachedPanel.isDestroyed()) {
       detachedPanel.focus();
       return;
@@ -949,7 +951,13 @@ app.whenReady().then(() => {
       if (panelSaveTimer) clearTimeout(panelSaveTimer);
       detachedPanel = null;
     });
-  });
+  }
+
+  ipcMain.on("open-detached-panel", () => openDetachedPanel());
+
+  if (cfg.openPanelOnLaunch ?? true) {
+    openDetachedPanel();
+  }
 
   ipcMain.on("detached-hover", (_event, isHovered: boolean) => {
     isDetachedOpaque = isHovered;
