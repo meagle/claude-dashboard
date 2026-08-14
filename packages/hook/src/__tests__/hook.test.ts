@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { processHookEvent, HookEvent, modelPricingFromConfig, calcTurnCost } from '../hook';
+import { processHookEvent, HookEvent, modelPricingFromConfig, calcTurnCost, resolveCwd } from '../hook';
 import { readSessions, modelContextWindowFromConfig } from '@claude-dashboard/shared';
 import { Session, DashboardConfig } from '@claude-dashboard/shared';
 
@@ -729,5 +729,43 @@ describe('modelContextWindowFromConfig', () => {
 
   it('falls back to DEFAULT_CONTEXT_WINDOW when no config provided', () => {
     expect(modelContextWindowFromConfig('unknown-model-xyz')).toBe(200_000);
+  });
+});
+
+describe('resolveCwd', () => {
+  it('prefers payload.cwd (Claude Code always sends this)', () => {
+    expect(resolveCwd({ cwd: '/Users/alice/code/myproject' }, '/fallback')).toBe('/Users/alice/code/myproject');
+  });
+
+  // Real Cursor `beforeSubmitPrompt`/`stop` payload never has `cwd`, and `workspace_roots`
+  // is empty for a window with no folder open — this is what we actually captured.
+  it('falls back to the hook process cwd when Cursor sends neither cwd nor workspace_roots', () => {
+    const cursorPayload = {
+      conversation_id: 'b40ae5e3-e12c-44d3-943c-82ffb6211d11',
+      model: 'composer-2.5-fast',
+      model_id: 'composer-2.5',
+      composer_mode: 'agent',
+      prompt: 'hi',
+      hook_event_name: 'beforeSubmitPrompt',
+      cursor_version: '3.15.19',
+      workspace_roots: [],
+    };
+    expect(resolveCwd(cursorPayload, '/Users/meagle/.claude')).toBe('/Users/meagle/.claude');
+  });
+
+  it('uses the first workspace_roots entry when cwd is absent but a folder is open', () => {
+    const cursorPayload = {
+      hook_event_name: 'beforeSubmitPrompt',
+      workspace_roots: ['/Users/meagle/code/my-project'],
+    };
+    expect(resolveCwd(cursorPayload, '/Users/meagle/.claude')).toBe('/Users/meagle/code/my-project');
+  });
+
+  it('ignores an empty-string workspace_roots entry', () => {
+    expect(resolveCwd({ workspace_roots: [''] }, '/fallback')).toBe('/fallback');
+  });
+
+  it('falls back when workspace_roots is missing entirely', () => {
+    expect(resolveCwd({}, '/fallback')).toBe('/fallback');
   });
 });

@@ -53,6 +53,8 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 Cursor's transcripts don't carry model or usage data, but its hook payload does — the `user-prompt` and `stop` events include `model`/`model_id` directly, and `stop` includes per-turn `input_tokens`/`output_tokens`/`cache_read_tokens`/`cache_write_tokens`. The dashboard reads these straight off the payload for Cursor sessions (falling back only when the transcript itself has nothing), so model, context %, and token counts populate the same way they do for Claude Code sessions — just once per turn (at `stop`) rather than progressively. **Cost stays blank until you add pricing for Cursor's model** (e.g. `composer-2.5`) in Settings → Cost tab → Add custom, since there's no built-in price for non-Claude models.
 
+**Cursor project name:** Claude Code's hook payload always includes `cwd`, so the dashboard shows the real project directory. Cursor's payload never includes `cwd` — the dashboard falls back to the first entry in `workspace_roots` (the folder(s) open in that Cursor window) when present. If a Cursor window has no folder open at all, there's no project directory to report; the card falls back to wherever Cursor happens to run hook commands from, which shows up as `.claude` (the directory containing `~/.claude/settings.json`, where it discovers the hook registration) rather than a real project name.
+
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |

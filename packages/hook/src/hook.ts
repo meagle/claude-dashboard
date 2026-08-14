@@ -669,6 +669,19 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
   writeSessions(sessionsFile, updated);
 }
 
+// Claude Code's hook payload always includes `cwd`. Cursor's never does, and when no
+// folder is open in the Cursor window, `workspace_roots` (the one cwd-adjacent field it
+// does send) is also empty — in that case there's no real project directory to report,
+// so we fall back to the hook process's own cwd, which lands wherever Cursor happens to
+// run hook commands from (observed: the directory containing ~/.claude/settings.json,
+// which is where it discovers the hook registration — not the conversation's workspace).
+export function resolveCwd(payload: Record<string, unknown>, fallbackCwd: string): string {
+  if (typeof payload.cwd === 'string' && payload.cwd) return payload.cwd;
+  const roots = payload.workspace_roots;
+  if (Array.isArray(roots) && typeof roots[0] === 'string' && roots[0]) return roots[0];
+  return fallbackCwd;
+}
+
 // Walk up the process tree to find Claude Code's PID.
 // The depth varies: hook may be a direct child of Claude, or via an intermediate shell.
 // Walk upward looking for the first ancestor whose args contain "claude".
@@ -719,7 +732,7 @@ if (require.main === module) {
     // Claude Code passes session_id and cwd in the stdin JSON payload
     const resolvedSessionId = (payload.session_id as string) ?? sessionId;
     const resolvedPid = typeof payload.pid === 'number' ? payload.pid : pid;
-    const resolvedCwd = (payload.cwd as string) ?? workingDir;
+    const resolvedCwd = resolveCwd(payload, workingDir);
 
     let event: HookEvent;
     if (eventType === 'user-prompt') {
