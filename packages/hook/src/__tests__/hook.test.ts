@@ -371,6 +371,30 @@ describe('processHookEvent — stop with transcript', () => {
     expect(s.source).toBe('cursor');
   });
 
+  // Confirmed live against a real cursor-agent interactive session: its `stop` payload's
+  // transcript_path can be null even though the transcript file genuinely exists on disk
+  // (already known from an earlier event on the same session) — falls back to it instead
+  // of losing the response.
+  it('falls back to the session\'s already-known transcript path when a Cursor stop payload omits transcript_path', () => {
+    // Transcript starts with just the user's message — matches how Cursor actually writes
+    // it (the assistant's response isn't on disk yet when user-prompt fires).
+    const tp = writeTranscript(dir, [cursorUserEntry('hi')]);
+    processHookEvent(
+      { type: 'user-prompt', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, prompt: 'hi', payloadModel: null, payloadModelId: null },
+      sessionsFile
+    );
+    // This is the state at the point 'stop' fires: response is on disk now, but (per the
+    // real observed payload) transcript_path itself is missing from the stop event.
+    fs.appendFileSync(tp, JSON.stringify(cursorAssistantEntry('Hi — what do you want to work on?')) + '\n' + JSON.stringify(cursorTurnEnded) + '\n');
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.lastMessage).toBe('Hi — what do you want to work on?');
+    expect(s.status).toBe('done');
+  });
+
   it('tags source as cursor from a pre-tool event too, not just stop', () => {
     const tp = writeTranscript(dir, [
       cursorUserEntry('list files'),
@@ -466,6 +490,26 @@ describe('processHookEvent — Cursor payload usage (no transcript data)', () =>
     expect(s.contextPct).toBe(35);
     expect(s.contextTokens).toBe(69889);
     expect(s.totalTokens).toBe(35315); // input + output, not counting cache
+  });
+
+  // Confirmed live: cursor-agent's interactive-mode stop payload sends `model`
+  // ("cursor-grok-4.6-high-fast") with no `model_id` field at all — contextPct/modelId
+  // must still compute from `model` alone rather than staying null forever.
+  it('falls back to payloadModel for contextPct/modelId when payloadModelId is absent', () => {
+    processHookEvent(
+      {
+        type: 'stop', sessionId: 'c1b', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null,
+        payloadModel: 'cursor-grok-4.6-high-fast', payloadModelId: null,
+        payloadUsage: { inputTokens: 32703, outputTokens: 174, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+      sessionsFile,
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.model).toBe('cursor-grok-4.6-high-fast');
+    expect(s.modelId).toBe('cursor-grok-4.6-high-fast');
+    // 32703 / 200000 default window = 16%
+    expect(s.contextPct).toBe(16);
+    expect(s.contextTokens).toBe(32703);
   });
 
   it('leaves cost null when no pricing is configured for the model', () => {

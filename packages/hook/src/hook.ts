@@ -485,8 +485,12 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
   if (event.type === 'user-prompt') {
     // Transcript is fully written by the time the NEXT prompt is submitted,
     // so read it here to capture the previous turn's response + model/context/cost stats.
-    const stats = event.transcriptPath
-      ? readLastAssistantStats(event.transcriptPath, false, cfg)
+    // Cursor's own payload doesn't always carry transcript_path (confirmed live: it's
+    // frequently null early in a conversation even though the file already exists), so
+    // fall back to the path we already learned from an earlier event on this session.
+    const userPromptTranscriptPath = event.transcriptPath ?? session.transcriptPath;
+    const stats = userPromptTranscriptPath
+      ? readLastAssistantStats(userPromptTranscriptPath, false, cfg)
       : EMPTY_STATS;
     // Refresh branch/worktree on each turn in case session was created before worktree was set up
     const freshBranch   = getGitBranch(event.workingDir);
@@ -514,7 +518,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       // Cursor's own agent carries model directly on the payload (no transcript data);
       // only apply it when the transcript didn't already give us a model this turn.
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
-      ...(!stats.modelId && event.payloadModelId ? { modelId: event.payloadModelId } : {}),
+      ...(!stats.modelId && (event.payloadModelId ?? event.payloadModel) ? { modelId: event.payloadModelId ?? event.payloadModel } : {}),
     };
   } else if (event.type === 'pre-tool') {
     let loopTool = session.loopTool;
@@ -619,15 +623,25 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(event.toolName === 'Bash' ? { bashStartedAt: null } : {}),
     };
   } else if (event.type === 'stop') {
-    const stats = event.transcriptPath
-      ? readLastAssistantStatsWithRetry(event.transcriptPath, session.lastMessage, cfg)
+    // Same fallback as user-prompt above: Cursor's stop payload doesn't always carry
+    // transcript_path even when the transcript file exists (confirmed live), so use the
+    // path already known from an earlier event on this session if the current one lacks it.
+    const stopTranscriptPath = event.transcriptPath ?? session.transcriptPath;
+    const stats = stopTranscriptPath
+      ? readLastAssistantStatsWithRetry(stopTranscriptPath, session.lastMessage, cfg)
       : EMPTY_STATS;
     const gitSummary = getGitSummary(event.workingDir);
     const gitAhead = getGitAhead(event.workingDir);
     // Cursor: no transcript usage data, so derive contextPct/tokens/cost from the
     // payload's per-turn usage instead. Only used when the transcript path came up empty
     // (Claude Code sessions always have transcript stats, so this is a no-op for them).
-    const payloadModelId = stats.modelId ?? event.payloadModelId;
+    // Falls back to payloadModel (Cursor's `model` field) when model_id is absent —
+    // confirmed live: cursor-agent's interactive-mode payload sends `model` (e.g.
+    // "cursor-grok-4.6-high-fast") without `model_id` at all. modelContextWindowFromConfig
+    // always returns a usable window (falls back to DEFAULT_CONTEXT_WINDOW for unrecognized
+    // strings), so any non-null identifier is enough to compute an approximate contextPct
+    // instead of leaving it null forever.
+    const payloadModelId = stats.modelId ?? event.payloadModelId ?? event.payloadModel;
     const payloadStats = event.payloadUsage
       ? payloadUsageStats(event.payloadUsage, payloadModelId, cfg)
       : null;
@@ -648,7 +662,10 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
       ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
-      ...(!stats.modelId && event.payloadModelId ? { modelId: event.payloadModelId } : {}),
+      // Falls back to payloadModel here too, matching the payloadModelId computation above —
+      // so Settings > Cost tab custom pricing/context-window prefixes (keyed on modelId) can
+      // still match when Cursor never sends a distinct model_id.
+      ...(!stats.modelId && (event.payloadModelId ?? event.payloadModel) ? { modelId: event.payloadModelId ?? event.payloadModel } : {}),
       ...(stats.contextPct === null && payloadStats
         ? { contextPct: payloadStats.contextPct, contextTokens: payloadStats.contextTokens }
         : {}),
