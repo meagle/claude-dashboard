@@ -205,11 +205,15 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
     let foundAssistant = false;
     let pastTurnBoundary = false;
     // Cursor's own agent (not the `claude` CLI) fires the same hook events but writes
-    // transcripts in a different schema: entries use `role` instead of `type`, carry no
-    // model/usage/stop_reason, and a turn's end is marked by a standalone
-    // `{"type":"turn_ended"}` line rather than stop_reason='end_turn'. Detect that line
-    // (while iterating backwards) so the assistant entry immediately before it can be
-    // treated as the turn's final message.
+    // transcripts in a different schema: entries use `role` instead of `type` and carry no
+    // model/usage/stop_reason. A turn's end is *sometimes* marked by a standalone
+    // `{"type":"turn_ended"}` line, but confirmed live against a real interactive
+    // cursor-agent session: it is not written reliably per turn (a two-turn session had
+    // exactly one, trailing the second turn only, after an API error) — requiring it caused
+    // the Stop hook to miss the first turn's response entirely and show later cards one
+    // turn behind. So for Cursor's schema, the most recent assistant entry (scanning
+    // backwards) is always treated as the turn's final message, regardless of endTurnOnly;
+    // still track the marker (below) since it's a harmless, occasionally-present signal.
     let cursorTurnJustEnded = false;
     let schema: 'claude-code' | 'cursor' | null = null;
 
@@ -247,10 +251,12 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
           // Scan backwards within the current turn for the most recent text block.
           // Claude Code emits text and tool_use as separate assistant entries, so the
           // last entry before a tool call is tool-only — we must keep looking back.
-          // When endTurnOnly=true (Stop hook), only accept the final entry (stop_reason='end_turn',
-          // or the line right before a Cursor 'turn_ended' marker) so we never grab an
-          // intermediate tool-use text as the session's final message.
-          const isEndTurn = isCursorAssistant ? cursorTurnJustEnded : msg?.stop_reason === 'end_turn';
+          // When endTurnOnly=true (Stop hook), only accept the final entry (stop_reason='end_turn')
+          // so we never grab an intermediate tool-use text as the session's final message.
+          // Cursor entries have no such per-entry marker, but scanning backwards already
+          // lands on the most recent (i.e. truly final) assistant entry first — endTurnOnly
+          // is a no-op restriction for Cursor's schema, not a gate (see comment above).
+          const isEndTurn = isCursorAssistant ? true : msg?.stop_reason === 'end_turn';
           if (text === null && !pastTurnBoundary && (!endTurnOnly || isEndTurn)) {
             const blocks = msg?.content;
             if (Array.isArray(blocks)) {

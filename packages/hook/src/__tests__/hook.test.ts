@@ -371,6 +371,41 @@ describe('processHookEvent — stop with transcript', () => {
     expect(s.source).toBe('cursor');
   });
 
+  // Confirmed live: a real interactive cursor-agent session's transcript had exactly one
+  // turn_ended marker across two turns, trailing only the second (which also errored) — not
+  // one per turn. Requiring the marker on Stop meant the first turn's response was silently
+  // dropped and each later card showed the *previous* turn's text instead of the current one.
+  it('reads the final response on stop even when no turn_ended marker is present yet', () => {
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('hi'),
+      cursorAssistantEntry('Hi — what do you want to work on?'),
+      // No turn_ended line — this is the real, confirmed shape of a first turn.
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.lastMessage).toBe('Hi — what do you want to work on?');
+    expect(s.status).toBe('done');
+  });
+
+  it('reads the second turn\'s own response, not the first turn\'s, when only the second has a turn_ended marker', () => {
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('hi'),
+      cursorAssistantEntry('Hi — what do you want to work on?'),
+      cursorUserEntry('hello'),
+      cursorAssistantEntry('Hi again — what can I help with?'),
+      cursorTurnEnded,
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-4', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.lastMessage).toBe('Hi again — what can I help with?');
+  });
+
   // Confirmed live against a real cursor-agent interactive session: its `stop` payload's
   // transcript_path can be null even though the transcript file genuinely exists on disk
   // (already known from an earlier event on the same session) — falls back to it instead
