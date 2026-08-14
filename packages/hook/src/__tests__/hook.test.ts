@@ -595,6 +595,24 @@ describe('processHookEvent — toolSummary via post-tool', () => {
     firePostTool('UnknownTool', { something: 'value' });
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBeNull();
   });
+
+  // Real captured cursor-agent CLI preToolUse payload: {"tool_name":"Shell","tool_input":{"command":"...","cwd":"","timeout":30000}}
+  it('summarises Shell (Cursor CLI\'s shell tool name) with the command', () => {
+    firePostTool('Shell', { command: 'ls -la' });
+    expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('ls -la');
+  });
+
+  // Real captured cursor-agent CLI preToolUse payload: {"tool_name":"Write","tool_input":{"path":"...","contents":"..."}}
+  // — Cursor's Write tool sends `path`, not Claude Code's `file_path`.
+  it('summarises Write with Cursor\'s `path` field when `file_path` is absent', () => {
+    firePostTool('Write', { path: '/src/new-file.ts', contents: 'hello' });
+    expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/src/new-file.ts');
+  });
+
+  it('prefers file_path over path for Write when both are present', () => {
+    firePostTool('Write', { file_path: '/src/a.ts', path: '/src/b.ts' });
+    expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/src/a.ts');
+  });
 });
 
 describe('modelPricingFromConfig', () => {

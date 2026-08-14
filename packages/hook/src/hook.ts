@@ -324,9 +324,14 @@ function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage
 function toolSummary(toolName: string, input: Record<string, unknown>): string | null {
   const trunc = (s: string, n = 60) => s.length > n ? s.slice(0, n) + '…' : s;
   switch (toolName) {
-    case 'Bash':       return input.command   ? trunc(String(input.command).replace(/\s+/g, ' ')) : null;
+    // 'Shell' is Cursor CLI's name for its shell tool (confirmed via a real captured
+    // preToolUse payload); its `command` field matches Claude Code's Bash exactly.
+    case 'Bash':
+    case 'Shell':      return input.command   ? trunc(String(input.command).replace(/\s+/g, ' ')) : null;
     case 'Read':       return input.file_path ? trunc(String(input.file_path)) : null;
-    case 'Write':      return input.file_path ? trunc(String(input.file_path)) : null;
+    // Cursor CLI's Write tool sends `path`, not `file_path` (confirmed via a real
+    // captured preToolUse payload) — Claude Code's Write always sends `file_path`.
+    case 'Write':      return (input.file_path ?? input.path) ? trunc(String(input.file_path ?? input.path)) : null;
     case 'Edit':       return input.file_path ? trunc(String(input.file_path)) : null;
     case 'Glob':       return input.pattern   ? trunc(String(input.pattern)) : null;
     case 'Grep':       return input.pattern   ? trunc(String(input.pattern)) : null;
@@ -738,7 +743,6 @@ if (require.main === module) {
       // silently ignore malformed stdin
     }
 
-
     // Claude Code passes session_id and cwd in the stdin JSON payload
     const resolvedSessionId = resolveSessionId(payload, sessionId);
     const resolvedPid = typeof payload.pid === 'number' ? payload.pid : pid;
@@ -781,7 +785,11 @@ if (require.main === module) {
         workingDir: resolvedCwd,
         toolName: (payload.tool_name as string) ?? '',
         input: (payload.tool_input as Record<string, unknown>) ?? {},
-        output: (payload.tool_response as Record<string, unknown>) ?? {},
+        // Cursor CLI's postToolUse payload carries `tool_output` (confirmed via a real
+        // captured payload — as a JSON string, not an object), not Claude Code's
+        // `tool_response`. Nothing currently reads Cursor's tool output contents (the only
+        // consumer, TaskCreate/TaskUpdate parsing, is Claude-only), so no parsing needed here.
+        output: (payload.tool_response ?? payload.tool_output) as Record<string, unknown> ?? {},
       };
     } else if (eventType === 'stop') {
       // Cursor's stop payload carries this turn's usage directly (Claude Code's payload
