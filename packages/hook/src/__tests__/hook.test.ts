@@ -692,6 +692,27 @@ describe('processHookEvent — toolSummary via post-tool', () => {
     firePostTool('Write', { file_path: '/src/a.ts', path: '/src/b.ts' });
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/src/a.ts');
   });
+
+  // Real captured Codex CLI PreToolUse payload:
+  // {"tool_name":"apply_patch","tool_input":{"command":"*** Begin Patch\n*** Update File: /path/to/sample.txt\n@@\n+round 2\n*** End Patch"}}
+  it('summarises apply_patch (Codex CLI\'s patch tool) with the touched file path', () => {
+    firePostTool('apply_patch', {
+      command: '*** Begin Patch\n*** Update File: /path/to/sample.txt\n@@\n+round 2\n*** End Patch',
+    });
+    expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/path/to/sample.txt');
+  });
+
+  it('summarises apply_patch for a new file (Add File)', () => {
+    firePostTool('apply_patch', {
+      command: '*** Begin Patch\n*** Add File: /path/to/new.txt\n+hello\n*** End Patch',
+    });
+    expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/path/to/new.txt');
+  });
+
+  it('returns null for apply_patch when command has no recognizable File line', () => {
+    firePostTool('apply_patch', { command: 'not a real patch' });
+    expect(readSessions(sessionsFile)[0].lastToolSummary).toBeNull();
+  });
 });
 
 describe('modelPricingFromConfig', () => {

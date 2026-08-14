@@ -338,6 +338,14 @@ function toolSummary(toolName: string, input: Record<string, unknown>): string |
     // Cursor CLI's Write tool sends `path`, not `file_path` (confirmed via a real
     // captured preToolUse payload) — Claude Code's Write always sends `file_path`.
     case 'Write':      return (input.file_path ?? input.path) ? trunc(String(input.file_path ?? input.path)) : null;
+    // Codex CLI's file-edit tool (confirmed via a real captured preToolUse payload):
+    // tool_input.command is a patch-format string, e.g.
+    // "*** Begin Patch\n*** Update File: /path/to/sample.txt\n@@\n+round 2\n*** End Patch"
+    case 'apply_patch': {
+      const cmd = String(input.command ?? '');
+      const m = cmd.match(/\*\*\* (?:Update|Add|Delete) File: (.+)/);
+      return m ? trunc(m[1]) : null;
+    }
     case 'Edit':       return input.file_path ? trunc(String(input.file_path)) : null;
     case 'Glob':       return input.pattern   ? trunc(String(input.pattern)) : null;
     case 'Grep':       return input.pattern   ? trunc(String(input.pattern)) : null;
