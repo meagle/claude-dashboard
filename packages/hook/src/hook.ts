@@ -129,10 +129,14 @@ interface TranscriptStats {
   turns: number | null;
   costUsd: number | null;
   totalTokens: number | null;
+  // Which transcript schema actually matched — null if the file was empty/unreadable
+  // or contained no recognizable assistant entries yet. Lets callers distinguish "no
+  // data because Cursor's schema never carries it" from "no data yet, still coming".
+  schema: 'claude-code' | 'cursor' | null;
 }
 
 const EMPTY_STATS: TranscriptStats = {
-  text: null, model: null, modelId: null, contextPct: null, contextTokens: null, turns: null, costUsd: null, totalTokens: null,
+  text: null, model: null, modelId: null, contextPct: null, contextTokens: null, turns: null, costUsd: null, totalTokens: null, schema: null,
 };
 
 function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
@@ -158,6 +162,7 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
     // (while iterating backwards) so the assistant entry immediately before it can be
     // treated as the turn's final message.
     let cursorTurnJustEnded = false;
+    let schema: 'claude-code' | 'cursor' | null = null;
 
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
@@ -170,6 +175,7 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
         const isCursorAssistant = entry.type === undefined && entry.role === 'assistant';
         if (isClaudeAssistant || isCursorAssistant) {
           const msg = entry.message;
+          if (schema === null) schema = isCursorAssistant ? 'cursor' : 'claude-code';
           if (!foundAssistant) {
             foundAssistant = true;
             const modelId: string | null = typeof msg?.model === 'string' ? msg.model : null;
@@ -242,6 +248,7 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
       turns: turns > 0 ? turns : null,
       costUsd: costUsd > 0 ? Math.round(costUsd * 10000) / 10000 : null,
       totalTokens: cumulativeTokens > 0 ? cumulativeTokens : null,
+      schema,
     };
   } catch { /* file unreadable */ }
   return EMPTY_STATS;
@@ -449,6 +456,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
+      ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
     };
   } else if (event.type === 'pre-tool') {
     let loopTool = session.loopTool;
@@ -482,6 +490,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
+      ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
       // Track when Bash starts so we can detect stuck commands
       ...(event.toolName === 'Bash' ? { bashStartedAt: now } : {}),
     };
@@ -547,6 +556,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       completionPct,
       currentTask,
       ...(freshPostPartial ? { partialResponse: freshPostPartial } : {}),
+      ...(postStats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
       // Clear bash timer when Bash completes
       ...(event.toolName === 'Bash' ? { bashStartedAt: null } : {}),
     };
@@ -571,6 +581,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
+      ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
       gitSummary,
       gitAhead,
     };

@@ -51,7 +51,7 @@ export interface Session {
   lastActivity: number;
   dismissed: boolean;
   appName?: string | null;
-  source?: 'claude-code' | 'desktop';
+  source?: 'claude-code' | 'desktop' | 'cursor';
 }
 
 export interface ModelPricingEntry {

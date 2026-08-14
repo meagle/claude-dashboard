@@ -164,6 +164,10 @@ export function CompactSessionRow({
   const timeLabel = isDone ? agoStr(s.lastActivity) : elapsedStr(turnMs);
 
   const hasCtx = s.contextPct != null;
+  // Cursor's own agent doesn't carry model/usage data in its transcripts, so
+  // context %/tokens never populate — suppress the "— tok" placeholder rather
+  // than showing one that will never resolve.
+  const hasUsageStats = s.source !== "cursor";
 
   const branchChanges = extractGitChanges(s.gitSummary);
 
@@ -237,7 +241,7 @@ export function CompactSessionRow({
         <span className="shrink-0 flex items-center gap-2 w-[110px] justify-end">
           {/* Context % only — no bar */}
           <span className="shrink-0 w-[30px] text-right">
-            {(!isDone || hasCtx) && (
+            {hasUsageStats && (!isDone || hasCtx) && (
               <span className="text-fainter text-[11px] font-mono tabular-nums">
                 {hasCtx ? `${s.contextPct}%` : ""}
               </span>
@@ -246,7 +250,7 @@ export function CompactSessionRow({
 
           {/* Tokens — fixed-width, right-aligned */}
           <span className="text-fainter text-[11px] font-mono tabular-nums w-[70px] text-right whitespace-nowrap">
-            {cfg.showCost
+            {cfg.showCost && hasUsageStats
               ? (s.totalTokens != null ? formatTokens(s.totalTokens) : (!isDone ? "— tok" : ""))
               : ""}
           </span>

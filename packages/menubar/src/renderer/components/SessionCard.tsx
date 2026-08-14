@@ -195,8 +195,9 @@ function GridFooter({
   const CELL = "flex flex-col items-center gap-[3px]";
 
   const cells: React.ReactNode[] = [];
+  const hasUsageStats = s.source !== "cursor";
 
-  if (cfg.showModel && s.model != null) {
+  if (hasUsageStats && cfg.showModel && s.model != null) {
     cells.push(
       <div key="model" className={CELL}>
         <span className={LABEL}>Model</span>
@@ -210,7 +211,7 @@ function GridFooter({
     );
   }
 
-  if (cfg.showModel && s.model != null && (!isDone || s.contextPct != null)) {
+  if (hasUsageStats && cfg.showModel && s.model != null && (!isDone || s.contextPct != null)) {
     cells.push(
       <div key="context" className={CELL}>
         <span className={LABEL}>Context</span>
@@ -235,7 +236,7 @@ function GridFooter({
     );
   }
 
-  if (cfg.showCost && (s.costUsd != null || !isDone)) {
+  if (hasUsageStats && cfg.showCost && (s.costUsd != null || !isDone)) {
     cells.push(
       <div key="cost" className={CELL}>
         <span className={LABEL}>Cost</span>
@@ -246,7 +247,7 @@ function GridFooter({
     );
   }
 
-  if (cfg.showCost && (s.totalTokens != null || !isDone)) {
+  if (hasUsageStats && cfg.showCost && (s.totalTokens != null || !isDone)) {
     cells.push(
       <div key="tokens" className={CELL}>
         <span className={LABEL}>Tokens</span>
@@ -544,13 +545,19 @@ export function SessionCard({
   }
 
   // ── Footer: model · context bar · tools · cost · tokens · turns ──────────
+  // Cursor's own agent doesn't carry model/usage data in its transcripts, so
+  // those fields never populate — hide them outright instead of showing
+  // perpetual "$—" / "— tok" / empty-bar placeholders for a session type that
+  // will never have that data.
+  const hasUsageStats = s.source !== "cursor";
   const showFooter = (() => {
     if (isDone && !cfg.showDoneFooter) return false;
     if (s.toolCount > 0 || (s.turns != null && s.turns > 0)) return true;
-    if (!isDone) return cfg.showCost || cfg.showModel;
+    if (!isDone) return hasUsageStats && (cfg.showCost || cfg.showModel);
     return (
-      (cfg.showModel && (s.model != null || s.contextPct != null)) ||
-      (cfg.showCost && (s.costUsd != null || s.totalTokens != null))
+      hasUsageStats &&
+      ((cfg.showModel && (s.model != null || s.contextPct != null)) ||
+        (cfg.showCost && (s.costUsd != null || s.totalTokens != null)))
     );
   })();
 
@@ -559,7 +566,7 @@ export function SessionCard({
       <GridFooter session={s} cfg={cfg} isDone={isDone} />
     ) : (
       <div className="mt-2.5 border-t border-line pt-2 flex items-center justify-between gap-2">
-        {cfg.showModel && s.model && (
+        {hasUsageStats && cfg.showModel && s.model && (
           <span
             data-testid="model-badge"
             className="font-mono text-[10px] px-1 py-0.5 rounded shrink-0"
@@ -568,7 +575,7 @@ export function SessionCard({
             {s.model}
           </span>
         )}
-        {cfg.showModel && (!isDone || s.contextPct != null) && (
+        {hasUsageStats && cfg.showModel && (!isDone || s.contextPct != null) && (
           <div className="flex items-center gap-1.5 shrink-0">
             <div className="w-24 h-1 rounded-full overflow-hidden bg-line/70">
               {s.contextPct != null && (
@@ -590,10 +597,10 @@ export function SessionCard({
         {s.toolCount > 0 && (
           <TokenChip label={`${s.toolCount} tools`} />
         )}
-        {cfg.showCost && (s.costUsd != null || !isDone) && (
+        {hasUsageStats && cfg.showCost && (s.costUsd != null || !isDone) && (
           <TokenChip label={s.costUsd != null ? `$${s.costUsd.toFixed(2)}` : "$—"} />
         )}
-        {cfg.showCost && (s.totalTokens != null || !isDone) && (
+        {hasUsageStats && cfg.showCost && (s.totalTokens != null || !isDone) && (
           <TokenChip label={s.totalTokens != null ? (formatTokens(s.totalTokens) ?? "") : "— tok"} />
         )}
         {s.turns != null && s.turns > 0 && (

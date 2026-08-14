@@ -57,7 +57,7 @@ export interface SessionRow {
   lastActivity: number;
   dismissed: boolean;
   appName?: string | null;
-  source?: 'claude-code' | 'desktop';
+  source?: 'claude-code' | 'desktop' | 'cursor';
 }
 
 export interface HistoryRow extends SessionRow {

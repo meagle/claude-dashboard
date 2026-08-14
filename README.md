@@ -51,7 +51,7 @@ Each session tracks: status, current tool, last prompt and response, task list p
 
 **Cursor's native agent:** Cursor's built-in agent (separate from the `claude` CLI) also fires these hooks, but writes its transcripts in its own JSON schema — entries are keyed by `role` instead of `type`, and a turn's end is marked by a standalone `turn_ended` line rather than Claude Code's `stop_reason`. The dashboard recognizes both formats, so status, last prompt/response text, and turn count all populate correctly for Cursor sessions.
 
-What *doesn't* populate for Cursor sessions: **model, context %, cost, and token counts**. These aren't a parsing gap — Cursor's transcript entries simply don't include the underlying data (no `model` field, no `usage` block with input/output/cache token counts) the way Claude Code's do. There's nothing for the dashboard to read, so those fields stay blank by design rather than showing a stale or guessed value.
+What *doesn't* populate for Cursor sessions: **model, context %, cost, and token counts**. These aren't a parsing gap — Cursor's transcript entries simply don't include the underlying data (no `model` field, no `usage` block with input/output/cache token counts) the way Claude Code's do. There's nothing for the dashboard to read, so the card hides those rows/badges entirely for Cursor sessions instead of showing a blank or placeholder value (e.g. `$—`, an empty context bar) — the tool count and turn count still show normally.
 
 **Statuses:**
 

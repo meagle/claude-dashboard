@@ -114,6 +114,19 @@ describe('CompactSessionRow — context bar', () => {
   });
 });
 
+describe('CompactSessionRow — cursor source', () => {
+  it('hides the "— tok" placeholder for an active cursor session even when showCost is true', () => {
+    render(
+      <CompactSessionRow
+        session={makeSession({ source: 'cursor', status: 'active', totalTokens: null })}
+        cardConfig={{ ...defaultCardConfig, showCost: true }}
+        onFocus={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('— tok')).not.toBeInTheDocument();
+  });
+});
+
 describe('CompactSessionRow — interaction', () => {
   it('calls onFocus with pid and termSessionId when row is clicked', () => {
     const { onFocus } = renderRow({ pid: 42, termSessionId: 'term-abc' });

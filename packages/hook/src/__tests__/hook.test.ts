@@ -364,6 +364,40 @@ describe('processHookEvent — stop with transcript', () => {
     expect(s.model).toBeNull();
     expect(s.contextPct).toBeNull();
     expect(s.costUsd).toBeNull();
+    // Tags the session so the UI can hide model/cost/context fields it'll never populate.
+    expect(s.source).toBe('cursor');
+  });
+
+  it('tags source as cursor from a pre-tool event too, not just stop', () => {
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('list files'),
+      cursorAssistantEntry('Sure, one moment.'),
+    ]);
+    processHookEvent(
+      { type: 'pre-tool', sessionId: 'cursor-4', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Shell', input: {} },
+      sessionsFile
+    );
+    // pre-tool reads session.transcriptPath, which is only set by a prior user-prompt event.
+    const sessions = readSessions(sessionsFile);
+    sessions[0].transcriptPath = tp;
+    fs.writeFileSync(sessionsFile, JSON.stringify(sessions));
+    processHookEvent(
+      { type: 'pre-tool', sessionId: 'cursor-4', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Shell', input: {} },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].source).toBe('cursor');
+  });
+
+  it('does not tag a Claude Code session as cursor', () => {
+    const tp = writeTranscript(dir, [
+      userEntry('Hi'),
+      assistantEntry('Hello.'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'claude-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].source).toBeUndefined();
   });
 
   it('only accepts the Cursor assistant entry immediately before turn_ended as the final message', () => {

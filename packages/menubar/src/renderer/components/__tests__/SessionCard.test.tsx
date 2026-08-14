@@ -65,6 +65,27 @@ describe('SessionCard — done', () => {
   });
 });
 
+describe('SessionCard — cursor source', () => {
+  it('hides model, context, cost, and token placeholders for an active cursor session', () => {
+    renderCard(
+      { source: 'cursor', status: 'active', toolCount: 1 },
+      { showModel: true, showCost: true },
+    );
+    expect(screen.queryByText('$—')).not.toBeInTheDocument();
+    expect(screen.queryByText('— tok')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('model-badge')).not.toBeInTheDocument();
+  });
+
+  it('still shows tools and turns for a cursor session', () => {
+    renderCard(
+      { source: 'cursor', status: 'done', toolCount: 2, turns: 3 },
+      { showModel: true, showCost: true },
+    );
+    expect(screen.getByText('2 tools')).toBeInTheDocument();
+    expect(screen.getByText('3 turns')).toBeInTheDocument();
+  });
+});
+
 describe('SessionCard — active', () => {
   it('does not show dismiss button', () => {
     renderCard({ status: 'active' });
