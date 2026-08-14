@@ -13,6 +13,7 @@ import {
   DEFAULT_CONTEXT_WINDOW,
   KNOWN_CONTEXT_WINDOWS,
   modelContextWindowFromConfig,
+  isKnownAgentProcessArgs,
 } from '@claude-dashboard/shared';
 
 // Cursor's own agent doesn't write model/usage into its transcript files, but it does
@@ -738,7 +739,7 @@ function getClaudePid(): number {
       if (!pid || pid <= 1) break;
       const args = execSync(`ps -o args= -p ${pid}`, { stdio: ['pipe', 'pipe', 'pipe'] })
         .toString().trim();
-      if (args.toLowerCase().includes('claude')) return pid;
+      if (isKnownAgentProcessArgs(args)) return pid;
       const ppidStr = execSync(`ps -o ppid= -p ${pid}`, { stdio: ['pipe', 'pipe', 'pipe'] })
         .toString().trim();
       const ppid = parseInt(ppidStr);
