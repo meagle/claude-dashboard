@@ -31,6 +31,26 @@ else
   echo "  settings.json not found, skipping."
 fi
 
+echo "Removing hook entries from Cursor CLI hooks.json..."
+CURSOR_HOOKS_FILE="$HOME/.cursor/hooks.json"
+if [ -f "$CURSOR_HOOKS_FILE" ]; then
+  node - <<'NODESCRIPT'
+const fs = require('fs');
+const file = process.env.HOME + '/.cursor/hooks.json';
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+if (config.hooks) {
+  for (const event of Object.keys(config.hooks)) {
+    config.hooks[event] = config.hooks[event].filter((h) => !(h.command && h.command.includes('dashboard/hook.js')));
+    if (config.hooks[event].length === 0) delete config.hooks[event];
+  }
+}
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+console.log('hooks.json updated.');
+NODESCRIPT
+else
+  echo "  hooks.json not found, skipping."
+fi
+
 echo "Removing config directory..."
 if [ -d "$DASHBOARD_DIR" ]; then
   rm -rf "$DASHBOARD_DIR"

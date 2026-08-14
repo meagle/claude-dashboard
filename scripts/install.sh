@@ -66,6 +66,38 @@ fs.writeFileSync(file, JSON.stringify(settings, null, 2));
 console.log('settings.json updated.');
 NODESCRIPT
 
+echo "Patching Cursor CLI hooks.json..."
+CURSOR_HOOKS_FILE="$HOME/.cursor/hooks.json"
+mkdir -p "$HOME/.cursor"
+if [ ! -f "$CURSOR_HOOKS_FILE" ]; then
+  echo '{"version": 1, "hooks": {}}' > "$CURSOR_HOOKS_FILE"
+fi
+
+node - <<'NODESCRIPT'
+const fs = require('fs');
+const file = process.env.HOME + '/.cursor/hooks.json';
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+config.version = config.version || 1;
+config.hooks = config.hooks || {};
+
+function mergeCursorHook(hooks, event, command) {
+  const entry = { command };
+  const existing = hooks[event] || [];
+  hooks[event] = [
+    ...existing.filter((h) => !(h.command && h.command.includes('dashboard/hook.js'))),
+    entry,
+  ];
+}
+
+mergeCursorHook(config.hooks, 'beforeSubmitPrompt', 'node ~/.config/claude-dashboard/hook.js user-prompt');
+mergeCursorHook(config.hooks, 'preToolUse',         'node ~/.config/claude-dashboard/hook.js pre-tool');
+mergeCursorHook(config.hooks, 'postToolUse',        'node ~/.config/claude-dashboard/hook.js post-tool');
+mergeCursorHook(config.hooks, 'stop',               'node ~/.config/claude-dashboard/hook.js stop');
+
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+console.log('hooks.json updated.');
+NODESCRIPT
+
 echo "Installing launch script..."
 PROJECT_DIR="$(pwd)"
 LAUNCH_SCRIPT="$HOME/.local/bin/claude-dashboard"
