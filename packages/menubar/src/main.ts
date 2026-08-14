@@ -650,7 +650,7 @@ async function fetchAndCacheLiteLLMPricing(): Promise<void> {
 }
 
 app.whenReady().then(() => {
-  app.setName('Claude Agent Dashboard');
+  app.setName('Agent Dashboard');
   installHook();
 
   // Hide from dock — this is a menu bar only app
@@ -664,7 +664,7 @@ app.whenReady().then(() => {
       Menu.buildFromTemplate([
         { label: "Pop Out Panel", click: () => openDetachedPanel() },
         { type: "separator" },
-        { label: "Quit Claude Dashboard", click: () => app.quit() },
+        { label: "Quit Agent Dashboard", click: () => app.quit() },
       ]),
     );
   });

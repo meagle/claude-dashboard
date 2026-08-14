@@ -99,11 +99,11 @@ describe('TrayIconController', () => {
     ctrl.destroy();
   });
 
-  it('sets tooltip to "Claude Dashboard" with no sessions', () => {
+  it('sets tooltip to "Agent Dashboard" with no sessions', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
     ctrl.update([], false);
-    expect(tray.setToolTip).toHaveBeenCalledWith('Claude Dashboard');
+    expect(tray.setToolTip).toHaveBeenCalledWith('Agent Dashboard');
     ctrl.destroy();
   });
 

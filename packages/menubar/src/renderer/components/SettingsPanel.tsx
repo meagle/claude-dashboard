@@ -1109,14 +1109,14 @@ export function SettingsPanel({
           onClick={() => setConfirmUninstall(true)}
           className="w-full py-1.5 bg-transparent text-dim text-ui-sm rounded cursor-pointer border border-line hover:border-danger hover:text-danger transition-colors duration-150"
         >
-          Uninstall Claude Dashboard…
+          Uninstall Agent Dashboard…
         </button>
       ) : (
         <div className="rounded border border-danger px-3 py-2.5">
           <div className="text-ui-sm text-danger mb-2">
             This will remove the hooks from{" "}
             <span className="font-mono">~/.claude/settings.json</span> and quit.
-            Then drag Claude Dashboard from /Applications to the Trash.
+            Then drag Agent Dashboard from /Applications to the Trash.
           </div>
           <div className="flex gap-2">
             <button

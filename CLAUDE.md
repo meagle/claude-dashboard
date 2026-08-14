@@ -105,4 +105,4 @@ When creating a GitHub release:
 2. Commit and push the version bump
 3. Build the DMG: `cd packages/menubar && npm run dist` — output lands in `./release/` at the repo root
 4. Create the GitHub release: `gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."`
-5. Upload the DMG: `gh release upload vX.Y.Z "./release/Claude Dashboard-X.Y.Z-arm64.dmg"`
+5. Upload the DMG: `gh release upload vX.Y.Z "./release/Agent Dashboard-X.Y.Z-arm64.dmg"`

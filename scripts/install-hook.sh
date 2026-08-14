@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-hook.sh — installs the Claude Dashboard hook without needing the full source build.
+# install-hook.sh — installs the Agent Dashboard hook without needing the full source build.
 # Downloads hook.js from the latest GitHub release and wires it into ~/.claude/settings.json.
 # Requires: curl, node (both are present if Claude Code is installed).
 set -euo pipefail
@@ -54,4 +54,4 @@ console.log('settings.json updated.');
 NODESCRIPT
 
 echo ""
-echo "Hook installed. Launch Claude Dashboard from /Applications and start a Claude session to verify."
+echo "Hook installed. Launch Agent Dashboard from /Applications and start a Claude session to verify."

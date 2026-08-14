@@ -155,7 +155,7 @@ export class TrayIconController {
     this.tray.setToolTip(
       sessions.length > 0
         ? `Claude Sessions: ${sessions.length}`
-        : 'Claude Dashboard'
+        : 'Agent Dashboard'
     );
   }
 

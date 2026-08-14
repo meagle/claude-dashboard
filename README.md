@@ -1,4 +1,4 @@
-# Claude Session Dashboard
+# Agent Dashboard
 
 Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. Runs as a macOS menu bar app — click the tray icon to see all sessions, or pop out a persistent floating panel.
 
@@ -31,7 +31,7 @@ If **Show agent count in menu bar** is enabled (off by default), a numeric badge
 
 ## Demo
 
-![Claude Dashboard demo](docs/demo.gif)
+![Agent Dashboard demo](docs/demo.gif)
 
 > Sessions cycling through active → waiting for permission → waiting for input → done, including a worktree session.
 
@@ -93,14 +93,14 @@ Cursor's transcripts don't carry model or usage data, but its hook payload does 
 
 **[Download the latest release →](https://github.com/meagle/claude-dashboard/releases/latest)**
 
-1. Download `Claude Dashboard-x.x.x-arm64.dmg`
-2. Open the DMG and drag **Claude Dashboard** to `/Applications`
-3. Launch Claude Dashboard from `/Applications`
+1. Download `Agent Dashboard-x.x.x-arm64.dmg`
+2. Open the DMG and drag **Agent Dashboard** to `/Applications`
+3. Launch Agent Dashboard from `/Applications`
 
 > **First launch:** macOS will block the unsigned app. If you see "damaged and can't be opened", run this in Terminal then launch normally:
 >
 > ```bash
-> xattr -cr "/Applications/Claude Dashboard.app"
+> xattr -cr "/Applications/Agent Dashboard.app"
 > ```
 >
 > On older macOS you may instead see an "unidentified developer" warning — right-click → **Open** → **Open** bypasses that. Either way, you only need to do this once.
@@ -193,7 +193,7 @@ The install script:
 npm start -w packages/menubar
 ```
 
-Right-click the tray icon for **Pop Out Panel** and **Quit Claude Dashboard**.
+Right-click the tray icon for **Pop Out Panel** and **Quit Agent Dashboard**.
 
 ## View modes
 
@@ -358,7 +358,7 @@ To build an unsigned distributable `.dmg`:
 npm run dist -w packages/menubar
 ```
 
-The output lands in `packages/menubar/release/Claude Dashboard-*.dmg`. Mount it, drag the app to Applications, and launch — the tray icon appears and the hook still fires correctly.
+The output lands in `packages/menubar/release/Agent Dashboard-*.dmg`. Mount it, drag the app to Applications, and launch — the tray icon appears and the hook still fires correctly.
 
 For a proper app icon, replace `packages/menubar/build/icon.png` with a 1024×1024 PNG before building.
 
