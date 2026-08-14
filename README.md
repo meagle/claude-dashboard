@@ -55,6 +55,8 @@ Cursor's transcripts don't carry model or usage data, but its hook payload does 
 
 **Cursor project name:** Claude Code's hook payload always includes `cwd`, so the dashboard shows the real project directory. Cursor's payload never includes `cwd` — the dashboard falls back to the first entry in `workspace_roots` (the folder(s) open in that Cursor window) when present. If a Cursor window has no folder open at all, there's no project directory to report; the card falls back to wherever Cursor happens to run hook commands from, which shows up as `.claude` (the directory containing `~/.claude/settings.json`, where it discovers the hook registration) rather than a real project name.
 
+**Cursor CLI (`cursor-agent`):** The standalone terminal CLI is a separate binary from both the `claude` CLI and Cursor's IDE agent, with its own native hook system — it never reads `~/.claude/settings.json`. The dashboard registers into its config file, `~/.cursor/hooks.json`, automatically (same as the DMG app auto-wiring `~/.claude/settings.json` — no separate setup). CLI sessions are tagged the same `source: 'cursor'` as IDE sessions and go through the same detection logic (transcript schema, payload-derived model/tokens, `workspace_roots` cwd fallback). Two things are unverified as of this writing, since real `cursor-agent` payloads haven't been captured yet: tool name/input may not populate on cards if the CLI's `preToolUse`/`postToolUse` field names differ from what's read today, and transcript-derived fields (last prompt/response, turn count) assume the CLI writes the same schema as the IDE. Status, model, tokens, and cwd don't depend on either assumption. Separately, Cursor's own CLI hook delivery has open community reliability reports (e.g. hooks not firing at all on some platforms/versions as of Aug 2026) — if hooks never fire on your setup, that's on Cursor's side, not the dashboard's.
+
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |
@@ -124,6 +126,7 @@ The install script:
 1. Builds all packages (`npm run build`)
 2. Copies the compiled hook to `~/.config/claude-dashboard/hook.js`
 3. Merges the five hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves existing hooks)
+4. Merges four hooks into `~/.cursor/hooks.json` for `cursor-agent` CLI support (creates the file if it doesn't exist; preserves existing hooks)
 
 **What gets added to `~/.claude/settings.json`:**
 
@@ -185,6 +188,20 @@ The install script:
         ]
       }
     ]
+  }
+}
+```
+
+**What gets added to `~/.cursor/hooks.json`:**
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "beforeSubmitPrompt": [{ "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }],
+    "preToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }],
+    "postToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js post-tool" }],
+    "stop": [{ "command": "node ~/.config/claude-dashboard/hook.js stop" }]
   }
 }
 ```
@@ -372,4 +389,4 @@ For a proper app icon, replace `packages/menubar/build/icon.png` with a 1024×10
 bash scripts/uninstall.sh
 ```
 
-This removes the hook entries from `~/.claude/settings.json`, deletes `~/.config/claude-dashboard`, and removes the `claude-dashboard` launch script. Quit the menu bar app first if it is running.
+This removes the hook entries from `~/.claude/settings.json` and `~/.cursor/hooks.json`, deletes `~/.config/claude-dashboard`, and removes the `claude-dashboard` launch script. Quit the menu bar app first if it is running.
