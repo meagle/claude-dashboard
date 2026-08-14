@@ -682,6 +682,16 @@ export function resolveCwd(payload: Record<string, unknown>, fallbackCwd: string
   return fallbackCwd;
 }
 
+// Claude Code's payload always includes `session_id`. Cursor's native payload (both the
+// IDE and the `cursor-agent` CLI) carries `conversation_id` instead — falling straight to
+// the CLAUDE_SESSION_ID-derived default would collapse every Cursor session into the same
+// 'unknown' record.
+export function resolveSessionId(payload: Record<string, unknown>, fallbackSessionId: string): string {
+  if (typeof payload.session_id === 'string' && payload.session_id) return payload.session_id;
+  if (typeof payload.conversation_id === 'string' && payload.conversation_id) return payload.conversation_id;
+  return fallbackSessionId;
+}
+
 // Walk up the process tree to find Claude Code's PID.
 // The depth varies: hook may be a direct child of Claude, or via an intermediate shell.
 // Walk upward looking for the first ancestor whose args contain "claude".
@@ -730,7 +740,7 @@ if (require.main === module) {
 
 
     // Claude Code passes session_id and cwd in the stdin JSON payload
-    const resolvedSessionId = (payload.session_id as string) ?? sessionId;
+    const resolvedSessionId = resolveSessionId(payload, sessionId);
     const resolvedPid = typeof payload.pid === 'number' ? payload.pid : pid;
     const resolvedCwd = resolveCwd(payload, workingDir);
 

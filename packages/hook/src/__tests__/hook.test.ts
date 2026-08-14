@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { processHookEvent, HookEvent, modelPricingFromConfig, calcTurnCost, resolveCwd } from '../hook';
+import { processHookEvent, HookEvent, modelPricingFromConfig, calcTurnCost, resolveCwd, resolveSessionId } from '../hook';
 import { readSessions, modelContextWindowFromConfig } from '@claude-dashboard/shared';
 import { Session, DashboardConfig } from '@claude-dashboard/shared';
 
@@ -767,5 +767,30 @@ describe('resolveCwd', () => {
 
   it('falls back when workspace_roots is missing entirely', () => {
     expect(resolveCwd({}, '/fallback')).toBe('/fallback');
+  });
+});
+
+describe('resolveSessionId', () => {
+  it('prefers payload.session_id (Claude Code always sends this)', () => {
+    expect(resolveSessionId({ session_id: 'abc-123' }, 'fallback')).toBe('abc-123');
+  });
+
+  // Real captured Cursor `beforeSubmitPrompt` payload has no `session_id` field at all —
+  // only `conversation_id` (see the resolveCwd tests above for the same fixture shape).
+  it('falls back to payload.conversation_id when session_id is absent (Cursor payload shape)', () => {
+    const cursorPayload = {
+      conversation_id: 'b40ae5e3-e12c-44d3-943c-82ffb6211d11',
+      model: 'composer-2.5-fast',
+      hook_event_name: 'beforeSubmitPrompt',
+    };
+    expect(resolveSessionId(cursorPayload, 'unknown')).toBe('b40ae5e3-e12c-44d3-943c-82ffb6211d11');
+  });
+
+  it('prefers session_id over conversation_id when both are present', () => {
+    expect(resolveSessionId({ session_id: 'abc-123', conversation_id: 'xyz-789' }, 'fallback')).toBe('abc-123');
+  });
+
+  it('falls back to the provided default when neither field is present', () => {
+    expect(resolveSessionId({}, 'unknown')).toBe('unknown');
   });
 });
