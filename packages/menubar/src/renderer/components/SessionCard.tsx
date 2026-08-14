@@ -423,12 +423,12 @@ export function SessionCard({
           "bg-transparent border-none cursor-pointer leading-none shrink-0",
           "text-fainter hover:text-danger transition-opacity duration-150",
           "text-ui px-0.5",
-          isDone ? "opacity-0 group-hover:opacity-100" : "invisible",
+          "opacity-0 group-hover:opacity-100",
         ].join(" ")}
-        title="Dismiss"
+        title={isDone ? "Dismiss" : "Dismiss (will reappear on the next prompt if the session is still active)"}
         onClick={(e) => {
           e.stopPropagation();
-          if (isDone) onDismiss(s.sessionId);
+          onDismiss(s.sessionId);
         }}
       >
         ✕

@@ -12,7 +12,7 @@ Real-time dashboard for monitoring multiple simultaneous Claude Code sessions. R
 - While Claude is actively generating output, a partial response preview appears on the card in real time
 - Click any card to bring that terminal window into focus
 - Click the path on a card to copy the full path to the clipboard
-- Hover a done card to reveal the `✕` dismiss button and clear it from the list
+- Hover any card — regardless of status — to reveal the `✕` dismiss button and clear it from the list. This is handy for a card that's stuck (e.g. permanently `active` after a crashed process). Dismissing removes the session record entirely; if the underlying session is still alive, the card reappears fresh on its next hook event (next prompt, tool call, etc.)
 - Pop out a standalone always-on-top panel with the `⧉` button
 - Toggle between **card** and **compact** view modes with the layout button in the header
 - Click the **chevron** (▼/▶) at the left of the header to collapse the panel to header-only — just the brand, pills, and controls. Click again to expand. State persists across restarts. The `⧉` popout button remains visible when collapsed.

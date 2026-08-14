@@ -82,14 +82,20 @@ describe('SessionCard — cursor source', () => {
   });
 });
 
+describe('SessionCard — dismiss works in any status', () => {
+  it.each(['active', 'waiting_permission', 'waiting_input', 'idle'] as const)(
+    'dismisses a %s card',
+    (status) => {
+      const { onDismiss, session } = renderCard({ status });
+      const btn = screen.getByTitle(/Dismiss/);
+      expect(btn.className).not.toContain('invisible');
+      fireEvent.click(btn);
+      expect(onDismiss).toHaveBeenCalledWith(session.sessionId);
+    },
+  );
+});
+
 describe('SessionCard — active', () => {
-  it('does not show dismiss button', () => {
-    renderCard({ status: 'active' });
-    // Button is always rendered for layout consistency but invisible on non-done cards
-    const btn = screen.queryByTitle('Dismiss');
-    expect(btn).toBeInTheDocument();
-    expect(btn!.className).toContain('invisible');
-  });
 
   it('shows current tool as stream row', () => {
     renderCard({
