@@ -76,6 +76,10 @@ export type HookEvent =
       workingDir: string;
       message: string;
       notificationType?: string;
+      // Set by Codex's PermissionRequest hook (packages/hook/src/hook.ts CLI entrypoint,
+      // `permission-request` arg) — an unambiguous "blocked on a human" signal, unlike
+      // Claude's Notification event which requires sniffing `message`/`notificationType`.
+      forceStatus?: 'waiting_permission';
     };
 
 const LOOP_THRESHOLD = 5;
@@ -694,11 +698,15 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       gitAhead,
     };
   } else if (event.type === 'notification') {
-    const nt = (event.notificationType ?? '').toLowerCase();
-    if (nt.includes('permission')) {
-      session = { ...session, status: 'waiting_permission', lastActivity: now };
-    } else if (nt.includes('input')) {
-      session = { ...session, status: 'waiting_input', lastActivity: now };
+    if (event.forceStatus) {
+      session = { ...session, status: event.forceStatus, lastActivity: now };
+    } else {
+      const nt = (event.notificationType ?? '').toLowerCase();
+      if (nt.includes('permission')) {
+        session = { ...session, status: 'waiting_permission', lastActivity: now };
+      } else if (nt.includes('input')) {
+        session = { ...session, status: 'waiting_input', lastActivity: now };
+      }
     }
   }
 
@@ -754,7 +762,7 @@ function getClaudePid(): number {
 
 // CLI entrypoint
 if (require.main === module) {
-  const eventType = process.argv[2] as HookEvent['type'];
+  const eventType = process.argv[2];
   const sessionId = process.env.CLAUDE_SESSION_ID ?? 'unknown';
   const pid = getClaudePid();
   const workingDir = process.env.PWD ?? process.cwd();
@@ -845,6 +853,16 @@ if (require.main === module) {
               cacheWriteTokens: typeof payload.cache_write_tokens === 'number' ? payload.cache_write_tokens : 0,
             }
           : null,
+      };
+    } else if (eventType === 'permission-request') {
+      event = {
+        type: 'notification',
+        sessionId: resolvedSessionId,
+        pid: resolvedPid,
+        termSessionId,
+        workingDir: resolvedCwd,
+        message: '',
+        forceStatus: 'waiting_permission',
       };
     } else {
       event = {

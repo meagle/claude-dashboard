@@ -191,6 +191,26 @@ describe('processHookEvent', () => {
     const sessions = readSessions(sessionsFile);
     expect(sessions[0].status).toBe('waiting_permission');
   });
+
+  it('forces waiting_permission status via forceStatus, ignoring message text (Codex PermissionRequest)', () => {
+    const existing = makeSession({ sessionId: 's1' });
+    fs.writeFileSync(sessionsFile, JSON.stringify([existing]));
+    processHookEvent(
+      { type: 'notification', sessionId: 's1', pid: 1, termSessionId: null, workingDir: dir, message: 'unrelated text with no keyword', forceStatus: 'waiting_permission' },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].status).toBe('waiting_permission');
+  });
+
+  it('still uses message-text sniffing when forceStatus is absent (existing Claude Notification behavior)', () => {
+    const existing = makeSession({ sessionId: 's1' });
+    fs.writeFileSync(sessionsFile, JSON.stringify([existing]));
+    processHookEvent(
+      { type: 'notification', sessionId: 's1', pid: 1, termSessionId: null, workingDir: dir, message: 'needs input', notificationType: 'input_needed' },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].status).toBe('waiting_input');
+  });
 });
 
 describe('processHookEvent — user-prompt', () => {
