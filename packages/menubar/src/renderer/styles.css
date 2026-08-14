@@ -149,8 +149,7 @@
     padding-top: 10px;
     padding-bottom: 8px;
   }
-  body.detached #header button,
-  body.detached #header span {
+  body.detached #header button {
     -webkit-app-region: no-drag;
   }
 }
