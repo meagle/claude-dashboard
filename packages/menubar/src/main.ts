@@ -44,6 +44,7 @@ const HISTORY_FILE = path.join(DASHBOARD_DIR, "history.json");
 const HOOK_DEST = path.join(DASHBOARD_DIR, "hook.js");
 const WINDOW_STATE_FILE = path.join(DASHBOARD_DIR, "window-state.json");
 const SETTINGS_FILE = path.join(os.homedir(), ".claude", "settings.json");
+const CURSOR_HOOKS_FILE = path.join(os.homedir(), ".cursor", "hooks.json");
 
 interface WindowState {
   cardWidth: number;
@@ -138,6 +139,32 @@ function installHook(): void {
     mergeHook("Notification", "notification");
 
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+
+    // Patch ~/.cursor/hooks.json idempotently — cursor-agent (the Cursor CLI) reads its
+    // own native hooks file, not ~/.claude/settings.json.
+    if (!fs.existsSync(CURSOR_HOOKS_FILE)) {
+      fs.mkdirSync(path.dirname(CURSOR_HOOKS_FILE), { recursive: true });
+      fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify({ version: 1, hooks: {} }));
+    }
+    const cursorHooks = JSON.parse(fs.readFileSync(CURSOR_HOOKS_FILE, "utf8"));
+    cursorHooks.version = cursorHooks.version ?? 1;
+    cursorHooks.hooks = cursorHooks.hooks ?? {};
+
+    function mergeCursorHook(event: string, arg: string) {
+      const entry = { command: `node ~/.config/claude-dashboard/hook.js ${arg}` };
+      const existing: unknown[] = cursorHooks.hooks[event] ?? [];
+      cursorHooks.hooks[event] = [
+        ...existing.filter((h) => !isDashboardHook(h)),
+        entry,
+      ];
+    }
+
+    mergeCursorHook("beforeSubmitPrompt", "user-prompt");
+    mergeCursorHook("preToolUse", "pre-tool");
+    mergeCursorHook("postToolUse", "post-tool");
+    mergeCursorHook("stop", "stop");
+
+    fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
   } catch {
     // Non-fatal — dashboard still works, user just won't receive hook events.
   }
@@ -863,6 +890,19 @@ app.whenReady().then(() => {
           if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
         }
         fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+      }
+      if (fs.existsSync(CURSOR_HOOKS_FILE)) {
+        const cursorHooks = JSON.parse(fs.readFileSync(CURSOR_HOOKS_FILE, "utf8"));
+        if (cursorHooks.hooks) {
+          for (const event of Object.keys(cursorHooks.hooks)) {
+            cursorHooks.hooks[event] = (cursorHooks.hooks[event] as unknown[]).filter(
+              (h) => !isDashboardHook(h),
+            );
+            if ((cursorHooks.hooks[event] as unknown[]).length === 0)
+              delete cursorHooks.hooks[event];
+          }
+        }
+        fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
       }
     } catch {}
     app.quit();
