@@ -45,6 +45,7 @@ const HOOK_DEST = path.join(DASHBOARD_DIR, "hook.js");
 const WINDOW_STATE_FILE = path.join(DASHBOARD_DIR, "window-state.json");
 const SETTINGS_FILE = path.join(os.homedir(), ".claude", "settings.json");
 const CURSOR_HOOKS_FILE = path.join(os.homedir(), ".cursor", "hooks.json");
+const CODEX_HOOKS_FILE = path.join(os.homedir(), ".codex", "hooks.json");
 
 interface WindowState {
   cardWidth: number;
@@ -173,6 +174,42 @@ function installHook(): void {
     mergeCursorHook("stop", "stop");
 
     fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
+
+    // Patch ~/.codex/hooks.json idempotently — the Codex CLI reads its own native hooks
+    // file, not ~/.claude/settings.json. Unlike Cursor's flat {command} shape, Codex
+    // requires the nested {matcher, hooks: [{type, command}]} shape (confirmed live —
+    // an argv-array command errors, and the flat shape is never accepted).
+    if (!fs.existsSync(CODEX_HOOKS_FILE)) {
+      fs.mkdirSync(path.dirname(CODEX_HOOKS_FILE), { recursive: true });
+      fs.writeFileSync(CODEX_HOOKS_FILE, JSON.stringify({ hooks: {} }));
+    }
+    const codexHooks = JSON.parse(fs.readFileSync(CODEX_HOOKS_FILE, "utf8"));
+    codexHooks.hooks = codexHooks.hooks ?? {};
+
+    function mergeCodexHook(event: string, arg: string) {
+      const entry = {
+        matcher: "*",
+        hooks: [
+          {
+            type: "command",
+            command: `node ~/.config/claude-dashboard/hook.js ${arg}`,
+          },
+        ],
+      };
+      const existing: unknown[] = codexHooks.hooks[event] ?? [];
+      codexHooks.hooks[event] = [
+        ...existing.filter((h) => !isDashboardHook(h)),
+        entry,
+      ];
+    }
+
+    mergeCodexHook("UserPromptSubmit", "user-prompt");
+    mergeCodexHook("PreToolUse", "pre-tool");
+    mergeCodexHook("PostToolUse", "post-tool");
+    mergeCodexHook("Stop", "stop");
+    mergeCodexHook("PermissionRequest", "permission-request");
+
+    fs.writeFileSync(CODEX_HOOKS_FILE, JSON.stringify(codexHooks, null, 2));
   } catch {
     // Non-fatal — dashboard still works, user just won't receive hook events.
   }
@@ -897,6 +934,11 @@ app.whenReady().then(() => {
         const cursorHooks = JSON.parse(fs.readFileSync(CURSOR_HOOKS_FILE, "utf8"));
         pruneDashboardHooks(cursorHooks.hooks);
         fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
+      }
+      if (fs.existsSync(CODEX_HOOKS_FILE)) {
+        const codexHooks = JSON.parse(fs.readFileSync(CODEX_HOOKS_FILE, "utf8"));
+        pruneDashboardHooks(codexHooks.hooks);
+        fs.writeFileSync(CODEX_HOOKS_FILE, JSON.stringify(codexHooks, null, 2));
       }
     } catch {}
     app.quit();
