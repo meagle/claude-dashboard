@@ -115,15 +115,17 @@ describe('CompactSessionRow — context bar', () => {
 });
 
 describe('CompactSessionRow — cursor source', () => {
-  it('hides the "— tok" placeholder for an active cursor session even when showCost is true', () => {
+  // Cursor sessions get context %/tokens from the hook payload — once populated,
+  // they render through the same fields as any other session.
+  it('shows context and tokens once a cursor session has real data', () => {
     render(
       <CompactSessionRow
-        session={makeSession({ source: 'cursor', status: 'active', totalTokens: null })}
+        session={makeSession({ source: 'cursor', status: 'done', contextPct: 35, totalTokens: 35315 })}
         cardConfig={{ ...defaultCardConfig, showCost: true }}
         onFocus={vi.fn()}
       />
     );
-    expect(screen.queryByText('— tok')).not.toBeInTheDocument();
+    expect(screen.getByText('35%')).toBeInTheDocument();
   });
 });
 

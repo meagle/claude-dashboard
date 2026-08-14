@@ -66,21 +66,17 @@ describe('SessionCard — done', () => {
 });
 
 describe('SessionCard — cursor source', () => {
-  it('hides model, context, cost, and token placeholders for an active cursor session', () => {
+  // Cursor sessions get model/context/tokens from the hook payload (not the
+  // transcript) but render through the exact same fields as Claude Code sessions —
+  // `source` no longer gates visibility, so a populated cursor session should show
+  // its model badge and stats just like any other session.
+  it('shows model badge and context once a cursor session has real data', () => {
     renderCard(
-      { source: 'cursor', status: 'active', toolCount: 1 },
-      { showModel: true, showCost: true },
+      { source: 'cursor', status: 'done', model: 'composer-2.5-fast', contextPct: 35, toolCount: 2, turns: 3 },
+      { showModel: true, showDoneFooter: true },
     );
-    expect(screen.queryByText('$—')).not.toBeInTheDocument();
-    expect(screen.queryByText('— tok')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('model-badge')).not.toBeInTheDocument();
-  });
-
-  it('still shows tools and turns for a cursor session', () => {
-    renderCard(
-      { source: 'cursor', status: 'done', toolCount: 2, turns: 3 },
-      { showModel: true, showCost: true },
-    );
+    expect(screen.getByTestId('model-badge')).toHaveTextContent('composer-2.5-fast');
+    expect(screen.getByText('35%')).toBeInTheDocument();
     expect(screen.getByText('2 tools')).toBeInTheDocument();
     expect(screen.getByText('3 turns')).toBeInTheDocument();
   });

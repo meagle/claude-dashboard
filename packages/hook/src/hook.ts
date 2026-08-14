@@ -15,6 +15,16 @@ import {
   modelContextWindowFromConfig,
 } from '@claude-dashboard/shared';
 
+// Cursor's own agent doesn't write model/usage into its transcript files, but it does
+// include them directly on the `user-prompt` and `stop` hook payloads (Claude Code's
+// payload doesn't carry these — its model/usage always comes from the transcript).
+export interface PayloadUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
 export type HookEvent =
   | {
       type: 'user-prompt';
@@ -24,6 +34,8 @@ export type HookEvent =
       workingDir: string;
       transcriptPath: string | null;
       prompt: string | null;
+      payloadModel: string | null;
+      payloadModelId: string | null;
     }
   | {
       type: 'pre-tool';
@@ -51,6 +63,9 @@ export type HookEvent =
       termSessionId: string | null;
       workingDir: string;
       transcriptPath: string | null;
+      payloadModel: string | null;
+      payloadModelId: string | null;
+      payloadUsage: PayloadUsage | null;
     }
   | {
       type: 'notification';
@@ -118,6 +133,40 @@ export function calcTurnCost(usage: Record<string, unknown>, modelId: string, cf
   const cr    = typeof usage.cache_read_input_tokens     === 'number' ? usage.cache_read_input_tokens     : 0;
   const out   = typeof usage.output_tokens               === 'number' ? usage.output_tokens               : 0;
   return (inp * p.input + cw * p.cacheWrite + cr * p.cacheRead + out * p.output) / 1_000_000;
+}
+
+// Turns a single turn's usage straight from Cursor's stop payload into the same
+// contextPct/contextTokens/cost shape the transcript-based path produces. Cost is null
+// unless the user has configured pricing for this model (Cursor's own models — e.g.
+// "composer-2.5" — have no built-in entry in MODEL_PRICING).
+function payloadUsageStats(
+  usage: PayloadUsage,
+  modelId: string | null,
+  cfg?: ReturnType<typeof readConfig>,
+): { contextPct: number | null; contextTokens: number | null; costUsd: number | null; tokensThisTurn: number } {
+  const lastTurnTokens = usage.inputTokens + usage.cacheReadTokens + usage.cacheWriteTokens;
+  const contextTokens = lastTurnTokens > 0 ? lastTurnTokens : null;
+  const contextPct = modelId && lastTurnTokens > 0
+    ? Math.min(100, Math.round((lastTurnTokens / modelContextWindowFromConfig(modelId, cfg)) * 100))
+    : null;
+  const turnCost = modelId
+    ? calcTurnCost(
+        {
+          input_tokens: usage.inputTokens,
+          output_tokens: usage.outputTokens,
+          cache_read_input_tokens: usage.cacheReadTokens,
+          cache_creation_input_tokens: usage.cacheWriteTokens,
+        },
+        modelId,
+        cfg,
+      )
+    : 0;
+  return {
+    contextPct,
+    contextTokens,
+    costUsd: turnCost > 0 ? Math.round(turnCost * 10000) / 10000 : null,
+    tokensThisTurn: usage.inputTokens + usage.outputTokens,
+  };
 }
 
 interface TranscriptStats {
@@ -457,6 +506,10 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
       ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
+      // Cursor's own agent carries model directly on the payload (no transcript data);
+      // only apply it when the transcript didn't already give us a model this turn.
+      ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
+      ...(!stats.modelId && event.payloadModelId ? { modelId: event.payloadModelId } : {}),
     };
   } else if (event.type === 'pre-tool') {
     let loopTool = session.loopTool;
@@ -566,6 +619,13 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       : EMPTY_STATS;
     const gitSummary = getGitSummary(event.workingDir);
     const gitAhead = getGitAhead(event.workingDir);
+    // Cursor: no transcript usage data, so derive contextPct/tokens/cost from the
+    // payload's per-turn usage instead. Only used when the transcript path came up empty
+    // (Claude Code sessions always have transcript stats, so this is a no-op for them).
+    const payloadModelId = stats.modelId ?? event.payloadModelId;
+    const payloadStats = event.payloadUsage
+      ? payloadUsageStats(event.payloadUsage, payloadModelId, cfg)
+      : null;
     session = {
       ...session,
       status: 'done',
@@ -582,6 +642,17 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
       ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
+      ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
+      ...(!stats.modelId && event.payloadModelId ? { modelId: event.payloadModelId } : {}),
+      ...(stats.contextPct === null && payloadStats
+        ? { contextPct: payloadStats.contextPct, contextTokens: payloadStats.contextTokens }
+        : {}),
+      ...(stats.costUsd === null && payloadStats && payloadStats.costUsd !== null
+        ? { costUsd: Math.round(((session.costUsd ?? 0) + payloadStats.costUsd) * 10000) / 10000 }
+        : {}),
+      ...(stats.totalTokens === null && payloadStats
+        ? { totalTokens: (session.totalTokens ?? 0) + payloadStats.tokensThisTurn }
+        : {}),
       gitSummary,
       gitAhead,
     };
@@ -665,6 +736,8 @@ if (require.main === module) {
         workingDir: resolvedCwd,
         transcriptPath: (payload.transcript_path as string) ?? null,
         prompt,
+        payloadModel: typeof payload.model === 'string' ? payload.model : null,
+        payloadModelId: typeof payload.model_id === 'string' ? payload.model_id : null,
       };
     } else if (eventType === 'pre-tool') {
       event = {
@@ -688,6 +761,10 @@ if (require.main === module) {
         output: (payload.tool_response as Record<string, unknown>) ?? {},
       };
     } else if (eventType === 'stop') {
+      // Cursor's stop payload carries this turn's usage directly (Claude Code's payload
+      // never does — its usage always comes from the transcript instead).
+      const hasPayloadUsage =
+        typeof payload.input_tokens === 'number' || typeof payload.output_tokens === 'number';
       event = {
         type: 'stop',
         sessionId: resolvedSessionId,
@@ -695,6 +772,16 @@ if (require.main === module) {
         termSessionId,
         workingDir: resolvedCwd,
         transcriptPath: (payload.transcript_path as string) ?? null,
+        payloadModel: typeof payload.model === 'string' ? payload.model : null,
+        payloadModelId: typeof payload.model_id === 'string' ? payload.model_id : null,
+        payloadUsage: hasPayloadUsage
+          ? {
+              inputTokens: typeof payload.input_tokens === 'number' ? payload.input_tokens : 0,
+              outputTokens: typeof payload.output_tokens === 'number' ? payload.output_tokens : 0,
+              cacheReadTokens: typeof payload.cache_read_tokens === 'number' ? payload.cache_read_tokens : 0,
+              cacheWriteTokens: typeof payload.cache_write_tokens === 'number' ? payload.cache_write_tokens : 0,
+            }
+          : null,
       };
     } else {
       event = {

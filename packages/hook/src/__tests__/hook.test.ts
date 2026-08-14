@@ -146,6 +146,9 @@ describe('processHookEvent', () => {
       termSessionId: null,
       workingDir: '/tmp/test',
       transcriptPath: null,
+      payloadModel: null,
+      payloadModelId: null,
+      payloadUsage: null,
     };
     processHookEvent(event, sessionsFile);
     const sessions = readSessions(sessionsFile);
@@ -205,7 +208,7 @@ describe('processHookEvent — user-prompt', () => {
 
   it('creates a new session and sets status active', () => {
     processHookEvent(
-      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'Hello' },
+      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'Hello' , payloadModel: null, payloadModelId: null },
       sessionsFile
     );
     const sessions = readSessions(sessionsFile);
@@ -215,7 +218,7 @@ describe('processHookEvent — user-prompt', () => {
 
   it('stores lastPrompt from the event', () => {
     processHookEvent(
-      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'Write a test' },
+      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'Write a test' , payloadModel: null, payloadModelId: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].lastPrompt).toBe('Write a test');
@@ -223,7 +226,7 @@ describe('processHookEvent — user-prompt', () => {
 
   it('ignores prompts that are system XML injections (start with <)', () => {
     processHookEvent(
-      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: '<task-notification><task-id>abc</task-id></task-notification>' },
+      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: '<task-notification><task-id>abc</task-id></task-notification>' , payloadModel: null, payloadModelId: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].lastPrompt).toBeNull();
@@ -235,7 +238,7 @@ describe('processHookEvent — user-prompt', () => {
       assistantEntry('First response', 'claude-haiku-4-5-20251001', { input_tokens: 10000, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }),
     ]);
     processHookEvent(
-      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, prompt: 'Second prompt' },
+      { type: 'user-prompt', sessionId: 'up-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, prompt: 'Second prompt' , payloadModel: null, payloadModelId: null },
       sessionsFile
     );
     const s = readSessions(sessionsFile)[0];
@@ -249,7 +252,7 @@ describe('processHookEvent — user-prompt', () => {
     const existing = makeSession({ sessionId: 'up-1', dismissed: true });
     fs.writeFileSync(sessionsFile, JSON.stringify([existing]));
     processHookEvent(
-      { type: 'user-prompt', sessionId: 'up-1', pid: 100, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'Resume' },
+      { type: 'user-prompt', sessionId: 'up-1', pid: 100, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'Resume' , payloadModel: null, payloadModelId: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].dismissed).toBe(false);
@@ -259,7 +262,7 @@ describe('processHookEvent — user-prompt', () => {
     const existing = makeSession({ sessionId: 'up-1', loopTool: 'Bash', loopCount: 5, errorState: true });
     fs.writeFileSync(sessionsFile, JSON.stringify([existing]));
     processHookEvent(
-      { type: 'user-prompt', sessionId: 'up-1', pid: 100, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'New task' },
+      { type: 'user-prompt', sessionId: 'up-1', pid: 100, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'New task' , payloadModel: null, payloadModelId: null },
       sessionsFile
     );
     const s = readSessions(sessionsFile)[0];
@@ -288,7 +291,7 @@ describe('processHookEvent — stop with transcript', () => {
       assistantEntry('The answer is 4.', 'claude-haiku-4-5-20251001', { input_tokens: 20000 }),
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 's1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 's1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     const s = readSessions(sessionsFile)[0];
@@ -313,7 +316,7 @@ describe('processHookEvent — stop with transcript', () => {
       }),
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 's2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 's2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].contextPct).toBe(50); // (0 + 60000 + 40000) / 200000 = 50%
@@ -328,7 +331,7 @@ describe('processHookEvent — stop with transcript', () => {
       assistantEntry('Final response.'),
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 's3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 's3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].turns).toBe(2);
@@ -340,7 +343,7 @@ describe('processHookEvent — stop with transcript', () => {
       assistantEntry('Hello.', 'claude-haiku-4-5-20251001', { input_tokens: 5000 }),
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 's4', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 's4', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].model).toBe('Haiku 4.5');
@@ -353,7 +356,7 @@ describe('processHookEvent — stop with transcript', () => {
       cursorTurnEnded,
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 'cursor-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 'cursor-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     const s = readSessions(sessionsFile)[0];
@@ -394,7 +397,7 @@ describe('processHookEvent — stop with transcript', () => {
       assistantEntry('Hello.'),
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 'claude-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 'claude-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].source).toBeUndefined();
@@ -409,7 +412,7 @@ describe('processHookEvent — stop with transcript', () => {
       cursorTurnEnded,
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].lastMessage).toBe('Done, here is the result.');
@@ -425,12 +428,118 @@ describe('processHookEvent — stop with transcript', () => {
       cursorTurnEnded,
     ]);
     processHookEvent(
-      { type: 'stop', sessionId: 'cursor-3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      { type: 'stop', sessionId: 'cursor-3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Second reply');
     expect(s.turns).toBe(2);
+  });
+});
+
+describe('processHookEvent — Cursor payload usage (no transcript data)', () => {
+  let dir: string;
+  let sessionsFile: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hook-test-'));
+    sessionsFile = path.join(dir, 'sessions.json');
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true });
+  });
+
+  it('reads model, contextPct, and totalTokens straight from the stop payload', () => {
+    processHookEvent(
+      {
+        type: 'stop', sessionId: 'c1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null,
+        payloadModel: 'composer-2.5-fast', payloadModelId: 'composer-2.5',
+        payloadUsage: { inputTokens: 35297, outputTokens: 18, cacheReadTokens: 34592, cacheWriteTokens: 0 },
+      },
+      sessionsFile,
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.model).toBe('composer-2.5-fast');
+    expect(s.modelId).toBe('composer-2.5');
+    // (35297 input + 34592 cache_read + 0 cache_write) / 200000 default window = 35%
+    expect(s.contextPct).toBe(35);
+    expect(s.contextTokens).toBe(69889);
+    expect(s.totalTokens).toBe(35315); // input + output, not counting cache
+  });
+
+  it('leaves cost null when no pricing is configured for the model', () => {
+    processHookEvent(
+      {
+        type: 'stop', sessionId: 'c2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null,
+        payloadModel: 'composer-2.5-fast', payloadModelId: 'composer-2.5',
+        payloadUsage: { inputTokens: 1000, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+      sessionsFile,
+    );
+    expect(readSessions(sessionsFile)[0].costUsd).toBeNull();
+  });
+
+  it('computes cost when custom pricing is configured for the model prefix', () => {
+    const cfg = {
+      modelPricing: { fetched: {}, custom: [{ prefix: 'composer', input: 3, cacheWrite: 3.75, cacheRead: 0.3, output: 15 }] },
+    } as unknown as DashboardConfig;
+    processHookEvent(
+      {
+        type: 'stop', sessionId: 'c3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null,
+        payloadModel: 'composer-2.5-fast', payloadModelId: 'composer-2.5',
+        payloadUsage: { inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+      sessionsFile,
+      cfg,
+    );
+    expect(readSessions(sessionsFile)[0].costUsd).toBe(3);
+  });
+
+  it('accumulates totalTokens and cost across multiple turns', () => {
+    const cfg = {
+      modelPricing: { fetched: {}, custom: [{ prefix: 'composer', input: 1, cacheWrite: 1, cacheRead: 1, output: 1 }] },
+    } as unknown as DashboardConfig;
+    const event = (sid: string, input: number) => ({
+      type: 'stop' as const, sessionId: sid, pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null,
+      payloadModel: 'composer-2.5-fast', payloadModelId: 'composer-2.5',
+      payloadUsage: { inputTokens: input, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    });
+    processHookEvent(event('c4', 1_000_000), sessionsFile, cfg);
+    processHookEvent(event('c4', 1_000_000), sessionsFile, cfg);
+    const s = readSessions(sessionsFile)[0];
+    expect(s.totalTokens).toBe(2_000_000);
+    expect(s.costUsd).toBe(2);
+  });
+
+  it('ignores payload model/usage when the transcript already provided stats', () => {
+    const tp = writeTranscript(dir, [
+      userEntry('Hi'),
+      assistantEntry('Hello.', 'claude-haiku-4-5-20251001', { input_tokens: 5000 }),
+    ]);
+    processHookEvent(
+      {
+        type: 'stop', sessionId: 'c5', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp,
+        payloadModel: 'composer-2.5-fast', payloadModelId: 'composer-2.5',
+        payloadUsage: { inputTokens: 999, outputTokens: 999, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      },
+      sessionsFile,
+    );
+    // Claude Code transcript stats take precedence over the payload fallback.
+    expect(readSessions(sessionsFile)[0].model).toBe('Haiku 4.5');
+  });
+
+  it('reads model from the user-prompt payload too', () => {
+    processHookEvent(
+      {
+        type: 'user-prompt', sessionId: 'c6', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'hi',
+        payloadModel: 'composer-2.5-fast', payloadModelId: 'composer-2.5',
+      },
+      sessionsFile,
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.model).toBe('composer-2.5-fast');
+    expect(s.modelId).toBe('composer-2.5');
   });
 });
 
