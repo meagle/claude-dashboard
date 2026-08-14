@@ -235,6 +235,7 @@ function stopDetachedHoverPoll() {
 }
 let gitRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
+let modelDataRefreshInterval: ReturnType<typeof setInterval> | null = null;
 let desktopWatcher: DesktopSessionWatcher | null = null;
 const prevStatusMap = new Map<string, string>();
 
@@ -721,6 +722,21 @@ async function fetchAndCacheLiteLLMPricing(): Promise<void> {
   });
 }
 
+// The dashboard's own process may run for days without a restart, so this can't only run
+// once at startup — a long-lived session would otherwise never notice its LiteLLM cache
+// going stale, or a brand-new model (e.g. one released mid-session) never resolving until
+// the user manually quits and relaunches. Called once at startup and then on a recurring
+// timer (see app.whenReady() below).
+function checkAndRefreshModelData(): void {
+  const cfg = readConfig(CONFIG_FILE);
+  const now = Date.now();
+  const fetchedAt = cfg.modelPricing?.fetchedAt ?? 0;
+  const contextWindowsEmpty = Object.keys(cfg.modelContextWindows?.fetched ?? {}).length === 0;
+  if (now - fetchedAt > 24 * 60 * 60 * 1000 || contextWindowsEmpty) {
+    fetchAndCacheLiteLLMPricing().catch(() => {});
+  }
+}
+
 app.whenReady().then(() => {
   app.setName('Agent Dashboard');
   installHook();
@@ -741,13 +757,10 @@ app.whenReady().then(() => {
     );
   });
 
+  checkAndRefreshModelData();
+  modelDataRefreshInterval = setInterval(checkAndRefreshModelData, 60 * 60 * 1000);
+
   let cfg = readConfig(CONFIG_FILE);
-  const now = Date.now();
-  const fetchedAt = cfg.modelPricing?.fetchedAt ?? 0;
-  const contextWindowsEmpty = Object.keys(cfg.modelContextWindows?.fetched ?? {}).length === 0;
-  if (now - fetchedAt > 24 * 60 * 60 * 1000 || contextWindowsEmpty) {
-    fetchAndCacheLiteLLMPricing().catch(() => {});
-  }
   let MAX_HEIGHT = cfg.maxHeight ?? 700;
   showBadgeCount = cfg.showBadgeCount ?? false;
   let cachedHeight = MAX_HEIGHT;
@@ -1166,6 +1179,7 @@ app.on("window-all-closed", () => {
 app.on("before-quit", () => {
   if (gitRefreshInterval) clearInterval(gitRefreshInterval);
   if (sessionCheckInterval) clearInterval(sessionCheckInterval);
+  if (modelDataRefreshInterval) clearInterval(modelDataRefreshInterval);
   desktopWatcher?.destroy();
   desktopWatcher = null;
   trayIconCtrl?.destroy();
