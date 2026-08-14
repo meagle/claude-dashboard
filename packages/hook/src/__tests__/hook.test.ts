@@ -1106,6 +1106,28 @@ describe('processHookEvent — Codex rollout schema', () => {
     expect(readSessions(sessionsFile)[0].costUsd).toBe(0.016);
   });
 
+  it('does not double-count cached tokens in cost (input_tokens is cache-inclusive for Codex)', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('hi'),
+      codexTokenCount(5000, 258400, { input_tokens: 4000, cached_input_tokens: 1000, output_tokens: 1000 }),
+      codexAgentMessage('hello', 'final_answer'),
+    ]);
+    const cfg: DashboardConfig = {
+      columns: { elapsedTime: true, gitBranch: true, changedFiles: true, cost: false, subagents: true, lastAction: true, compactPaths: true, doneFooter: true, footerStyle: 'default' },
+      staleSessionMinutes: 30, maxHeight: 700, theme: 'light', notifications: true, notificationSound: true, showBadgeCount: false,
+      modelPricing: { fetched: {}, custom: [{ prefix: 'gpt-5.6', input: 2, cacheWrite: 0, cacheRead: 0.5, output: 8 }] },
+    };
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-8', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile,
+      cfg
+    );
+    // Correct (uncached-portion + cache-read + output): (3000*2 + 1000*0.5 + 1000*8) / 1_000_000 = 0.0145
+    // Buggy (double-counted): (4000*2 + 1000*0.5 + 1000*8) / 1_000_000 = 0.0165 — this test fails against that.
+    expect(readSessions(sessionsFile)[0].costUsd).toBe(0.0145);
+  });
+
   it('does not misdetect a Claude Code transcript as Codex', () => {
     const tp = writeTranscript(dir, [
       userEntry('Hi'),

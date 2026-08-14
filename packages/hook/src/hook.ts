@@ -273,7 +273,13 @@ function readCodexStats(lines: string[], endTurnOnly: boolean, cfg?: ReturnType<
   const costUsd = tokenUsage && modelId
     ? calcTurnCost(
         {
-          input_tokens: tokenUsage.inputTokens,
+          // Codex's `input_tokens` is cache-inclusive (confirmed live: input_tokens +
+          // output_tokens == total_tokens exactly, with cached_input_tokens as a subset
+          // of input_tokens, not additional to it) — unlike calcTurnCost's Claude-derived
+          // usage shape, where input_tokens and cache_read_input_tokens are mutually
+          // exclusive pools. Subtract the cached portion so it's only priced once, at the
+          // cache-read rate, instead of once at full input rate and again at cache-read rate.
+          input_tokens: Math.max(0, tokenUsage.inputTokens - tokenUsage.cachedInputTokens),
           output_tokens: tokenUsage.outputTokens,
           cache_read_input_tokens: tokenUsage.cachedInputTokens,
           cache_creation_input_tokens: tokenUsage.cacheWriteInputTokens,
