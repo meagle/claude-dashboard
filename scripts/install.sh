@@ -98,6 +98,41 @@ fs.writeFileSync(file, JSON.stringify(config, null, 2));
 console.log('hooks.json updated.');
 NODESCRIPT
 
+echo "Patching Codex CLI hooks.json..."
+CODEX_HOOKS_FILE="$HOME/.codex/hooks.json"
+mkdir -p "$HOME/.codex"
+if [ ! -f "$CODEX_HOOKS_FILE" ]; then
+  echo '{"hooks": {}}' > "$CODEX_HOOKS_FILE"
+fi
+
+node - <<'NODESCRIPT'
+const fs = require('fs');
+const file = process.env.HOME + '/.codex/hooks.json';
+const config = JSON.parse(fs.readFileSync(file, 'utf8'));
+config.hooks = config.hooks || {};
+
+function isDashboardHook(h) {
+  if (typeof h.command === 'string' && h.command.includes('dashboard/hook.js')) return true;
+  if (Array.isArray(h.hooks) && h.hooks.some((i) => typeof i.command === 'string' && i.command.includes('dashboard/hook.js'))) return true;
+  return false;
+}
+
+function mergeCodexHook(hooks, event, arg) {
+  const entry = { matcher: '*', hooks: [{ type: 'command', command: `node ~/.config/claude-dashboard/hook.js ${arg}` }] };
+  const existing = hooks[event] || [];
+  hooks[event] = [...existing.filter((h) => !isDashboardHook(h)), entry];
+}
+
+mergeCodexHook(config.hooks, 'UserPromptSubmit',  'user-prompt');
+mergeCodexHook(config.hooks, 'PreToolUse',        'pre-tool');
+mergeCodexHook(config.hooks, 'PostToolUse',       'post-tool');
+mergeCodexHook(config.hooks, 'Stop',              'stop');
+mergeCodexHook(config.hooks, 'PermissionRequest', 'permission-request');
+
+fs.writeFileSync(file, JSON.stringify(config, null, 2));
+console.log('Codex hooks.json updated.');
+NODESCRIPT
+
 echo "Installing launch script..."
 PROJECT_DIR="$(pwd)"
 LAUNCH_SCRIPT="$HOME/.local/bin/claude-dashboard"
@@ -113,3 +148,7 @@ echo "Installation complete."
 echo "  Run the menu bar: claude-dashboard"
 echo ""
 echo "Hook registered for PreToolUse, PostToolUse, Stop, Notification."
+echo ""
+echo "IMPORTANT: Codex CLI requires hooks to be trusted once before they'll fire."
+echo "  Run 'codex', then run '/hooks' inside the session and trust the claude-dashboard entries."
+echo "  Until you do this, Codex sessions will not appear on the dashboard."
