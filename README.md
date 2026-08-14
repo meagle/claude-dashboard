@@ -49,6 +49,8 @@ Claude session (any project)
 
 Each session tracks: status, current tool, last prompt and response, task list progress, running subagents, git branch, worktree, changed files, commits ahead of upstream, elapsed time, model, context %, and cost.
 
+**Cursor's native agent:** Cursor's built-in agent (separate from the `claude` CLI) also fires these hooks, but writes its transcripts in its own JSON schema. The dashboard recognizes both formats, so prompt/response text and turn counts populate for Cursor sessions too — model, context %, and cost stay unavailable since Cursor's transcripts don't include usage data.
+
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |

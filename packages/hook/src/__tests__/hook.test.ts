@@ -27,6 +27,19 @@ function userEntry(text: string) {
   return { type: 'user', message: { content: [{ type: 'text', text }] } };
 }
 
+// Cursor's native agent (not the `claude` CLI) fires the same hooks but writes
+// transcripts in its own schema: `role` instead of `type`, no model/usage, and a
+// standalone `{"type":"turn_ended"}` line marking the end of each turn.
+function cursorUserEntry(text: string) {
+  return { role: 'user', message: { content: [{ type: 'text', text: `<user_query>\n${text}\n</user_query>` }] } };
+}
+
+function cursorAssistantEntry(text: string) {
+  return { role: 'assistant', message: { content: [{ type: 'text', text }] } };
+}
+
+const cursorTurnEnded = { type: 'turn_ended', status: 'success' };
+
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     sessionId: 'sess-1',
@@ -331,6 +344,59 @@ describe('processHookEvent — stop with transcript', () => {
       sessionsFile
     );
     expect(readSessions(sessionsFile)[0].model).toBe('Haiku 4.5');
+  });
+
+  it('reads lastMessage and turns from a Cursor-schema transcript', () => {
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('hi'),
+      cursorAssistantEntry('Hi! How can I help you today?'),
+      cursorTurnEnded,
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.lastMessage).toBe('Hi! How can I help you today?');
+    expect(s.turns).toBe(1);
+    expect(s.status).toBe('done');
+    // Cursor transcripts carry no model/usage — those stay unavailable rather than crashing.
+    expect(s.model).toBeNull();
+    expect(s.contextPct).toBeNull();
+    expect(s.costUsd).toBeNull();
+  });
+
+  it('only accepts the Cursor assistant entry immediately before turn_ended as the final message', () => {
+    // Simulates a turn with an intermediate assistant message before the true final one.
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('do a thing'),
+      cursorAssistantEntry('Working on it...'),
+      cursorAssistantEntry('Done, here is the result.'),
+      cursorTurnEnded,
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].lastMessage).toBe('Done, here is the result.');
+  });
+
+  it('counts multiple Cursor turns correctly', () => {
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('first'),
+      cursorAssistantEntry('First reply'),
+      cursorTurnEnded,
+      cursorUserEntry('second'),
+      cursorAssistantEntry('Second reply'),
+      cursorTurnEnded,
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.lastMessage).toBe('Second reply');
+    expect(s.turns).toBe(2);
   });
 });
 

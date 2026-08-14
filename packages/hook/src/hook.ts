@@ -151,11 +151,24 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
     let cumulativeTokens = 0;
     let foundAssistant = false;
     let pastTurnBoundary = false;
+    // Cursor's own agent (not the `claude` CLI) fires the same hook events but writes
+    // transcripts in a different schema: entries use `role` instead of `type`, carry no
+    // model/usage/stop_reason, and a turn's end is marked by a standalone
+    // `{"type":"turn_ended"}` line rather than stop_reason='end_turn'. Detect that line
+    // (while iterating backwards) so the assistant entry immediately before it can be
+    // treated as the turn's final message.
+    let cursorTurnJustEnded = false;
 
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const entry = JSON.parse(lines[i]);
-        if (entry.type === 'assistant' && entry.message?.model !== '<synthetic>') {
+        if (entry.type === 'turn_ended') {
+          cursorTurnJustEnded = true;
+          continue;
+        }
+        const isClaudeAssistant = entry.type === 'assistant' && entry.message?.model !== '<synthetic>';
+        const isCursorAssistant = entry.type === undefined && entry.role === 'assistant';
+        if (isClaudeAssistant || isCursorAssistant) {
           const msg = entry.message;
           if (!foundAssistant) {
             foundAssistant = true;
@@ -179,9 +192,10 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
           // Scan backwards within the current turn for the most recent text block.
           // Claude Code emits text and tool_use as separate assistant entries, so the
           // last entry before a tool call is tool-only — we must keep looking back.
-          // When endTurnOnly=true (Stop hook), only accept the final entry (stop_reason='end_turn')
-          // so we never grab an intermediate tool-use text as the session's final message.
-          const isEndTurn = msg?.stop_reason === 'end_turn';
+          // When endTurnOnly=true (Stop hook), only accept the final entry (stop_reason='end_turn',
+          // or the line right before a Cursor 'turn_ended' marker) so we never grab an
+          // intermediate tool-use text as the session's final message.
+          const isEndTurn = isCursorAssistant ? cursorTurnJustEnded : msg?.stop_reason === 'end_turn';
           if (text === null && !pastTurnBoundary && (!endTurnOnly || isEndTurn)) {
             const blocks = msg?.content;
             if (Array.isArray(blocks)) {
@@ -195,9 +209,11 @@ function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg
             }
           }
         }
+        // Consumed by at most the one assistant entry immediately preceding it.
+        cursorTurnJustEnded = false;
         // Count turns: only actual user text messages, not tool_result entries
         // (tool results are also stored as type:'user' in the transcript)
-        if (entry.type === 'user') {
+        if (entry.type === 'user' || (entry.type === undefined && entry.role === 'user')) {
           const content = entry.message?.content;
           const isUserText = Array.isArray(content)
             ? content.some((b: unknown) => (b as Record<string, unknown>)?.type === 'text')

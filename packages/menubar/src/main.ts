@@ -25,6 +25,7 @@ import {
   modelContextWindowFromConfig,
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
+import { isKnownAgentProcessArgs } from "./knownAgentProcess";
 import { TrayIconController } from "./trayIcon";
 import { createDesktopSessionWatcher, DesktopSessionWatcher } from "./desktopSessions";
 
@@ -181,14 +182,14 @@ function getAppName(pid: number): string | null {
   return null;
 }
 
-function isClaudeProcess(pid: number): boolean {
+function isKnownAgentProcess(pid: number): boolean {
   try {
     const args = execFileSync("ps", ["-o", "args=", "-p", String(pid)], {
       stdio: ["pipe", "pipe", "pipe"],
     })
       .toString()
       .trim();
-    return args.includes("claude");
+    return isKnownAgentProcessArgs(args);
   } catch {
     return false;
   }
@@ -201,10 +202,10 @@ function isAlive(pid: number): boolean {
   let result = false;
   try {
     process.kill(pid, 0);
-    result = isClaudeProcess(pid);
+    result = isKnownAgentProcess(pid);
   } catch (e: unknown) {
     if ((e as NodeJS.ErrnoException)?.code === "EPERM")
-      result = isClaudeProcess(pid);
+      result = isKnownAgentProcess(pid);
   }
   isAliveCache.set(pid, { result, ts: Date.now() });
   return result;
