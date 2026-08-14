@@ -92,6 +92,14 @@ function isDashboardHook(h: unknown): boolean {
   return false;
 }
 
+function pruneDashboardHooks(hooks: Record<string, unknown> | undefined): void {
+  if (!hooks) return;
+  for (const event of Object.keys(hooks)) {
+    hooks[event] = (hooks[event] as unknown[]).filter((h) => !isDashboardHook(h));
+    if ((hooks[event] as unknown[]).length === 0) delete hooks[event];
+  }
+}
+
 function installHook(): void {
   try {
     // Locate the bundled hook.js — next to the executable when packaged, in the
@@ -880,28 +888,14 @@ app.whenReady().then(() => {
       if (fs.existsSync(SETTINGS_FILE)) {
         const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
         if (settings.hooks) {
-          for (const event of Object.keys(settings.hooks)) {
-            settings.hooks[event] = (settings.hooks[event] as unknown[]).filter(
-              (h) => !isDashboardHook(h),
-            );
-            if ((settings.hooks[event] as unknown[]).length === 0)
-              delete settings.hooks[event];
-          }
+          pruneDashboardHooks(settings.hooks);
           if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
         }
         fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
       }
       if (fs.existsSync(CURSOR_HOOKS_FILE)) {
         const cursorHooks = JSON.parse(fs.readFileSync(CURSOR_HOOKS_FILE, "utf8"));
-        if (cursorHooks.hooks) {
-          for (const event of Object.keys(cursorHooks.hooks)) {
-            cursorHooks.hooks[event] = (cursorHooks.hooks[event] as unknown[]).filter(
-              (h) => !isDashboardHook(h),
-            );
-            if ((cursorHooks.hooks[event] as unknown[]).length === 0)
-              delete cursorHooks.hooks[event];
-          }
-        }
+        pruneDashboardHooks(cursorHooks.hooks);
         fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
       }
     } catch {}
