@@ -49,7 +49,9 @@ Claude session (any project)
 
 Each session tracks: status, current tool, last prompt and response, task list progress, running subagents, git branch, worktree, changed files, commits ahead of upstream, elapsed time, model, context %, and cost.
 
-**Cursor's native agent:** Cursor's built-in agent (separate from the `claude` CLI) also fires these hooks, but writes its transcripts in its own JSON schema. The dashboard recognizes both formats, so prompt/response text and turn counts populate for Cursor sessions too — model, context %, and cost stay unavailable since Cursor's transcripts don't include usage data.
+**Cursor's native agent:** Cursor's built-in agent (separate from the `claude` CLI) also fires these hooks, but writes its transcripts in its own JSON schema — entries are keyed by `role` instead of `type`, and a turn's end is marked by a standalone `turn_ended` line rather than Claude Code's `stop_reason`. The dashboard recognizes both formats, so status, last prompt/response text, and turn count all populate correctly for Cursor sessions.
+
+What *doesn't* populate for Cursor sessions: **model, context %, cost, and token counts**. These aren't a parsing gap — Cursor's transcript entries simply don't include the underlying data (no `model` field, no `usage` block with input/output/cache token counts) the way Claude Code's do. There's nothing for the dashboard to read, so those fields stay blank by design rather than showing a stale or guessed value.
 
 **Statuses:**
 
