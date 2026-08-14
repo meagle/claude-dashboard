@@ -1,5 +1,4 @@
-import { describe, it, expect } from 'vitest';
-import { isKnownAgentProcessArgs } from '../knownAgentProcess';
+import { isKnownAgentProcessArgs } from '../agentProcess';
 
 describe('isKnownAgentProcessArgs', () => {
   it('matches the claude CLI process', () => {
@@ -10,13 +9,14 @@ describe('isKnownAgentProcessArgs', () => {
     expect(isKnownAgentProcessArgs('Cursor Helper (Plugin): extension-host Agents Window [1-1]')).toBe(true);
   });
 
+  it('matches the codex CLI process', () => {
+    expect(isKnownAgentProcessArgs('/usr/local/bin/node /usr/local/bin/codex')).toBe(true);
+  });
+
   it('is case-insensitive', () => {
     expect(isKnownAgentProcessArgs('CLAUDE')).toBe(true);
     expect(isKnownAgentProcessArgs('CURSOR')).toBe(true);
-  });
-
-  it('matches the codex CLI process', () => {
-    expect(isKnownAgentProcessArgs('/usr/local/bin/node /usr/local/bin/codex')).toBe(true);
+    expect(isKnownAgentProcessArgs('CODEX')).toBe(true);
   });
 
   it('returns false for unrelated processes', () => {
