@@ -40,6 +40,41 @@ function cursorAssistantEntry(text: string) {
 
 const cursorTurnEnded = { type: 'turn_ended', status: 'success' };
 
+// Codex CLI's rollout transcript format (confirmed live, Codex CLI 0.147.0): newline-
+// delimited {timestamp, type, payload} lines, structurally distinct from both Claude
+// Code's and Cursor's flat {type|role, message} entries.
+function codexTurnContext(model: string) {
+  return { timestamp: new Date().toISOString(), type: 'turn_context', payload: { model } };
+}
+
+function codexUserMessage(text: string) {
+  return { timestamp: new Date().toISOString(), type: 'event_msg', payload: { type: 'user_message', message: text } };
+}
+
+function codexAgentMessage(text: string, phase: 'commentary' | 'final_answer' = 'final_answer') {
+  return { timestamp: new Date().toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: text, phase } };
+}
+
+function codexTokenCount(totalTokens: number, contextWindow = 258400, overrides: Partial<{ input_tokens: number; cached_input_tokens: number; cache_write_input_tokens: number; output_tokens: number }> = {}) {
+  return {
+    timestamp: new Date().toISOString(),
+    type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: {
+        total_token_usage: {
+          input_tokens: overrides.input_tokens ?? totalTokens - 100,
+          cached_input_tokens: overrides.cached_input_tokens ?? 0,
+          cache_write_input_tokens: overrides.cache_write_input_tokens ?? 0,
+          output_tokens: overrides.output_tokens ?? 100,
+          total_tokens: totalTokens,
+        },
+        model_context_window: contextWindow,
+      },
+    },
+  };
+}
+
 function makeSession(overrides: Partial<Session> = {}): Session {
   return {
     sessionId: 'sess-1',
@@ -930,5 +965,169 @@ describe('resolveSessionId', () => {
 
   it('falls back to the provided default when neither field is present', () => {
     expect(resolveSessionId({}, 'unknown')).toBe('unknown');
+  });
+});
+
+describe('processHookEvent — Codex rollout schema', () => {
+  let dir: string;
+  let sessionsFile: string;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hook-test-'));
+    sessionsFile = path.join(dir, 'sessions.json');
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true });
+  });
+
+  it('tags source as codex and reads the final_answer message on stop', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('list files'),
+      codexAgentMessage('Working on it...', 'commentary'),
+      codexAgentMessage('Here are the files.', 'final_answer'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.source).toBe('codex');
+    expect(s.lastMessage).toBe('Here are the files.');
+    expect(s.status).toBe('done');
+  });
+
+  it('ignores commentary-phase text on stop, only accepting final_answer', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('do a thing'),
+      codexAgentMessage('final answer text', 'final_answer'),
+      codexAgentMessage('trailing commentary that should not win', 'commentary'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    // Scanning backwards, the trailing commentary is seen first but rejected (not final_answer);
+    // the final_answer entry before it is accepted instead.
+    expect(readSessions(sessionsFile)[0].lastMessage).toBe('final answer text');
+  });
+
+  it('accepts commentary-phase text as a live partial response during pre-tool', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('do a thing'),
+      codexAgentMessage('working on it, running a command now', 'commentary'),
+    ]);
+    processHookEvent(
+      { type: 'pre-tool', sessionId: 'codex-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
+      sessionsFile
+    );
+    // pre-tool reads session.transcriptPath, set by a prior user-prompt event — same
+    // pattern as the existing Cursor pre-tool test above.
+    const sessions = readSessions(sessionsFile);
+    sessions[0].transcriptPath = tp;
+    fs.writeFileSync(sessionsFile, JSON.stringify(sessions));
+    processHookEvent(
+      { type: 'pre-tool', sessionId: 'codex-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].partialResponse).toBe('working on it, running a command now');
+  });
+
+  it('counts turns from user_message events', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('first'),
+      codexAgentMessage('first reply', 'final_answer'),
+      codexUserMessage('second'),
+      codexAgentMessage('second reply', 'final_answer'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-4', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.turns).toBe(2);
+    expect(s.lastMessage).toBe('second reply');
+  });
+
+  it('computes contextPct/contextTokens from token_count using the reported model_context_window', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('hi'),
+      codexTokenCount(25840, 258400), // 10% of the reported context window
+      codexAgentMessage('hello', 'final_answer'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-5', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.contextTokens).toBe(25840);
+    expect(s.contextPct).toBe(10);
+    expect(s.totalTokens).toBe(25840);
+    expect(s.modelId).toBe('gpt-5.6-terra');
+  });
+
+  it('leaves costUsd null when no pricing is configured for the model', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('hi'),
+      codexTokenCount(5000, 258400),
+      codexAgentMessage('hello', 'final_answer'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-6', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].costUsd).toBeNull();
+  });
+
+  it('computes costUsd when custom pricing is configured for the model prefix', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-terra'),
+      codexUserMessage('hi'),
+      codexTokenCount(5000, 258400, { input_tokens: 4000, output_tokens: 1000 }),
+      codexAgentMessage('hello', 'final_answer'),
+    ]);
+    const cfg: DashboardConfig = {
+      columns: { elapsedTime: true, gitBranch: true, changedFiles: true, cost: false, subagents: true, lastAction: true, compactPaths: true, doneFooter: true, footerStyle: 'default' },
+      staleSessionMinutes: 30, maxHeight: 700, theme: 'light', notifications: true, notificationSound: true, showBadgeCount: false,
+      modelPricing: { fetched: {}, custom: [{ prefix: 'gpt-5.6', input: 2, cacheWrite: 0, cacheRead: 0.5, output: 8 }] },
+    };
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-7', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile,
+      cfg
+    );
+    // (4000 * 2 + 1000 * 8) / 1_000_000 = 0.016
+    expect(readSessions(sessionsFile)[0].costUsd).toBe(0.016);
+  });
+
+  it('does not misdetect a Claude Code transcript as Codex', () => {
+    const tp = writeTranscript(dir, [
+      userEntry('Hi'),
+      assistantEntry('Hello.'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'claude-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].source).toBeUndefined();
+  });
+
+  it('does not misdetect a Cursor transcript as Codex', () => {
+    const tp = writeTranscript(dir, [
+      cursorUserEntry('hi'),
+      cursorAssistantEntry('Hi!'),
+      cursorTurnEnded,
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'cursor-5', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].source).toBe('cursor');
   });
 });

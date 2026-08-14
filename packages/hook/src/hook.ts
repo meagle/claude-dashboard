@@ -186,18 +186,136 @@ interface TranscriptStats {
   // Which transcript schema actually matched — null if the file was empty/unreadable
   // or contained no recognizable assistant entries yet. Lets callers distinguish "no
   // data because Cursor's schema never carries it" from "no data yet, still coming".
-  schema: 'claude-code' | 'cursor' | null;
+  schema: 'claude-code' | 'cursor' | 'codex' | null;
 }
 
 const EMPTY_STATS: TranscriptStats = {
   text: null, model: null, modelId: null, contextPct: null, contextTokens: null, turns: null, costUsd: null, totalTokens: null, schema: null,
 };
 
+// Codex CLI's rollout transcript format (confirmed live, Codex CLI 0.147.0): newline-
+// delimited {timestamp, type, payload} lines. `type` is one of a fixed set of rollout
+// item kinds — structurally distinct from Claude Code's/Cursor's flat {type|role, message}
+// entries, so a single successfully-parsed line is enough to tell schemas apart.
+const CODEX_ROLLOUT_TYPES = new Set([
+  'session_meta', 'event_msg', 'response_item', 'turn_context', 'world_state', 'compacted',
+]);
+
+function isCodexRolloutEntry(entry: unknown): boolean {
+  if (typeof entry !== 'object' || entry === null) return false;
+  const e = entry as Record<string, unknown>;
+  return typeof e.type === 'string' && CODEX_ROLLOUT_TYPES.has(e.type)
+    && typeof e.payload === 'object' && e.payload !== null;
+}
+
+// Codex reports its own token accounting per rollout line — no static context-window
+// table needed the way Claude/Cursor sessions require one.
+interface CodexTokenUsage {
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteInputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+function readCodexStats(lines: string[], endTurnOnly: boolean, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
+  let text: string | null = null;
+  let modelId: string | null = null;
+  let turns = 0;
+  let tokenUsage: CodexTokenUsage | null = null;
+  let modelContextWindow: number | null = null;
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let entry: Record<string, unknown>;
+    try {
+      entry = JSON.parse(lines[i]);
+    } catch {
+      continue;
+    }
+    const type = entry.type;
+    const payload = entry.payload as Record<string, unknown> | undefined;
+    if (!payload) continue;
+
+    if (type === 'turn_context' && modelId === null && typeof payload.model === 'string') {
+      modelId = payload.model;
+    } else if (type === 'event_msg' && payload.type === 'token_count' && tokenUsage === null) {
+      const info = (payload.info as Record<string, unknown>) ?? {};
+      const u = (info.total_token_usage as Record<string, unknown>) ?? {};
+      tokenUsage = {
+        inputTokens: typeof u.input_tokens === 'number' ? u.input_tokens : 0,
+        cachedInputTokens: typeof u.cached_input_tokens === 'number' ? u.cached_input_tokens : 0,
+        cacheWriteInputTokens: typeof u.cache_write_input_tokens === 'number' ? u.cache_write_input_tokens : 0,
+        outputTokens: typeof u.output_tokens === 'number' ? u.output_tokens : 0,
+        totalTokens: typeof u.total_tokens === 'number' ? u.total_tokens : 0,
+      };
+      modelContextWindow = typeof info.model_context_window === 'number' ? info.model_context_window : null;
+    } else if (type === 'event_msg' && payload.type === 'agent_message' && text === null) {
+      if (!endTurnOnly || payload.phase === 'final_answer') {
+        const raw = String(payload.message ?? '').trim().replace(/\s+/g, ' ');
+        text = raw.length > 240 ? raw.slice(0, 240) + '…' : (raw.length > 0 ? raw : null);
+      }
+    } else if (type === 'event_msg' && payload.type === 'user_message') {
+      turns++;
+    }
+  }
+
+  let contextTokens: number | null = null;
+  let contextPct: number | null = null;
+  let totalTokens: number | null = null;
+  if (tokenUsage && modelContextWindow) {
+    contextTokens = tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : null;
+    contextPct = contextTokens !== null
+      ? Math.min(100, Math.round((contextTokens / modelContextWindow) * 100))
+      : null;
+    totalTokens = contextTokens;
+  }
+
+  const costUsd = tokenUsage && modelId
+    ? calcTurnCost(
+        {
+          input_tokens: tokenUsage.inputTokens,
+          output_tokens: tokenUsage.outputTokens,
+          cache_read_input_tokens: tokenUsage.cachedInputTokens,
+          cache_creation_input_tokens: tokenUsage.cacheWriteInputTokens,
+        },
+        modelId,
+        cfg,
+      )
+    : 0;
+
+  return {
+    text,
+    model: modelId,
+    modelId,
+    contextPct,
+    contextTokens,
+    turns: turns > 0 ? turns : null,
+    costUsd: costUsd > 0 ? Math.round(costUsd * 10000) / 10000 : null,
+    totalTokens,
+    schema: 'codex',
+  };
+}
+
 function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
   try {
     const fsSync = require('fs') as typeof import('fs');
     const content = fsSync.readFileSync(transcriptPath, 'utf8');
     const lines = content.split('\n').filter(Boolean);
+
+    // First successfully-parsed line decides which of the three schemas this transcript
+    // uses (Claude Code, Cursor, or Codex) — Codex's shape is structurally distinct enough
+    // that one match is sufficient, and this avoids tangling three incompatible per-line
+    // shapes into the single backward-scanning loop below.
+    for (let i = lines.length - 1; i >= 0; i--) {
+      let probe: unknown;
+      try {
+        probe = JSON.parse(lines[i]);
+      } catch {
+        continue;
+      }
+      if (isCodexRolloutEntry(probe)) return readCodexStats(lines, endTurnOnly, cfg);
+      break;
+    }
 
     let text: string | null = null;
     let model: string | null = null;
@@ -533,7 +651,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
+      ...(stats.schema === 'cursor' || stats.schema === 'codex' ? { source: stats.schema } : {}),
       // Cursor's own agent carries model directly on the payload (no transcript data);
       // only apply it when the transcript didn't already give us a model this turn.
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
@@ -571,7 +689,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
+      ...(stats.schema === 'cursor' || stats.schema === 'codex' ? { source: stats.schema } : {}),
       // Track when Bash starts so we can detect stuck commands
       ...(event.toolName === 'Bash' ? { bashStartedAt: now } : {}),
     };
@@ -637,7 +755,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       completionPct,
       currentTask,
       ...(freshPostPartial ? { partialResponse: freshPostPartial } : {}),
-      ...(postStats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
+      ...(postStats.schema === 'cursor' || postStats.schema === 'codex' ? { source: postStats.schema } : {}),
       // Clear bash timer when Bash completes
       ...(event.toolName === 'Bash' ? { bashStartedAt: null } : {}),
     };
@@ -679,7 +797,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(stats.schema === 'cursor' ? { source: 'cursor' as const } : {}),
+      ...(stats.schema === 'cursor' || stats.schema === 'codex' ? { source: stats.schema } : {}),
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
       // Falls back to payloadModel here too, matching the payloadModelId computation above —
       // so Settings > Cost tab custom pricing/context-window prefixes (keyed on modelId) can
