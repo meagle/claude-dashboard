@@ -256,6 +256,25 @@ function readCodexStats(lines: string[], endTurnOnly: boolean, cfg?: ReturnType<
       }
     } else if (type === 'event_msg' && payload.type === 'user_message') {
       turns++;
+    } else if (type === 'event_msg' && payload.type === 'item_completed') {
+      // Codex's INTERACTIVE (`codex-tui`) mode wraps messages differently than the flat
+      // `agent_message`/`user_message` shape above, which only `codex exec` mode was
+      // confirmed to produce — confirmed live against a real interactive session (Codex
+      // CLI 0.147.0): event_msg's payload.type is "item_completed", wrapping an `item`
+      // object with `item.type: "UserMessage"|"AgentMessage"` (PascalCase). Reads `.text`
+      // directly rather than checking the content block's inner `type`, since UserMessage
+      // and AgentMessage disagree on its casing ("text" vs "Text") in real captured data.
+      const item = payload.item as Record<string, unknown> | undefined;
+      const itemType = item?.type;
+      if (itemType === 'UserMessage') {
+        turns++;
+      } else if (itemType === 'AgentMessage' && text === null) {
+        if (!endTurnOnly || item?.phase === 'final_answer') {
+          const content = item?.content as Array<Record<string, unknown>> | undefined;
+          const raw = String(content?.[0]?.text ?? '').trim().replace(/\s+/g, ' ');
+          text = raw.length > 240 ? raw.slice(0, 240) + '…' : (raw.length > 0 ? raw : null);
+        }
+      }
     }
   }
 

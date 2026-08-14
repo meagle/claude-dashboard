@@ -55,6 +55,29 @@ function codexAgentMessage(text: string, phase: 'commentary' | 'final_answer' = 
   return { timestamp: new Date().toISOString(), type: 'event_msg', payload: { type: 'agent_message', message: text, phase } };
 }
 
+// Codex's INTERACTIVE (`codex-tui`) mode wraps messages differently than `codex exec`
+// mode above — confirmed live against a real interactive session (Codex CLI 0.147.0,
+// originator "codex-tui"): event_msg's payload.type is "item_completed", wrapping an
+// `item` object with `item.type: "UserMessage"|"AgentMessage"` (PascalCase) rather than
+// the flat `user_message`/`agent_message` payload.type seen from `codex exec`. The two
+// item types even disagree on their content block's inner `type` casing ("text" vs
+// "Text"), so parsing reads `.text` directly without checking that field.
+function codexUserMessageItem(text: string) {
+  return {
+    timestamp: new Date().toISOString(),
+    type: 'event_msg',
+    payload: { type: 'item_completed', item: { type: 'UserMessage', content: [{ type: 'text', text }] } },
+  };
+}
+
+function codexAgentMessageItem(text: string, phase: 'commentary' | 'final_answer' = 'final_answer') {
+  return {
+    timestamp: new Date().toISOString(),
+    type: 'event_msg',
+    payload: { type: 'item_completed', item: { type: 'AgentMessage', content: [{ type: 'Text', text }], phase } },
+  };
+}
+
 function codexTokenCount(totalTokens: number, contextWindow = 258400, overrides: Partial<{ input_tokens: number; cached_input_tokens: number; cache_write_input_tokens: number; output_tokens: number }> = {}) {
   return {
     timestamp: new Date().toISOString(),
@@ -996,6 +1019,67 @@ describe('processHookEvent — Codex rollout schema', () => {
     expect(s.source).toBe('codex');
     expect(s.lastMessage).toBe('Here are the files.');
     expect(s.status).toBe('done');
+  });
+
+  // Reproduces a real bug found via live interactive `codex` usage: a plain "hi" with
+  // no tool calls, transcript shape captured from an actual codex-tui session.
+  it('reads lastMessage/turns from interactive-mode item_completed events, not just exec-mode flat events', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-luna'),
+      codexUserMessageItem('hi'),
+      codexAgentMessageItem('Hi! What would you like to work on?', 'final_answer'),
+      codexTokenCount(13075, 258400, { input_tokens: 13061, cached_input_tokens: 8960, output_tokens: 14 }),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-tui-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    const s = readSessions(sessionsFile)[0];
+    expect(s.lastMessage).toBe('Hi! What would you like to work on?');
+    expect(s.turns).toBe(1);
+    expect(s.status).toBe('done');
+    // Before the fix, failing to find `text` made readLastAssistantStatsWithRetry give up
+    // after 6 retries and discard the ENTIRE stats object — including contextPct/totalTokens,
+    // which readCodexStats had actually computed correctly on every attempt. Assert those
+    // survive too, not just the message text.
+    expect(s.contextTokens).toBe(13075);
+    expect(s.contextPct).toBe(5);
+    expect(s.totalTokens).toBe(13075);
+    expect(s.modelId).toBe('gpt-5.6-luna');
+  });
+
+  it('ignores commentary-phase item_completed text on stop, only accepting final_answer', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-luna'),
+      codexUserMessageItem('do a thing'),
+      codexAgentMessageItem('final answer text', 'final_answer'),
+      codexAgentMessageItem('trailing commentary that should not win', 'commentary'),
+    ]);
+    processHookEvent(
+      { type: 'stop', sessionId: 'codex-tui-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].lastMessage).toBe('final answer text');
+  });
+
+  it('accepts commentary-phase item_completed text as a live partial response during pre-tool', () => {
+    const tp = writeTranscript(dir, [
+      codexTurnContext('gpt-5.6-luna'),
+      codexUserMessageItem('do a thing'),
+      codexAgentMessageItem('working on it, running a command now', 'commentary'),
+    ]);
+    processHookEvent(
+      { type: 'pre-tool', sessionId: 'codex-tui-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
+      sessionsFile
+    );
+    const sessions = readSessions(sessionsFile);
+    sessions[0].transcriptPath = tp;
+    fs.writeFileSync(sessionsFile, JSON.stringify(sessions));
+    processHookEvent(
+      { type: 'pre-tool', sessionId: 'codex-tui-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
+      sessionsFile
+    );
+    expect(readSessions(sessionsFile)[0].partialResponse).toBe('working on it, running a command now');
   });
 
   it('ignores commentary-phase text on stop, only accepting final_answer', () => {
