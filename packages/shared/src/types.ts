@@ -68,6 +68,10 @@ export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   'claude-opus-4-7':   1_000_000,
   'claude-opus-4-6':   1_000_000,
   'claude-sonnet-4-6': 1_000_000,
+  // Confirmed live: a real Sonnet 5 session showed 49% in Claude Code's own statusline
+  // but 100% (capped) on the dashboard, since this model was missing here and fell back
+  // to the 200k DEFAULT_CONTEXT_WINDOW.
+  'claude-sonnet-5':   1_000_000,
 };
 
 export function modelContextWindowFromConfig(

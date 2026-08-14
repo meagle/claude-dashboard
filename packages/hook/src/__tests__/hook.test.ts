@@ -875,6 +875,15 @@ describe('modelContextWindowFromConfig', () => {
     expect(modelContextWindowFromConfig('claude-sonnet-4-6', baseConfig)).toBe(1_000_000);
   });
 
+  // Confirmed live: a real Sonnet 5 session showed 49% in Claude Code's own statusline
+  // but 100% (capped) on the dashboard, because 'claude-sonnet-5' was missing from
+  // KNOWN_CONTEXT_WINDOWS — it fell back to the 200k default, and 485,728 actual tokens
+  // used / 200k > 100%, so Math.min(100, ...) capped it. 485,728 / 1,000,000 = 48.6%,
+  // matching the real statusline reading.
+  it('returns hardcoded 1M for claude-sonnet-5', () => {
+    expect(modelContextWindowFromConfig('claude-sonnet-5', baseConfig)).toBe(1_000_000);
+  });
+
   it('returns fetched value when config has fetched entry matching prefix', () => {
     const cfg: DashboardConfig = {
       ...baseConfig,
