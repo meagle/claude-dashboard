@@ -59,6 +59,10 @@ Cursor's transcripts don't carry model or usage data, but its hook payload does 
 
 Verified live against a real `cursor-agent` install (v2026.08.11): project name (`workspace_roots` fallback), session identity (`conversation_id`), and tool activity (`preToolUse`/`postToolUse`, including Cursor's own tool names — `Shell` for its shell tool, `path` instead of `file_path` for `Write`) all populate correctly. **One confirmed limitation, not a dashboard bug:** in `--print` mode (both `--mode ask` and the default agent mode), `cursor-agent` never fires `beforeSubmitPrompt` or `stop` — only the tool-use events. That means `--print`-driven sessions show live tool activity but never populate model, tokens, or prompt/response text, and never transition out of `active` status; they simply age out after `staleSessionMinutes` like any other stuck session. Interactive (non-`--print`) sessions haven't been tested — Cursor's CLI hook delivery has broader community reports of inconsistent firing depending on platform/version as of Aug 2026, which is outside the dashboard's control.
 
+**Codex CLI (`codex`):** OpenAI's Codex CLI has its own native hook system, registered via `~/.codex/hooks.json` (auto-wired the same way as `~/.cursor/hooks.json`). Confirmed live against a real install (Codex CLI 0.147.0): its hook payload fields (`session_id`, `cwd`, `transcript_path`, `model`) already match Claude Code's naming, so no fallback parsing was needed the way Cursor required. Codex sessions are tagged `source: 'codex'`, get their own rollout-transcript parser (Codex's transcript format — newline-delimited `{timestamp, type, payload}` — is structurally different from both Claude Code's and Cursor's), and get **exact context-window tracking**: Codex reports its own `model_context_window` per turn, so context % doesn't rely on a static lookup table the way Claude/Cursor sessions do. Codex's `Stop` hook payload also includes the turn's final response text directly, and its `PermissionRequest` hook gives the dashboard a genuine `waiting_permission` signal — something Cursor CLI has no equivalent for. **Cost stays blank until you add pricing for your Codex model** in Settings → Cost tab → Add custom, same as any non-Claude model.
+
+**Codex hook trust (one-time manual step):** Codex requires hooks to be manually trusted before they'll fire — this can't be automated by an installer. After running `scripts/install.sh` (or launching the packaged app), run `codex` once, then run `/hooks` inside the session and trust the `claude-dashboard` entries. Until this is done, Codex sessions produce no hook events at all and never appear on the dashboard — this is silent (no error, no card, nothing), so if a Codex session isn't showing up, check this first.
+
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |
@@ -129,6 +133,7 @@ The install script:
 2. Copies the compiled hook to `~/.config/claude-dashboard/hook.js`
 3. Merges the five hooks into `~/.claude/settings.json` (creates the file if it doesn't exist; preserves existing hooks)
 4. Merges four hooks into `~/.cursor/hooks.json` for `cursor-agent` CLI support (creates the file if it doesn't exist; preserves existing hooks)
+5. Merges five hooks into `~/.codex/hooks.json` for Codex CLI support (creates the file if it doesn't exist; preserves existing hooks) — **requires a one-time manual trust step, see "Codex hook trust" above**
 
 **What gets added to `~/.claude/settings.json`:**
 
@@ -204,6 +209,20 @@ The install script:
     "preToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }],
     "postToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js post-tool" }],
     "stop": [{ "command": "node ~/.config/claude-dashboard/hook.js stop" }]
+  }
+}
+```
+
+**What gets added to `~/.codex/hooks.json`:**
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }] }],
+    "PreToolUse":        [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }] }],
+    "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool" }] }],
+    "Stop":              [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop" }] }],
+    "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js permission-request" }] }]
   }
 }
 ```
@@ -391,4 +410,4 @@ For a proper app icon, replace `packages/menubar/build/icon.png` with a 1024×10
 bash scripts/uninstall.sh
 ```
 
-This removes the hook entries from `~/.claude/settings.json` and `~/.cursor/hooks.json`, deletes `~/.config/claude-dashboard`, and removes the `claude-dashboard` launch script. Quit the menu bar app first if it is running.
+This removes the hook entries from `~/.claude/settings.json`, `~/.cursor/hooks.json`, and `~/.codex/hooks.json`, deletes `~/.config/claude-dashboard`, and removes the `claude-dashboard` launch script. Quit the menu bar app first if it is running.
