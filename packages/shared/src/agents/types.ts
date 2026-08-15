@@ -1,12 +1,5 @@
 import type { DashboardConfig } from '../types';
 
-export interface CanonicalUsage {
-  input: number;      // full-rate input tokens, cache-exclusive
-  output: number;
-  cacheRead: number;
-  cacheWrite: number;
-}
-
 export interface TranscriptStats {
   text: string | null;
   model: string | null;

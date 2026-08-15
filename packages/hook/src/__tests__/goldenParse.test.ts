@@ -5,6 +5,7 @@ import {
   DashboardConfig,
   claudeCodeDescriptor,
   cursorDescriptor,
+  codexDescriptor,
   safeParseLines,
 } from '@claude-dashboard/shared';
 import { readLastAssistantStats } from '../hook';
@@ -108,5 +109,50 @@ describe('descriptor parse() matches legacy parser (parity)', () => {
     };
     expect(cursorDescriptor.parse(linesOf('cursor'), true, pricingCfg))
       .toEqual(readLastAssistantStats(fixture('cursor'), true, pricingCfg));
+  });
+
+  it('codex descriptor matches legacy parser (mid-turn)', () => {
+    expect(codexDescriptor.parse(linesOf('codex'), false))
+      .toEqual(readLastAssistantStats(fixture('codex'), false));
+  });
+  it('codex descriptor matches legacy parser (end-turn)', () => {
+    expect(codexDescriptor.parse(linesOf('codex'), true))
+      .toEqual(readLastAssistantStats(fixture('codex'), true));
+  });
+  it('codex descriptor matches legacy parser (end-turn, with pricing cfg) — cache-aware cost', () => {
+    // Matches the codex fixture's real payload.model verbatim. Locks in the cache-inclusive
+    // input_tokens subtraction: naive (no subtraction) pricing would give 0.0171, cache-aware
+    // pricing gives 0.0059 — see the file header comment in codex.ts and Task 1's golden
+    // snapshot, which first proved this distinction.
+    const pricingCfg: DashboardConfig = {
+      ...DEFAULT_CONFIG,
+      modelPricing: {
+        fetched: {},
+        custom: [
+          { prefix: 'gpt-5.6-luna', input: 1.25, cacheWrite: 1.25, cacheRead: 0.125, output: 10 },
+        ],
+      },
+    };
+    const expected = readLastAssistantStats(fixture('codex'), true, pricingCfg);
+    expect(codexDescriptor.parse(linesOf('codex'), true, pricingCfg)).toEqual(expected);
+    expect(expected.costUsd).toBe(0.0059);
+  });
+
+  // The `codex` fixture above came from `codex exec` mode and only exercises the flat
+  // `agent_message`/`user_message` event shape. Codex's interactive TUI mode wraps messages
+  // differently (`item_completed` events with a PascalCase `item.type: "UserMessage" |
+  // "AgentMessage"` — see the comment in codex.ts), which was otherwise unguarded by any
+  // parity test. This small hand-authored fixture exercises that branch.
+  it('codex descriptor matches legacy parser (interactive item_completed branch, mid-turn)', () => {
+    expect(codexDescriptor.parse(linesOf('codex-interactive'), false))
+      .toEqual(readLastAssistantStats(fixture('codex-interactive'), false));
+  });
+  it('codex descriptor matches legacy parser (interactive item_completed branch, end-turn)', () => {
+    const expected = readLastAssistantStats(fixture('codex-interactive'), true);
+    expect(codexDescriptor.parse(linesOf('codex-interactive'), true)).toEqual(expected);
+    // Sanity check the fixture actually exercises the PascalCase branch (turns from
+    // UserMessage, text from AgentMessage) rather than silently no-op'ing.
+    expect(expected.turns).toBe(1);
+    expect(expected.text).toBe('interactive assistant reply placeholder');
   });
 });

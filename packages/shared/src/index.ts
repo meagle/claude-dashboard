@@ -7,3 +7,4 @@ export * from './agents/parseUtils';
 export * from './agents/cost';
 export * from './agents/claudeCode';
 export * from './agents/cursor';
+export * from './agents/codex';
