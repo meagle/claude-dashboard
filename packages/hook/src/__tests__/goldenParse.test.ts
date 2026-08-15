@@ -1,9 +1,19 @@
 import * as path from 'path';
-import { DEFAULT_CONFIG, DashboardConfig } from '@claude-dashboard/shared';
+import * as fs from 'fs';
+import {
+  DEFAULT_CONFIG,
+  DashboardConfig,
+  claudeCodeDescriptor,
+  cursorDescriptor,
+  safeParseLines,
+} from '@claude-dashboard/shared';
 import { readLastAssistantStats } from '../hook';
 
 const fixture = (name: string) =>
   path.join(__dirname, 'fixtures', `${name}.transcript.jsonl`);
+
+const linesOf = (name: string) =>
+  safeParseLines(fs.readFileSync(fixture(name), 'utf8'));
 
 describe('golden transcript parse output', () => {
   for (const agent of ['claude-code', 'cursor', 'codex']) {
@@ -45,5 +55,58 @@ describe('golden transcript parse output with pricing cfg', () => {
 
   it('codex: end-turn stats WITH pricing cfg are stable', () => {
     expect(readLastAssistantStats(fixture('codex'), true, pricingCfg)).toMatchSnapshot();
+  });
+});
+
+// Task 3: claude-code and cursor descriptors' parse() must reproduce
+// readLastAssistantStats' output byte-for-byte for their respective schemas. If any field
+// differs here, the extraction in packages/shared/src/agents/{claudeCode,cursor}.ts is wrong
+// — fix the descriptor, never this assertion (the one deliberate difference — descriptor
+// `schema` vs. legacy `schema` — already match, since both are the descriptor id).
+describe('descriptor parse() matches legacy parser (parity)', () => {
+  it('claude-code descriptor matches legacy parser (mid-turn)', () => {
+    expect(claudeCodeDescriptor.parse(linesOf('claude-code'), false))
+      .toEqual(readLastAssistantStats(fixture('claude-code'), false));
+  });
+  it('claude-code descriptor matches legacy parser (end-turn)', () => {
+    expect(claudeCodeDescriptor.parse(linesOf('claude-code'), true))
+      .toEqual(readLastAssistantStats(fixture('claude-code'), true));
+  });
+  it('claude-code descriptor matches legacy parser (end-turn, with pricing cfg)', () => {
+    const pricingCfg: DashboardConfig = {
+      ...DEFAULT_CONFIG,
+      modelPricing: {
+        fetched: {},
+        custom: [
+          { prefix: 'claude-opus-5', input: 15, cacheWrite: 18.75, cacheRead: 1.5, output: 75 },
+        ],
+      },
+    };
+    expect(claudeCodeDescriptor.parse(linesOf('claude-code'), true, pricingCfg))
+      .toEqual(readLastAssistantStats(fixture('claude-code'), true, pricingCfg));
+  });
+
+  it('cursor descriptor matches legacy parser (mid-turn)', () => {
+    expect(cursorDescriptor.parse(linesOf('cursor'), false))
+      .toEqual(readLastAssistantStats(fixture('cursor'), false));
+  });
+  it('cursor descriptor matches legacy parser (end-turn)', () => {
+    expect(cursorDescriptor.parse(linesOf('cursor'), true))
+      .toEqual(readLastAssistantStats(fixture('cursor'), true));
+  });
+  it('cursor descriptor matches legacy parser (end-turn, with pricing cfg)', () => {
+    // Cursor transcripts carry no model/usage data, so a pricing cfg is a no-op for this
+    // schema — asserted here anyway to lock that in.
+    const pricingCfg: DashboardConfig = {
+      ...DEFAULT_CONFIG,
+      modelPricing: {
+        fetched: {},
+        custom: [
+          { prefix: 'claude-opus-5', input: 15, cacheWrite: 18.75, cacheRead: 1.5, output: 75 },
+        ],
+      },
+    };
+    expect(cursorDescriptor.parse(linesOf('cursor'), true, pricingCfg))
+      .toEqual(readLastAssistantStats(fixture('cursor'), true, pricingCfg));
   });
 });

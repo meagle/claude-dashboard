@@ -5,3 +5,5 @@ export * from './agentProcess';
 export * from './agents/types';
 export * from './agents/parseUtils';
 export * from './agents/cost';
+export * from './agents/claudeCode';
+export * from './agents/cursor';
