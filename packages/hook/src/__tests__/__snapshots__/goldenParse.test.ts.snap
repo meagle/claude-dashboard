@@ -83,3 +83,31 @@ exports[`golden transcript parse output cursor: mid-turn stats are stable 1`] = 
   "turns": 2,
 }
 `;
+
+exports[`golden transcript parse output with pricing cfg claude-code: end-turn stats WITH pricing cfg are stable 1`] = `
+{
+  "contextPct": 18,
+  "contextTokens": 35654,
+  "costUsd": 1.1078,
+  "model": "Opus",
+  "modelId": "claude-opus-5",
+  "schema": "claude-code",
+  "text": "assistant reply placeholder",
+  "totalTokens": 1694,
+  "turns": 2,
+}
+`;
+
+exports[`golden transcript parse output with pricing cfg codex: end-turn stats WITH pricing cfg are stable 1`] = `
+{
+  "contextPct": 5,
+  "contextTokens": 12702,
+  "costUsd": 0.0059,
+  "model": "gpt-5.6-luna",
+  "modelId": "gpt-5.6-luna",
+  "schema": "codex",
+  "text": "assistant reply placeholder",
+  "totalTokens": 12702,
+  "turns": 1,
+}
+`;
