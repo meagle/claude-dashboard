@@ -321,7 +321,7 @@ function readCodexStats(lines: string[], endTurnOnly: boolean, cfg?: ReturnType<
   };
 }
 
-function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
+export function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
   try {
     const fsSync = require('fs') as typeof import('fs');
     const content = fsSync.readFileSync(transcriptPath, 'utf8');

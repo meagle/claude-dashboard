@@ -1,0 +1,85 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`golden transcript parse output claude-code: end-turn stats are stable 1`] = `
+{
+  "contextPct": 18,
+  "contextTokens": 35654,
+  "costUsd": null,
+  "model": "Opus",
+  "modelId": "claude-opus-5",
+  "schema": "claude-code",
+  "text": "assistant reply placeholder",
+  "totalTokens": 1694,
+  "turns": 2,
+}
+`;
+
+exports[`golden transcript parse output claude-code: mid-turn stats are stable 1`] = `
+{
+  "contextPct": 18,
+  "contextTokens": 35654,
+  "costUsd": null,
+  "model": "Opus",
+  "modelId": "claude-opus-5",
+  "schema": "claude-code",
+  "text": "assistant reply placeholder",
+  "totalTokens": 1694,
+  "turns": 2,
+}
+`;
+
+exports[`golden transcript parse output codex: end-turn stats are stable 1`] = `
+{
+  "contextPct": 5,
+  "contextTokens": 12702,
+  "costUsd": null,
+  "model": "gpt-5.6-luna",
+  "modelId": "gpt-5.6-luna",
+  "schema": "codex",
+  "text": "assistant reply placeholder",
+  "totalTokens": 12702,
+  "turns": 1,
+}
+`;
+
+exports[`golden transcript parse output codex: mid-turn stats are stable 1`] = `
+{
+  "contextPct": 5,
+  "contextTokens": 12702,
+  "costUsd": null,
+  "model": "gpt-5.6-luna",
+  "modelId": "gpt-5.6-luna",
+  "schema": "codex",
+  "text": "assistant reply placeholder",
+  "totalTokens": 12702,
+  "turns": 1,
+}
+`;
+
+exports[`golden transcript parse output cursor: end-turn stats are stable 1`] = `
+{
+  "contextPct": null,
+  "contextTokens": null,
+  "costUsd": null,
+  "model": null,
+  "modelId": null,
+  "schema": "cursor",
+  "text": "assistant reply placeholder 2",
+  "totalTokens": null,
+  "turns": 2,
+}
+`;
+
+exports[`golden transcript parse output cursor: mid-turn stats are stable 1`] = `
+{
+  "contextPct": null,
+  "contextTokens": null,
+  "costUsd": null,
+  "model": null,
+  "modelId": null,
+  "schema": "cursor",
+  "text": "assistant reply placeholder 2",
+  "totalTokens": null,
+  "turns": 2,
+}
+`;

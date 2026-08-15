@@ -1,0 +1,5 @@
+{"role":"user","message":{"content":[{"type":"text","text":"user prompt placeholder"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"assistant reply placeholder"}]}}
+{"role":"user","message":{"content":[{"type":"text","text":"user prompt placeholder 2"}]}}
+{"role":"assistant","message":{"content":[{"type":"text","text":"assistant reply placeholder 2"}]}}
+{"type":"turn_ended","status":"success"}
