@@ -63,8 +63,14 @@ export interface ModelPricingEntry {
 
 export const DEFAULT_CONTEXT_WINDOW = 200_000;
 
-// Only models with non-200k context windows need entries here.
+// Only models with non-200k context windows need entries here. These are exact
+// model ids (matched via startsWith), so they are more specific than litellm's
+// coarse family prefixes (e.g. "claude-opus-4") and win under the longest-prefix
+// resolution in modelContextWindowFromConfig — important because litellm collapses
+// every claude-opus-4-* into one 200k bucket, which would otherwise mis-size the
+// 1M Opus 4.5–4.8 models.
 export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
+  'claude-opus-4-8':   1_000_000,
   'claude-opus-4-7':   1_000_000,
   'claude-opus-4-6':   1_000_000,
   'claude-sonnet-4-6': 1_000_000,
@@ -74,25 +80,30 @@ export const KNOWN_CONTEXT_WINDOWS: Record<string, number> = {
   'claude-sonnet-5':   1_000_000,
 };
 
+// Resolves a model's context window by MOST-SPECIFIC prefix across all sources.
+// Candidates come from user custom overrides, litellm-fetched windows, and the
+// built-in KNOWN table; the longest matching prefix wins, breaking ties by source
+// priority (custom > fetched > known). This ensures a specific entry like
+// "claude-opus-4-8" (KNOWN, 1M) beats a coarse fetched family prefix like
+// "claude-opus-4" (200k) — the previous tiered logic returned the first source
+// with ANY match, so a coarse fetched prefix wrongly overrode a specific window.
 export function modelContextWindowFromConfig(
   modelId: string,
   cfg?: DashboardConfig,
 ): number {
-  if (cfg?.modelContextWindows?.custom) {
-    const sorted = [...cfg.modelContextWindows.custom].sort(
-      (a, b) => b.prefix.length - a.prefix.length,
-    );
-    const match = sorted.find((e) => modelId.startsWith(e.prefix));
-    if (match) return match.contextWindow;
+  const candidates: Array<{ prefix: string; window: number; priority: number }> = [];
+  for (const e of cfg?.modelContextWindows?.custom ?? []) {
+    if (modelId.startsWith(e.prefix)) candidates.push({ prefix: e.prefix, window: e.contextWindow, priority: 0 });
   }
-  if (cfg?.modelContextWindows?.fetched) {
-    const sorted = Object.entries(cfg.modelContextWindows.fetched).sort(
-      (a, b) => b[0].length - a[0].length,
-    );
-    const match = sorted.find(([prefix]) => modelId.startsWith(prefix));
-    if (match) return match[1];
+  for (const [prefix, window] of Object.entries(cfg?.modelContextWindows?.fetched ?? {})) {
+    if (modelId.startsWith(prefix)) candidates.push({ prefix, window, priority: 1 });
   }
-  return KNOWN_CONTEXT_WINDOWS[modelId] ?? DEFAULT_CONTEXT_WINDOW;
+  for (const [prefix, window] of Object.entries(KNOWN_CONTEXT_WINDOWS)) {
+    if (modelId.startsWith(prefix)) candidates.push({ prefix, window, priority: 2 });
+  }
+  if (candidates.length === 0) return DEFAULT_CONTEXT_WINDOW;
+  candidates.sort((a, b) => b.prefix.length - a.prefix.length || a.priority - b.priority);
+  return candidates[0].window;
 }
 
 export interface DashboardConfig {
