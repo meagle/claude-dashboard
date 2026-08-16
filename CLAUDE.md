@@ -105,6 +105,6 @@ Written by hook, read by main process. Each entry is a `Session` object (see `pa
 When creating a GitHub release:
 1. Bump the version in `packages/menubar/package.json`
 2. Commit and push the version bump
-3. Build the DMG: `cd packages/menubar && npm run dist` — output lands in `./release/` at the repo root
+3. Build the DMG: `cd packages/menubar && npm run dist` — output lands in `packages/menubar/release/` (per `directories.output` in `electron-builder.yml`)
 4. Create the GitHub release: `gh release create vX.Y.Z --title "vX.Y.Z" --notes "..."`
-5. Upload the DMG: `gh release upload vX.Y.Z "./release/Agent Dashboard-X.Y.Z-arm64.dmg"`
+5. Upload the DMG: `gh release upload vX.Y.Z "packages/menubar/release/Agent Dashboard-X.Y.Z-arm64.dmg"`
