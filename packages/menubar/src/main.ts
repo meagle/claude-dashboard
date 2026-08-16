@@ -17,7 +17,6 @@ import chokidar from "chokidar";
 import {
   readSessions,
   writeSessions,
-  pruneStaleSessions,
   appendHistory,
   readHistory,
   readConfig,
@@ -28,6 +27,7 @@ import {
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
 import { isKnownAgentProcessArgs } from "./knownAgentProcess";
+import { selectVisibleSessions } from "./sessionSelection";
 import { TrayIconController } from "./trayIcon";
 import { createDesktopSessionWatcher, DesktopSessionWatcher } from "./desktopSessions";
 
@@ -184,7 +184,12 @@ function isAlive(pid: number): boolean {
 function getActiveSessions() {
   const config = readConfig(CONFIG_FILE);
   const all = readSessions(SESSIONS_FILE);
-  const cutoff = Date.now() - config.staleSessionMinutes * 60 * 1000;
+  const now = Date.now();
+
+  // Archive sessions that have exceeded the stale timeout (moves them to history
+  // and drops them from sessions.json). This is the single timer that governs how
+  // long a card lives — applied identically to every agent.
+  const cutoff = now - config.staleSessionMinutes * 60 * 1000;
   const toArchive = all.filter((s) => s.lastActivity <= cutoff);
   if (toArchive.length > 0) {
     appendHistory(HISTORY_FILE, toArchive);
@@ -193,40 +198,12 @@ function getActiveSessions() {
       all.filter((s) => s.lastActivity > cutoff),
     );
   }
-  type S = ReturnType<typeof pruneStaleSessions>[number];
-  const live = pruneStaleSessions(all, config.staleSessionMinutes)
-    .filter((s) => !s.dismissed)
-    .map((s): S => {
-      if (s.status !== "done" && !isAlive(s.pid))
-        return { ...s, status: "done" as const };
-      return s;
-    });
 
-  // Deduplicate by pid+termSessionId: same terminal reused after Escape produces
-  // two entries sharing these fields. Keep the newest (by startedAt), mark older done.
-  const groups = new Map<string, S[]>();
-  const ungrouped: S[] = [];
-  for (const s of live) {
-    const k = s.pid && s.termSessionId ? `${s.pid}:${s.termSessionId}` : null;
-    if (!k) { ungrouped.push(s); continue; }
-    const g = groups.get(k) ?? [];
-    g.push(s);
-    groups.set(k, g);
-  }
-  const deduped: S[] = [...ungrouped];
-  for (const group of groups.values()) {
-    group.sort((a, b) => b.startedAt - a.startedAt);
-    deduped.push(group[0]); // oldest duplicates are dropped entirely
-  }
-
-  return deduped.filter(
-    (s) =>
-      !(
-        s.status === "done" &&
-        !isAlive(s.pid) &&
-        Date.now() - s.lastActivity > 60_000
-      ),
-  );
+  return selectVisibleSessions(all, {
+    now,
+    staleMinutes: config.staleSessionMinutes,
+    isAlive,
+  });
 }
 
 function updateTray() {
