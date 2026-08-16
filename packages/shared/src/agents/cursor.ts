@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import type { DashboardConfig } from '../types';
 import type { AgentDescriptor, TranscriptStats } from './types';
+import { SOURCE_META } from './sourceMeta';
 import { truncate } from './parseUtils';
 import { isDashboardHook } from './installUtils';
 
@@ -120,16 +121,13 @@ function toolSummary(toolName: string, input: Record<string, unknown>): string |
 
 export const cursorDescriptor: AgentDescriptor = {
   id: 'cursor',
-  displayName: 'Cursor',
-  color: '#6b7cff',
-  iconKey: 'cursor',
+  ...SOURCE_META.cursor,
   processPattern: /cursor/i,
 
   matchesTranscript: (l) => typeof (l as any)?.type === 'undefined'
     && ((l as any)?.role === 'assistant' || (l as any)?.role === 'user'),
   parse,
   toolSummary,
-  payload: { sessionId: ['conversation_id', 'session_id'], cwd: ['workspace_roots'] },
   sessionIdFromPayload: (p, fb) => {
     if (typeof p.conversation_id === 'string' && p.conversation_id) return p.conversation_id;
     if (typeof p.session_id === 'string' && p.session_id) return p.session_id;

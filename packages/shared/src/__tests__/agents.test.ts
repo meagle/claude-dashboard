@@ -6,6 +6,10 @@ import { calcTurnCost } from '../agents/cost';
 import {
   HOOK_AGENTS,
   SOURCES,
+  SOURCE_META,
+  SOURCE_BY_ID,
+  sourceDisplayName,
+  isSourceId,
   getAgentById,
   probeAgent,
   isKnownAgentProcessArgs,
@@ -77,6 +81,58 @@ describe('agent registry', () => {
     expect(probeAgent({ role: 'assistant' })?.id).toBe('cursor');
     expect(probeAgent({ type: 'session_meta', payload: {} })?.id).toBe('codex');
     expect(probeAgent({ nonsense: true })).toBeUndefined();
+  });
+});
+
+describe('source metadata', () => {
+  // AgentDescriptor.id is typed as SourceId, so an id outside Session['source'] is already a
+  // compile error. This pins the same invariant at runtime, since a bad id would otherwise
+  // reach sessions.json as a `source` no consumer can render.
+  it('every hook agent id is a known source', () => {
+    for (const agent of HOOK_AGENTS) {
+      expect(isSourceId(agent.id)).toBe(true);
+      expect(SOURCE_META[agent.id]).toBeDefined();
+    }
+  });
+
+  it('SOURCE_META covers every source in the manifest', () => {
+    for (const source of SOURCES) {
+      expect(SOURCE_META[source.id]).toBeDefined();
+    }
+  });
+
+  it('every SOURCE_META entry is reachable through the manifest', () => {
+    const manifestIds = new Set(SOURCES.map((s) => s.id));
+    for (const id of Object.keys(SOURCE_META)) {
+      expect(manifestIds.has(id as (typeof SOURCES)[number]['id'])).toBe(true);
+    }
+  });
+
+  it('SOURCE_BY_ID is populated for every source', () => {
+    for (const source of SOURCES) {
+      expect(SOURCE_BY_ID[source.id]).toEqual(source);
+    }
+    expect(Object.keys(SOURCE_BY_ID)).toHaveLength(SOURCES.length);
+  });
+
+  it('descriptors take their display identity from SOURCE_META', () => {
+    for (const agent of HOOK_AGENTS) {
+      const meta = SOURCE_META[agent.id];
+      expect({
+        displayName: agent.displayName,
+        color: agent.color,
+        iconKey: agent.iconKey,
+      }).toEqual(meta);
+    }
+  });
+
+  it('sourceDisplayName resolves known sources and falls back agent-agnostically', () => {
+    expect(sourceDisplayName('claude-code')).toBe('Claude Code');
+    expect(sourceDisplayName('cursor')).toBe('Cursor');
+    expect(sourceDisplayName('codex')).toBe('Codex');
+    expect(sourceDisplayName('desktop')).toBe('Claude Desktop');
+    expect(sourceDisplayName('some-future-agent')).toBe('Agent');
+    expect(sourceDisplayName(undefined)).toBe('Agent');
   });
 });
 

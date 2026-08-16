@@ -5,4 +5,8 @@ export type {
   DashboardConfig, ArchivedSession,
 } from './types';
 export type { SourceMeta, AgentDescriptor, PresenceSourceMeta } from './agents/types';
+export type { SourceId, SourceIdentity } from './agents/sourceMeta';
 export { KNOWN_CONTEXT_WINDOWS, DEFAULT_CONTEXT_WINDOW } from './types';
+// Agent display identity for the renderer. sourceMeta.ts is deliberately Node-free (plain
+// object + pure functions), so this stays safe to pull into the Vite bundle.
+export { SOURCE_META, sourceDisplayName, isSourceId } from './agents/sourceMeta';

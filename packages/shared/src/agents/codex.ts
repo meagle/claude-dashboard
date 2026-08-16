@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import type { DashboardConfig } from '../types';
 import type { AgentDescriptor, TranscriptStats } from './types';
+import { SOURCE_META } from './sourceMeta';
 import { truncate } from './parseUtils';
 import { calcTurnCost } from './cost';
 import { isDashboardHook } from './installUtils';
@@ -172,15 +173,12 @@ function toolSummary(toolName: string, input: Record<string, unknown>): string |
 
 export const codexDescriptor: AgentDescriptor = {
   id: 'codex',
-  displayName: 'Codex',
-  color: '#10a37f',
-  iconKey: 'codex',
+  ...SOURCE_META.codex,
   processPattern: /codex/i,
 
   matchesTranscript: isCodexRolloutEntry,
   parse,
   toolSummary,
-  payload: { sessionId: ['session_id'], cwd: ['cwd'] },
   sessionIdFromPayload: (p, fb) => (typeof p.session_id === 'string' && p.session_id) || fb,
   cwdFromPayload: (p, fb) => (typeof p.cwd === 'string' && p.cwd) || fb,
 
