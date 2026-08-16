@@ -111,7 +111,7 @@ describe('TrayIconController', () => {
     const tray = makeTray();
     const ctrl = new TrayIconController(tray as any);
     ctrl.update([makeSession()], false);
-    expect(tray.setToolTip).toHaveBeenCalledWith('Claude Sessions: 1');
+    expect(tray.setToolTip).toHaveBeenCalledWith('Agent sessions: 1');
     ctrl.destroy();
   });
 

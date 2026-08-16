@@ -32,6 +32,24 @@ function renderCard(overrides: Parameters<typeof makeSession>[0] = {}, configOve
   return { ...result, onFocus, onDismiss, onCopyPath, session };
 }
 
+describe('SessionCard — agent identity', () => {
+  it('shows the agent chip for the session source', () => {
+    renderCard({ source: 'cursor' });
+    expect(screen.getByTestId('agent-chip')).toHaveTextContent('Cursor');
+  });
+
+  it('distinguishes two sessions that differ only by agent', () => {
+    renderCard({ source: 'codex' });
+    expect(screen.getByTestId('agent-chip')).toHaveTextContent('Codex');
+  });
+
+  it('still shows the host app alongside the agent', () => {
+    renderCard({ source: 'claude-code', appName: 'iTerm2' });
+    expect(screen.getByTestId('agent-chip')).toHaveTextContent('Claude Code');
+    expect(screen.getByText('iTerm2')).toBeInTheDocument();
+  });
+});
+
 describe('SessionCard — done', () => {
   it('shows prompt and answer', () => {
     renderCard({

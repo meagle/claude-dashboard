@@ -24,6 +24,7 @@ import {
   modelContextWindowFromConfig,
   HOOK_AGENTS,
   pruneDashboardHooks,
+  sourceDisplayName,
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
 import { isKnownAgentProcessArgs } from "./knownAgentProcess";
@@ -318,7 +319,7 @@ function checkNotifications() {
         if (wantsNotif)
           new Notification({
             title: "Permission needed",
-            body: `${s.dirName}: tool approval required`,
+            body: `${s.dirName}: ${sourceDisplayName(s.source)} needs tool approval`,
             silent: true,
           }).show();
       } else if (curr === "waiting_input") {
@@ -326,14 +327,14 @@ function checkNotifications() {
         if (wantsNotif)
           new Notification({
             title: "Input needed",
-            body: `${s.dirName}: Claude asked a question`,
+            body: `${s.dirName}: ${sourceDisplayName(s.source)} asked a question`,
             silent: true,
           }).show();
       } else if (curr === "done" && prev !== "done") {
         if (wantsNotif)
           new Notification({
             title: "Session done",
-            body: `${s.dirName}: task completed`,
+            body: `${s.dirName}: ${sourceDisplayName(s.source)} finished`,
             silent: true,
           }).show();
       }

@@ -55,10 +55,10 @@ Groups the deferred Part-A minors with the metadata plumbing the UI needs, since
 - Modify: `SessionCard.tsx` (primary identity in the breadcrumb; demote `appName`), `CompactSessionRow.tsx` (icon-only chip).
 - Modify: `packages/menubar/src/main.ts` (notification copy via `sourceDisplayName`), `trayIcon.ts` (tooltip: "Agent sessions: N"), `SessionList.tsx` (empty state: "No active agent sessions").
 
-- [ ] **Step 1:** `agentIdentity.ts` maps `source → {name, color, Icon}`, reusing `CLAUDE_ICON` for claude-code/desktop and small inline glyphs for cursor/codex; fallback to a terminal glyph. Pulls name/color from the shared `SOURCE_META` (single source; no duplication).
-- [ ] **Step 2:** `AgentChip` — icon+label+color chip (`data-testid="agent-chip"`), `compact` prop renders icon-only. Test: known source shows name; compact hides label; unknown source falls back to "Agent".
-- [ ] **Step 3:** Render `<AgentChip source={s.source}/>` as primary identity in `SessionCard` breadcrumb; move `appName` to a lighter secondary treatment. `<AgentChip compact/>` in `CompactSessionRow` line 1.
-- [ ] **Step 4:** De-Claude copy: notification title/body use `sourceDisplayName(s.source)`; tray tooltip agent-agnostic; empty state reworded. Update the affected component tests.
+- [x] **Step 1:** `agentIdentity.ts` maps `source → {name, color, Icon}`, reusing `CLAUDE_ICON` for claude-code/desktop and small inline glyphs for cursor/codex; fallback to a terminal glyph. Pulls name/color from the shared `SOURCE_META` (single source; no duplication).
+- [x] **Step 2:** `AgentChip` — icon+label+color chip (`data-testid="agent-chip"`), `compact` prop renders icon-only. Test: known source shows name; compact hides label; unknown source falls back to "Agent".
+- [x] **Step 3:** Render `<AgentChip source={s.source}/>` as primary identity in `SessionCard` breadcrumb; move `appName` to a lighter secondary treatment. `<AgentChip compact/>` in `CompactSessionRow` line 1.
+- [x] **Step 4:** De-Claude copy: notification title/body use `sourceDisplayName(s.source)`; tray tooltip agent-agnostic; empty state reworded. Update the affected component tests.
 - [ ] **Step 5:** Run menubar Vitest + build; update README card-field table if identity changes what's shown; commit.
 
 ---

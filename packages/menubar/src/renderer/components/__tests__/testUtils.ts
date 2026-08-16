@@ -41,6 +41,7 @@ export function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
     turnStartedAt: now,
     lastActivity: now,
     dismissed: false,
+    source: 'claude-code',
     ...overrides,
   };
 }

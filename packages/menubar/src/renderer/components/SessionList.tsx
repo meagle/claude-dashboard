@@ -54,7 +54,7 @@ export function SessionList({
   if (regularSessions.length === 0 && !hasDesktop) {
     return (
       <div className="text-faint text-[13px] text-center py-8">
-        No active Claude sessions
+        No active agent sessions
       </div>
     );
   }

@@ -19,6 +19,13 @@ beforeEach(() => {
 });
 
 describe('CompactSessionRow — content', () => {
+  it('renders an icon-only agent chip carrying the agent name accessibly', () => {
+    renderRow({ source: 'codex' });
+    const chip = screen.getByTestId('agent-chip');
+    expect(chip).toHaveAttribute('aria-label', 'Codex');
+    expect(chip).not.toHaveTextContent('Codex');
+  });
+
   it('renders dirName', () => {
     renderRow({ dirName: 'my-project' });
     expect(screen.getByText('my-project')).toBeInTheDocument();

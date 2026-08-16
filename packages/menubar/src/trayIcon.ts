@@ -154,7 +154,7 @@ export class TrayIconController {
     this.tray.setTitle(showBadgeCount && activeCount > 0 ? String(activeCount) : '');
     this.tray.setToolTip(
       sessions.length > 0
-        ? `Claude Sessions: ${sessions.length}`
+        ? `Agent sessions: ${sessions.length}`
         : 'Agent Dashboard'
     );
   }
