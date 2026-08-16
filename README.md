@@ -135,6 +135,10 @@ The install script:
 4. Merges four hooks into `~/.cursor/hooks.json` for `cursor-agent` CLI support (creates the file if it doesn't exist; preserves existing hooks)
 5. Merges five hooks into `~/.codex/hooks.json` for Codex CLI support (creates the file if it doesn't exist; preserves existing hooks) — **requires a one-time manual trust step, see "Codex hook trust" above**
 
+**Auto-detection:** the app only wires up an agent whose config directory already exists on your machine — it patches `~/.cursor/hooks.json` only if `~/.cursor` is present, and `~/.codex/hooks.json` only if `~/.codex` is present. It never creates a config directory for a tool you don't use. Because this runs on every launch, installing a new supported agent later gets picked up automatically the next time the app starts — no reinstall needed.
+
+**Agent tagging:** each hook command is registered with an `--agent=<id>` flag (`claude-code`, `cursor`, or `codex`) so the hook knows which agent invoked it and dispatches straight to that agent's parser. If the flag is ever missing (e.g. an old registration), the hook falls back to detecting the agent from the transcript format.
+
 **What gets added to `~/.claude/settings.json`:**
 
 ```json
@@ -146,7 +150,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js user-prompt"
+            "command": "node ~/.config/claude-dashboard/hook.js user-prompt --agent=claude-code"
           }
         ]
       }
@@ -157,7 +161,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js pre-tool"
+            "command": "node ~/.config/claude-dashboard/hook.js pre-tool --agent=claude-code"
           }
         ]
       }
@@ -168,7 +172,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js post-tool"
+            "command": "node ~/.config/claude-dashboard/hook.js post-tool --agent=claude-code"
           }
         ]
       }
@@ -179,7 +183,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js stop"
+            "command": "node ~/.config/claude-dashboard/hook.js stop --agent=claude-code"
           }
         ]
       }
@@ -190,7 +194,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js notification"
+            "command": "node ~/.config/claude-dashboard/hook.js notification --agent=claude-code"
           }
         ]
       }
@@ -205,10 +209,10 @@ The install script:
 {
   "version": 1,
   "hooks": {
-    "beforeSubmitPrompt": [{ "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }],
-    "preToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }],
-    "postToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js post-tool" }],
-    "stop": [{ "command": "node ~/.config/claude-dashboard/hook.js stop" }]
+    "beforeSubmitPrompt": [{ "command": "node ~/.config/claude-dashboard/hook.js user-prompt --agent=cursor" }],
+    "preToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js pre-tool --agent=cursor" }],
+    "postToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js post-tool --agent=cursor" }],
+    "stop": [{ "command": "node ~/.config/claude-dashboard/hook.js stop --agent=cursor" }]
   }
 }
 ```
@@ -218,11 +222,11 @@ The install script:
 ```json
 {
   "hooks": {
-    "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }] }],
-    "PreToolUse":        [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }] }],
-    "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool" }] }],
-    "Stop":              [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop" }] }],
-    "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js permission-request" }] }]
+    "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt --agent=codex" }] }],
+    "PreToolUse":        [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool --agent=codex" }] }],
+    "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool --agent=codex" }] }],
+    "Stop":              [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop --agent=codex" }] }],
+    "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js permission-request --agent=codex" }] }]
   }
 }
 ```
