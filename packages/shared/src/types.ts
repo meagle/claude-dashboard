@@ -117,6 +117,7 @@ export interface DashboardConfig {
     compactPaths: boolean;
     doneFooter: boolean;
     contextInHeader?: boolean;
+    agentChip?: boolean;
     footerStyle: 'default' | 'grid';
   };
   staleSessionMinutes: number;
@@ -157,6 +158,7 @@ export const DEFAULT_CONFIG: DashboardConfig = {
     compactPaths: true,
     doneFooter: true,
     contextInHeader: false,
+    agentChip: false,
     footerStyle: 'default',
   },
   staleSessionMinutes: 30,

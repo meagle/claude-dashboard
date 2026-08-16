@@ -23,6 +23,7 @@ export interface CardConfig {
   showCost: boolean;
   showDoneFooter: boolean;
   showContextInMeta: boolean;
+  showAgentChip: boolean;
   footerStyle: 'default' | 'grid';
   theme: 'light' | 'dark';
   pinnedPanelOpacity: number;

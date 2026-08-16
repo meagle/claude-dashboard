@@ -192,7 +192,7 @@ export function CompactSessionRow({
         <StatusDot status={s.status} errorState={s.errorState} />
 
         {/* Icon-only agent identity — the row is too tight for the full chip. */}
-        <AgentChip source={s.source} compact />
+        {cfg.showAgentChip && <AgentChip source={s.source} compact />}
 
         <span className="inline-flex items-center gap-0 min-w-0 max-w-[50%] font-mono text-[11px]">
           <span className="font-bold text-brighter truncate" title={s.workingDir}>{s.dirName}</span>

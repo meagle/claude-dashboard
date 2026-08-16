@@ -20,6 +20,7 @@ interface FormState {
   compactPaths: boolean;
   cost: boolean;
   doneFooter: boolean;
+  agentChip: boolean;
   notifications: boolean;
   notificationSound: boolean;
   showBadgeCount: boolean;
@@ -41,6 +42,7 @@ const DEFAULTS: FormState = {
   compactPaths: true,
   cost: false,
   doneFooter: true,
+  agentChip: false,
   notifications: true,
   notificationSound: true,
   showBadgeCount: false,
@@ -761,6 +763,7 @@ export function SettingsPanel({
         compactPaths: config.columns?.compactPaths ?? true,
         cost: config.columns?.cost ?? false,
         doneFooter: config.columns?.doneFooter ?? true,
+        agentChip: config.columns?.agentChip ?? false,
         notifications: config.notifications ?? true,
         notificationSound: config.notificationSound ?? true,
         showBadgeCount: config.showBadgeCount ?? false,
@@ -792,6 +795,7 @@ export function SettingsPanel({
       compactPaths: f.compactPaths,
       cost: f.cost,
       doneFooter: f.doneFooter,
+      agentChip: f.agentChip,
       footerStyle: f.footerStyle,
     },
   });
@@ -961,6 +965,21 @@ export function SettingsPanel({
 
       <hr className="border-line my-1" />
 
+      <div className={ROW}>
+        <div>
+          <label htmlFor="show-agent-chip" className={LABEL}>
+            Show agent chip
+          </label>
+          <div className={DESC}>
+            Name the agent (Claude Code, Cursor, Codex) on each card
+          </div>
+        </div>
+        <Toggle
+          id="show-agent-chip"
+          checked={form.agentChip}
+          onChange={(v) => setAndSave("agentChip", v)}
+        />
+      </div>
       <div className={ROW}>
         <label htmlFor="show-branch" className={LABEL}>
           Show git branch

@@ -460,6 +460,7 @@ function buildSessionsPayload() {
       showCost: config.columns.cost ?? false,
       showDoneFooter: config.columns.doneFooter ?? true,
       showContextInMeta: config.columns.contextInHeader ?? false,
+      showAgentChip: config.columns.agentChip ?? false,
       footerStyle: config.columns.footerStyle ?? 'default',
       theme: config.theme ?? "light",
       pinnedPanelOpacity: config.pinnedPanelOpacity ?? 1,

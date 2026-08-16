@@ -55,6 +55,7 @@ export const defaultCardConfig: CardConfig = {
   showCost: false,
   showDoneFooter: true,
   showContextInMeta: false,
+  showAgentChip: false,
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,

@@ -372,9 +372,11 @@ export function SessionCard({
     <div className="flex items-center justify-between gap-2 mb-1.5 text-[11px] text-faint font-mono leading-none min-w-0">
       <span className="inline-flex items-center gap-0 min-w-0 overflow-hidden">
         {/* Which agent this is — the primary "what is this" signal, ahead of the path. */}
-        <span className="mr-1.5 shrink-0">
-          <AgentChip source={s.source} />
-        </span>
+        {cfg.showAgentChip && (
+          <span className="mr-1.5 shrink-0">
+            <AgentChip source={s.source} />
+          </span>
+        )}
         <span
           className="truncate max-w-[140px] cursor-pointer hover:text-soft transition-colors"
           title={s.workingDir}
@@ -401,9 +403,17 @@ export function SessionCard({
         )}
       </span>
       <span className="shrink-0 inline-flex items-center gap-2.5 text-faint">
-        {/* Host app is secondary to the agent chip now — plain faint text, no pill. */}
+        {/* Host app keeps its pill when it's the only identity on the card; it drops to plain
+            faint text only when the agent chip is shown and takes over as primary. */}
         {s.appName && (
-          <span className="inline-flex items-center gap-1 text-fainter leading-none">
+          <span
+            className={
+              "inline-flex items-center gap-1 leading-none " +
+              (cfg.showAgentChip
+                ? "text-fainter"
+                : "px-1.5 py-0.5 rounded-badge bg-line/40 border border-edge/50 text-fainter")
+            }
+          >
             {appIcon(s.appName)}
             <span>{s.appName}</span>
           </span>

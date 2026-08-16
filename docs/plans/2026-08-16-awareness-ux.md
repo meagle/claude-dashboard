@@ -82,6 +82,15 @@ Groups the deferred Part-A minors with the metadata plumbing the UI needs, since
 
 ## Task 4: Verify + docs
 
+> **Interim real-app verification (2026-08-16, after Task 2):** chips confirmed rendering in the
+> actual Electron app for all four sources — Claude Code `#D97757`, Cursor `#6b7cff`, Codex
+> `#10a37f`, and the grey `Agent` fallback for an unknown source — in both card and compact views.
+> Two launch gotchas worth keeping: the app must be given its own `--user-data-dir` (macOS resolves
+> `userData` via `NSHomeDirectory()`, which ignores `$HOME`, so a dev instance otherwise collides
+> with the installed app's single-instance lock and exits 0 with no window), and seeding test
+> sessions means overriding `$HOME` (Node's `os.homedir()` does respect it) rather than writing to
+> the real `~/.config/claude-dashboard/sessions.json`.
+
 - [ ] Full build + full suite green.
 - [ ] Real-app verification via the `run` skill (drive the actual Electron app; screenshot cards showing agent chips for more than one agent) — browser-Playwright can't render this app (renderer needs Electron IPC).
 - [ ] README: refresh the per-agent card-field table + document chips and the reveal/open actions.
