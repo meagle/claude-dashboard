@@ -1,6 +1,18 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { truncate, normalizeText, computeContextPct } from '../agents/parseUtils';
 import { calcTurnCost } from '../agents/cost';
-import { HOOK_AGENTS, SOURCES, getAgentById, probeAgent, isKnownAgentProcessArgs } from '../agents';
+import {
+  HOOK_AGENTS,
+  SOURCES,
+  getAgentById,
+  probeAgent,
+  isKnownAgentProcessArgs,
+  claudeCodeDescriptor,
+  cursorDescriptor,
+  codexDescriptor,
+} from '../agents';
 
 describe('parseUtils', () => {
   it('truncate adds ellipsis past limit', () => {
@@ -65,5 +77,54 @@ describe('agent registry', () => {
     expect(probeAgent({ role: 'assistant' })?.id).toBe('cursor');
     expect(probeAgent({ type: 'session_meta', payload: {} })?.id).toBe('codex');
     expect(probeAgent({ nonsense: true })).toBeUndefined();
+  });
+});
+
+describe('installHooks', () => {
+  it('claude install writes a nested command entry with the --agent flag', () => {
+    const cfg: Record<string, unknown> = {};
+    claudeCodeDescriptor.installHooks(cfg, (a) => `hook ${a} --agent=claude-code`);
+    const hooks = cfg.hooks as Record<string, any[]>;
+    expect(hooks.PreToolUse[0].hooks[0].command).toContain('--agent=claude-code');
+    expect(hooks.PreToolUse[0]).toHaveProperty('matcher');
+  });
+
+  it('cursor install uses flat command entries + native event names', () => {
+    const cfg: Record<string, unknown> = { version: 1, hooks: {} };
+    cursorDescriptor.installHooks(cfg, (a) => `hook ${a} --agent=cursor`);
+    const hooks = cfg.hooks as Record<string, any[]>;
+    // Flat shape: command lives directly on the entry, not nested under .hooks
+    expect(hooks.beforeSubmitPrompt[0].command).toContain('--agent=cursor');
+    expect(hooks.beforeSubmitPrompt[0].hooks).toBeUndefined();
+  });
+
+  it('codex install includes a PermissionRequest event', () => {
+    const cfg: Record<string, unknown> = { hooks: {} };
+    codexDescriptor.installHooks(cfg, (a) => `hook ${a} --agent=codex`);
+    const hooks = cfg.hooks as Record<string, any[]>;
+    expect(hooks.PermissionRequest[0].hooks[0].command).toContain('permission-request');
+  });
+
+  it('re-running install is idempotent (no duplicate dashboard entries)', () => {
+    const cfg: Record<string, unknown> = {};
+    const cmd = (a: string) => `node ~/.config/claude-dashboard/hook.js ${a} --agent=claude-code`;
+    claudeCodeDescriptor.installHooks(cfg, cmd);
+    claudeCodeDescriptor.installHooks(cfg, cmd);
+    const hooks = cfg.hooks as Record<string, any[]>;
+    expect(hooks.PreToolUse).toHaveLength(1);
+  });
+});
+
+describe('isInstalled', () => {
+  it('detects presence of an agent home dir and ignores absent ones', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-'));
+    try {
+      fs.mkdirSync(path.join(tmp, '.codex'));
+      expect(codexDescriptor.isInstalled(tmp)).toBe(true);
+      expect(cursorDescriptor.isInstalled(tmp)).toBe(false);
+      expect(claudeCodeDescriptor.isInstalled(tmp)).toBe(false);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });

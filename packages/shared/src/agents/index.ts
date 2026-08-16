@@ -6,6 +6,7 @@ import type { AgentDescriptor, PresenceSourceMeta, SourceMeta } from './types';
 export * from './types';
 export * from './parseUtils';
 export * from './cost';
+export * from './installUtils';
 export * from './claudeCode';
 export * from './cursor';
 export * from './codex';

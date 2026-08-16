@@ -3,6 +3,15 @@ import type { DashboardConfig } from '../types';
 import type { AgentDescriptor, TranscriptStats } from './types';
 import { truncate } from './parseUtils';
 import { calcTurnCost } from './cost';
+import { isDashboardHook } from './installUtils';
+
+const HOOK_EVENTS: Array<[string, string]> = [
+  ['UserPromptSubmit', 'user-prompt'],
+  ['PreToolUse', 'pre-tool'],
+  ['PostToolUse', 'post-tool'],
+  ['Stop', 'stop'],
+  ['PermissionRequest', 'permission-request'],
+];
 
 // Extracted (behavior-frozen) from packages/hook/src/hook.ts readCodexStats +
 // isCodexRolloutEntry + CODEX_ROLLOUT_TYPES. Keep in lockstep with that function's Codex-only
@@ -178,5 +187,16 @@ export const codexDescriptor: AgentDescriptor = {
   isInstalled: (home) => existsSync(`${home}/.codex`),
   configPath: (home) => `${home}/.codex/hooks.json`,
   defaultConfig: () => ({ hooks: {} }),
-  installHooks: () => { throw new Error('installHooks wired in Task 6'); },
+  installHooks: (config, hookCmd) => {
+    const c = config as { hooks?: Record<string, unknown[]> };
+    c.hooks = c.hooks ?? {};
+    for (const [event, arg] of HOOK_EVENTS) {
+      const entry = {
+        matcher: '*',
+        hooks: [{ type: 'command', command: hookCmd(arg) }],
+      };
+      const existing: unknown[] = c.hooks[event] ?? [];
+      c.hooks[event] = [...existing.filter((h) => !isDashboardHook(h)), entry];
+    }
+  },
 };

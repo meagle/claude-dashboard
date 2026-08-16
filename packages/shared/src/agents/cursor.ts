@@ -2,6 +2,14 @@ import { existsSync } from 'fs';
 import type { DashboardConfig } from '../types';
 import type { AgentDescriptor, TranscriptStats } from './types';
 import { truncate } from './parseUtils';
+import { isDashboardHook } from './installUtils';
+
+const HOOK_EVENTS: Array<[string, string]> = [
+  ['beforeSubmitPrompt', 'user-prompt'],
+  ['preToolUse', 'pre-tool'],
+  ['postToolUse', 'post-tool'],
+  ['stop', 'stop'],
+];
 
 // Extracted (behavior-frozen) from packages/hook/src/hook.ts readLastAssistantStats' Cursor
 // branch. Keep in lockstep with that function's Cursor-only quirks — see the parity tests in
@@ -136,5 +144,14 @@ export const cursorDescriptor: AgentDescriptor = {
   isInstalled: (home) => existsSync(`${home}/.cursor`),
   configPath: (home) => `${home}/.cursor/hooks.json`,
   defaultConfig: () => ({ version: 1, hooks: {} }),
-  installHooks: () => { throw new Error('installHooks wired in Task 6'); },
+  installHooks: (config, hookCmd) => {
+    const c = config as { version?: number; hooks?: Record<string, unknown[]> };
+    c.version = c.version ?? 1;
+    c.hooks = c.hooks ?? {};
+    for (const [event, arg] of HOOK_EVENTS) {
+      const entry = { command: hookCmd(arg) };
+      const existing: unknown[] = c.hooks[event] ?? [];
+      c.hooks[event] = [...existing.filter((h) => !isDashboardHook(h)), entry];
+    }
+  },
 };
