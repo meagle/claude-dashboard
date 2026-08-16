@@ -1,8 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { processHookEvent, HookEvent, resolveCwd, resolveSessionId } from '../hook';
-import { readSessions, modelContextWindowFromConfig, modelPricingFromConfig, calcTurnCost } from '@claude-dashboard/shared';
+import { processHookEvent, HookEvent, resolveAgent } from '../hook';
+import {
+  readSessions,
+  modelContextWindowFromConfig,
+  modelPricingFromConfig,
+  claudeCodeDescriptor,
+  cursorDescriptor,
+  codexDescriptor,
+} from '@claude-dashboard/shared';
 import { Session, DashboardConfig } from '@claude-dashboard/shared';
 
 function writeTranscript(dir: string, entries: object[]): string {
@@ -435,7 +442,9 @@ describe('processHookEvent — stop with transcript', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Hi! How can I help you today?');
@@ -461,7 +470,9 @@ describe('processHookEvent — stop with transcript', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Hi — what do you want to work on?');
@@ -478,7 +489,9 @@ describe('processHookEvent — stop with transcript', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-4', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Hi again — what can I help with?');
@@ -494,14 +507,18 @@ describe('processHookEvent — stop with transcript', () => {
     const tp = writeTranscript(dir, [cursorUserEntry('hi')]);
     processHookEvent(
       { type: 'user-prompt', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, prompt: 'hi', payloadModel: null, payloadModelId: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     // This is the state at the point 'stop' fires: response is on disk now, but (per the
     // real observed payload) transcript_path itself is missing from the stop event.
     fs.appendFileSync(tp, JSON.stringify(cursorAssistantEntry('Hi — what do you want to work on?')) + '\n' + JSON.stringify(cursorTurnEnded) + '\n');
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Hi — what do you want to work on?');
@@ -515,7 +532,9 @@ describe('processHookEvent — stop with transcript', () => {
     ]);
     processHookEvent(
       { type: 'pre-tool', sessionId: 'cursor-4', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Shell', input: {} },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     // pre-tool reads session.transcriptPath, which is only set by a prior user-prompt event.
     const sessions = readSessions(sessionsFile);
@@ -523,21 +542,25 @@ describe('processHookEvent — stop with transcript', () => {
     fs.writeFileSync(sessionsFile, JSON.stringify(sessions));
     processHookEvent(
       { type: 'pre-tool', sessionId: 'cursor-4', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Shell', input: {} },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     expect(readSessions(sessionsFile)[0].source).toBe('cursor');
   });
 
-  it('does not tag a Claude Code session as cursor', () => {
+  it('tags a Claude Code session with its own agent id (source is now unconditional)', () => {
     const tp = writeTranscript(dir, [
       userEntry('Hi'),
       assistantEntry('Hello.'),
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'claude-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      claudeCodeDescriptor
     );
-    expect(readSessions(sessionsFile)[0].source).toBeUndefined();
+    expect(readSessions(sessionsFile)[0].source).toBe('claude-code');
   });
 
   it('only accepts the Cursor assistant entry immediately before turn_ended as the final message', () => {
@@ -550,7 +573,9 @@ describe('processHookEvent — stop with transcript', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     expect(readSessions(sessionsFile)[0].lastMessage).toBe('Done, here is the result.');
   });
@@ -566,7 +591,9 @@ describe('processHookEvent — stop with transcript', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-3', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp , payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Second reply');
@@ -713,10 +740,19 @@ describe('processHookEvent — toolSummary via post-tool', () => {
     fs.rmSync(dir, { recursive: true });
   });
 
-  function firePostTool(toolName: string, input: Record<string, unknown>) {
+  // toolSummary now lives on the per-agent descriptor: Claude Code handles Bash/Read/Write/…,
+  // Cursor adds Shell + Write's `path` field, Codex adds apply_patch. Each test fires with the
+  // descriptor whose tool it exercises (defaulting to Claude Code).
+  function firePostTool(
+    toolName: string,
+    input: Record<string, unknown>,
+    agent = claudeCodeDescriptor,
+  ) {
     processHookEvent(
       { type: 'post-tool', sessionId: 'ts-1', pid: 1, termSessionId: null, workingDir: dir, toolName, input, output: {} },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      agent,
     );
   }
 
@@ -755,19 +791,19 @@ describe('processHookEvent — toolSummary via post-tool', () => {
 
   // Real captured cursor-agent CLI preToolUse payload: {"tool_name":"Shell","tool_input":{"command":"...","cwd":"","timeout":30000}}
   it('summarises Shell (Cursor CLI\'s shell tool name) with the command', () => {
-    firePostTool('Shell', { command: 'ls -la' });
+    firePostTool('Shell', { command: 'ls -la' }, cursorDescriptor);
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('ls -la');
   });
 
   // Real captured cursor-agent CLI preToolUse payload: {"tool_name":"Write","tool_input":{"path":"...","contents":"..."}}
   // — Cursor's Write tool sends `path`, not Claude Code's `file_path`.
   it('summarises Write with Cursor\'s `path` field when `file_path` is absent', () => {
-    firePostTool('Write', { path: '/src/new-file.ts', contents: 'hello' });
+    firePostTool('Write', { path: '/src/new-file.ts', contents: 'hello' }, cursorDescriptor);
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/src/new-file.ts');
   });
 
   it('prefers file_path over path for Write when both are present', () => {
-    firePostTool('Write', { file_path: '/src/a.ts', path: '/src/b.ts' });
+    firePostTool('Write', { file_path: '/src/a.ts', path: '/src/b.ts' }, cursorDescriptor);
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/src/a.ts');
   });
 
@@ -776,19 +812,19 @@ describe('processHookEvent — toolSummary via post-tool', () => {
   it('summarises apply_patch (Codex CLI\'s patch tool) with the touched file path', () => {
     firePostTool('apply_patch', {
       command: '*** Begin Patch\n*** Update File: /path/to/sample.txt\n@@\n+round 2\n*** End Patch',
-    });
+    }, codexDescriptor);
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/path/to/sample.txt');
   });
 
   it('summarises apply_patch for a new file (Add File)', () => {
     firePostTool('apply_patch', {
       command: '*** Begin Patch\n*** Add File: /path/to/new.txt\n+hello\n*** End Patch',
-    });
+    }, codexDescriptor);
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBe('/path/to/new.txt');
   });
 
   it('returns null for apply_patch when command has no recognizable File line', () => {
-    firePostTool('apply_patch', { command: 'not a real patch' });
+    firePostTool('apply_patch', { command: 'not a real patch' }, codexDescriptor);
     expect(readSessions(sessionsFile)[0].lastToolSummary).toBeNull();
   });
 });
@@ -937,14 +973,17 @@ describe('modelContextWindowFromConfig', () => {
   });
 });
 
-describe('resolveCwd', () => {
-  it('prefers payload.cwd (Claude Code always sends this)', () => {
-    expect(resolveCwd({ cwd: '/Users/alice/code/myproject' }, '/fallback')).toBe('/Users/alice/code/myproject');
+// cwd/session-id resolution moved out of hook.ts into the per-agent descriptors. These
+// exercise each descriptor's payload accessors: Claude Code reads cwd/session_id; Cursor
+// reads workspace_roots/conversation_id.
+describe('descriptor cwdFromPayload', () => {
+  it('Claude Code descriptor prefers payload.cwd (always sent)', () => {
+    expect(claudeCodeDescriptor.cwdFromPayload({ cwd: '/Users/alice/code/myproject' }, '/fallback')).toBe('/Users/alice/code/myproject');
   });
 
   // Real Cursor `beforeSubmitPrompt`/`stop` payload never has `cwd`, and `workspace_roots`
   // is empty for a window with no folder open — this is what we actually captured.
-  it('falls back to the hook process cwd when Cursor sends neither cwd nor workspace_roots', () => {
+  it('Cursor descriptor falls back to the hook process cwd when neither cwd nor workspace_roots is usable', () => {
     const cursorPayload = {
       conversation_id: 'b40ae5e3-e12c-44d3-943c-82ffb6211d11',
       model: 'composer-2.5-fast',
@@ -955,48 +994,78 @@ describe('resolveCwd', () => {
       cursor_version: '3.15.19',
       workspace_roots: [],
     };
-    expect(resolveCwd(cursorPayload, '/Users/meagle/.claude')).toBe('/Users/meagle/.claude');
+    expect(cursorDescriptor.cwdFromPayload(cursorPayload, '/Users/meagle/.claude')).toBe('/Users/meagle/.claude');
   });
 
-  it('uses the first workspace_roots entry when cwd is absent but a folder is open', () => {
+  it('Cursor descriptor uses the first workspace_roots entry when a folder is open', () => {
     const cursorPayload = {
       hook_event_name: 'beforeSubmitPrompt',
       workspace_roots: ['/Users/meagle/code/my-project'],
     };
-    expect(resolveCwd(cursorPayload, '/Users/meagle/.claude')).toBe('/Users/meagle/code/my-project');
+    expect(cursorDescriptor.cwdFromPayload(cursorPayload, '/Users/meagle/.claude')).toBe('/Users/meagle/code/my-project');
   });
 
-  it('ignores an empty-string workspace_roots entry', () => {
-    expect(resolveCwd({ workspace_roots: [''] }, '/fallback')).toBe('/fallback');
+  it('Cursor descriptor ignores an empty-string workspace_roots entry', () => {
+    expect(cursorDescriptor.cwdFromPayload({ workspace_roots: [''] }, '/fallback')).toBe('/fallback');
   });
 
-  it('falls back when workspace_roots is missing entirely', () => {
-    expect(resolveCwd({}, '/fallback')).toBe('/fallback');
+  it('Cursor descriptor falls back when workspace_roots is missing entirely', () => {
+    expect(cursorDescriptor.cwdFromPayload({}, '/fallback')).toBe('/fallback');
   });
 });
 
-describe('resolveSessionId', () => {
-  it('prefers payload.session_id (Claude Code always sends this)', () => {
-    expect(resolveSessionId({ session_id: 'abc-123' }, 'fallback')).toBe('abc-123');
+describe('descriptor sessionIdFromPayload', () => {
+  it('Claude Code descriptor prefers payload.session_id (always sent)', () => {
+    expect(claudeCodeDescriptor.sessionIdFromPayload({ session_id: 'abc-123' }, 'fallback')).toBe('abc-123');
   });
 
   // Real captured Cursor `beforeSubmitPrompt` payload has no `session_id` field at all —
-  // only `conversation_id` (see the resolveCwd tests above for the same fixture shape).
-  it('falls back to payload.conversation_id when session_id is absent (Cursor payload shape)', () => {
+  // only `conversation_id` (see the cwd tests above for the same fixture shape).
+  it('Cursor descriptor falls back to conversation_id when session_id is absent', () => {
     const cursorPayload = {
       conversation_id: 'b40ae5e3-e12c-44d3-943c-82ffb6211d11',
       model: 'composer-2.5-fast',
       hook_event_name: 'beforeSubmitPrompt',
     };
-    expect(resolveSessionId(cursorPayload, 'unknown')).toBe('b40ae5e3-e12c-44d3-943c-82ffb6211d11');
+    expect(cursorDescriptor.sessionIdFromPayload(cursorPayload, 'unknown')).toBe('b40ae5e3-e12c-44d3-943c-82ffb6211d11');
   });
 
-  it('prefers session_id over conversation_id when both are present', () => {
-    expect(resolveSessionId({ session_id: 'abc-123', conversation_id: 'xyz-789' }, 'fallback')).toBe('abc-123');
+  it('Claude Code descriptor uses session_id even when conversation_id is also present', () => {
+    expect(claudeCodeDescriptor.sessionIdFromPayload({ session_id: 'abc-123', conversation_id: 'xyz-789' }, 'fallback')).toBe('abc-123');
   });
 
-  it('falls back to the provided default when neither field is present', () => {
-    expect(resolveSessionId({}, 'unknown')).toBe('unknown');
+  it('Claude Code descriptor falls back to the provided default when session_id is absent', () => {
+    expect(claudeCodeDescriptor.sessionIdFromPayload({}, 'unknown')).toBe('unknown');
+  });
+});
+
+describe('resolveAgent', () => {
+  it('resolves by the --agent flag when it names a known agent', () => {
+    expect(resolveAgent(null, 'codex')).toBe(codexDescriptor);
+    expect(resolveAgent(null, 'cursor')).toBe(cursorDescriptor);
+    expect(resolveAgent(null, 'claude-code')).toBe(claudeCodeDescriptor);
+  });
+
+  it('defaults to Claude Code when the flag is unknown and no transcript is available', () => {
+    expect(resolveAgent(null, 'not-a-real-agent')).toBe(claudeCodeDescriptor);
+    expect(resolveAgent(null, null)).toBe(claudeCodeDescriptor);
+  });
+
+  it('a --agent=cursor user-prompt event writes source: cursor', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hook-test-'));
+    const sessionsFile = path.join(dir, 'sessions.json');
+    try {
+      const agent = resolveAgent(null, 'cursor');
+      processHookEvent(
+        { type: 'user-prompt', sessionId: 'flag-cursor', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: null, prompt: 'hi', payloadModel: null, payloadModelId: null },
+        sessionsFile,
+        undefined,
+        agent,
+      );
+      expect(readSessions(sessionsFile)[0].source).toBe('cursor');
+    } finally {
+      fs.rmSync(dir, { recursive: true });
+    }
   });
 });
 
@@ -1022,7 +1091,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.source).toBe('codex');
@@ -1041,7 +1112,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-tui-1', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.lastMessage).toBe('Hi! What would you like to work on?');
@@ -1066,7 +1139,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-tui-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     expect(readSessions(sessionsFile)[0].lastMessage).toBe('final answer text');
   });
@@ -1079,14 +1154,18 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'pre-tool', sessionId: 'codex-tui-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     const sessions = readSessions(sessionsFile);
     sessions[0].transcriptPath = tp;
     fs.writeFileSync(sessionsFile, JSON.stringify(sessions));
     processHookEvent(
       { type: 'pre-tool', sessionId: 'codex-tui-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     expect(readSessions(sessionsFile)[0].partialResponse).toBe('working on it, running a command now');
   });
@@ -1100,7 +1179,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     // Scanning backwards, the trailing commentary is seen first but rejected (not final_answer);
     // the final_answer entry before it is accepted instead.
@@ -1115,7 +1196,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'pre-tool', sessionId: 'codex-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     // pre-tool reads session.transcriptPath, set by a prior user-prompt event — same
     // pattern as the existing Cursor pre-tool test above.
@@ -1124,7 +1207,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     fs.writeFileSync(sessionsFile, JSON.stringify(sessions));
     processHookEvent(
       { type: 'pre-tool', sessionId: 'codex-3', pid: 1, termSessionId: null, workingDir: dir, toolName: 'Bash', input: { command: 'ls' } },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     expect(readSessions(sessionsFile)[0].partialResponse).toBe('working on it, running a command now');
   });
@@ -1139,7 +1224,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-4', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.turns).toBe(2);
@@ -1155,7 +1242,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-5', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     const s = readSessions(sessionsFile)[0];
     expect(s.contextTokens).toBe(25840);
@@ -1173,7 +1262,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'codex-6', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      codexDescriptor
     );
     expect(readSessions(sessionsFile)[0].costUsd).toBeNull();
   });
@@ -1193,7 +1284,8 @@ describe('processHookEvent — Codex rollout schema', () => {
     processHookEvent(
       { type: 'stop', sessionId: 'codex-7', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile,
-      cfg
+      cfg,
+      codexDescriptor
     );
     // (4000 * 2 + 1000 * 8) / 1_000_000 = 0.016
     expect(readSessions(sessionsFile)[0].costUsd).toBe(0.016);
@@ -1214,23 +1306,26 @@ describe('processHookEvent — Codex rollout schema', () => {
     processHookEvent(
       { type: 'stop', sessionId: 'codex-8', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
       sessionsFile,
-      cfg
+      cfg,
+      codexDescriptor
     );
     // Correct (uncached-portion + cache-read + output): (3000*2 + 1000*0.5 + 1000*8) / 1_000_000 = 0.0145
     // Buggy (double-counted): (4000*2 + 1000*0.5 + 1000*8) / 1_000_000 = 0.0165 — this test fails against that.
     expect(readSessions(sessionsFile)[0].costUsd).toBe(0.0145);
   });
 
-  it('does not misdetect a Claude Code transcript as Codex', () => {
+  it('tags a Claude Code transcript with the claude-code source, never codex', () => {
     const tp = writeTranscript(dir, [
       userEntry('Hi'),
       assistantEntry('Hello.'),
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'claude-2', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      claudeCodeDescriptor
     );
-    expect(readSessions(sessionsFile)[0].source).toBeUndefined();
+    expect(readSessions(sessionsFile)[0].source).toBe('claude-code');
   });
 
   it('does not misdetect a Cursor transcript as Codex', () => {
@@ -1241,7 +1336,9 @@ describe('processHookEvent — Codex rollout schema', () => {
     ]);
     processHookEvent(
       { type: 'stop', sessionId: 'cursor-5', pid: 1, termSessionId: null, workingDir: dir, transcriptPath: tp, payloadModel: null, payloadModelId: null, payloadUsage: null },
-      sessionsFile
+      sessionsFile,
+      undefined,
+      cursorDescriptor
     );
     expect(readSessions(sessionsFile)[0].source).toBe('cursor');
   });

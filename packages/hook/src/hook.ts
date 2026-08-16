@@ -9,11 +9,15 @@ import {
   TaskSummary,
   SubagentSummary,
   readConfig,
-  DEFAULT_CONTEXT_WINDOW,
-  KNOWN_CONTEXT_WINDOWS,
   modelContextWindowFromConfig,
   isKnownAgentProcessArgs,
   calcTurnCost,
+  getAgentById,
+  probeAgent,
+  safeParseLines,
+  claudeCodeDescriptor,
+  AgentDescriptor,
+  TranscriptStats,
 } from '@claude-dashboard/shared';
 
 // Cursor's own agent doesn't write model/usage into its transcript files, but it does
@@ -84,18 +88,6 @@ export type HookEvent =
 
 const LOOP_THRESHOLD = 5;
 
-
-
-function modelDisplayName(modelId: string): string {
-  // Model IDs use dashes: claude-sonnet-4-6, claude-haiku-4-5-20251001
-  const m = modelId.match(/(\d+)-(\d+)/);
-  const version = m ? `${m[1]}.${m[2]}` : '';
-  if (modelId.includes('opus'))   return version ? `Opus ${version}`   : 'Opus';
-  if (modelId.includes('sonnet')) return version ? `Sonnet ${version}` : 'Sonnet';
-  if (modelId.includes('haiku'))  return version ? `Haiku ${version}`  : 'Haiku';
-  return modelId;
-}
-
 // Turns a single turn's usage straight from Cursor's stop payload into the same
 // contextPct/contextTokens/cost shape the transcript-based path produces. Cost is null
 // unless the user has configured pricing for this model (Cursor's own models — e.g.
@@ -130,297 +122,40 @@ function payloadUsageStats(
   };
 }
 
-interface TranscriptStats {
-  text: string | null;
-  model: string | null;
-  modelId: string | null;
-  contextPct: number | null;
-  contextTokens: number | null;
-  turns: number | null;
-  costUsd: number | null;
-  totalTokens: number | null;
-  // Which transcript schema actually matched — null if the file was empty/unreadable
-  // or contained no recognizable assistant entries yet. Lets callers distinguish "no
-  // data because Cursor's schema never carries it" from "no data yet, still coming".
-  schema: 'claude-code' | 'cursor' | 'codex' | null;
-}
-
 const EMPTY_STATS: TranscriptStats = {
   text: null, model: null, modelId: null, contextPct: null, contextTokens: null, turns: null, costUsd: null, totalTokens: null, schema: null,
 };
 
-// Codex CLI's rollout transcript format (confirmed live, Codex CLI 0.147.0): newline-
-// delimited {timestamp, type, payload} lines. `type` is one of a fixed set of rollout
-// item kinds — structurally distinct from Claude Code's/Cursor's flat {type|role, message}
-// entries, so a single successfully-parsed line is enough to tell schemas apart.
-const CODEX_ROLLOUT_TYPES = new Set([
-  'session_meta', 'event_msg', 'response_item', 'turn_context', 'world_state', 'compacted',
-]);
-
-function isCodexRolloutEntry(entry: unknown): boolean {
-  if (typeof entry !== 'object' || entry === null) return false;
-  const e = entry as Record<string, unknown>;
-  return typeof e.type === 'string' && CODEX_ROLLOUT_TYPES.has(e.type)
-    && typeof e.payload === 'object' && e.payload !== null;
-}
-
-// Codex reports its own token accounting per rollout line — no static context-window
-// table needed the way Claude/Cursor sessions require one.
-interface CodexTokenUsage {
-  inputTokens: number;
-  cachedInputTokens: number;
-  cacheWriteInputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-}
-
-function readCodexStats(lines: string[], endTurnOnly: boolean, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
-  let text: string | null = null;
-  let modelId: string | null = null;
-  let turns = 0;
-  let tokenUsage: CodexTokenUsage | null = null;
-  let modelContextWindow: number | null = null;
-
-  for (let i = lines.length - 1; i >= 0; i--) {
-    let entry: Record<string, unknown>;
-    try {
-      entry = JSON.parse(lines[i]);
-    } catch {
-      continue;
-    }
-    const type = entry.type;
-    const payload = entry.payload as Record<string, unknown> | undefined;
-    if (!payload) continue;
-
-    if (type === 'turn_context' && modelId === null && typeof payload.model === 'string') {
-      modelId = payload.model;
-    } else if (type === 'event_msg' && payload.type === 'token_count' && tokenUsage === null) {
-      const info = (payload.info as Record<string, unknown>) ?? {};
-      const u = (info.total_token_usage as Record<string, unknown>) ?? {};
-      tokenUsage = {
-        inputTokens: typeof u.input_tokens === 'number' ? u.input_tokens : 0,
-        cachedInputTokens: typeof u.cached_input_tokens === 'number' ? u.cached_input_tokens : 0,
-        cacheWriteInputTokens: typeof u.cache_write_input_tokens === 'number' ? u.cache_write_input_tokens : 0,
-        outputTokens: typeof u.output_tokens === 'number' ? u.output_tokens : 0,
-        totalTokens: typeof u.total_tokens === 'number' ? u.total_tokens : 0,
-      };
-      modelContextWindow = typeof info.model_context_window === 'number' ? info.model_context_window : null;
-    } else if (type === 'event_msg' && payload.type === 'agent_message' && text === null) {
-      if (!endTurnOnly || payload.phase === 'final_answer') {
-        const raw = String(payload.message ?? '').trim().replace(/\s+/g, ' ');
-        text = raw.length > 240 ? raw.slice(0, 240) + '…' : (raw.length > 0 ? raw : null);
-      }
-    } else if (type === 'event_msg' && payload.type === 'user_message') {
-      turns++;
-    } else if (type === 'event_msg' && payload.type === 'item_completed') {
-      // Codex's INTERACTIVE (`codex-tui`) mode wraps messages differently than the flat
-      // `agent_message`/`user_message` shape above, which only `codex exec` mode was
-      // confirmed to produce — confirmed live against a real interactive session (Codex
-      // CLI 0.147.0): event_msg's payload.type is "item_completed", wrapping an `item`
-      // object with `item.type: "UserMessage"|"AgentMessage"` (PascalCase). Reads `.text`
-      // directly rather than checking the content block's inner `type`, since UserMessage
-      // and AgentMessage disagree on its casing ("text" vs "Text") in real captured data.
-      const item = payload.item as Record<string, unknown> | undefined;
-      const itemType = item?.type;
-      if (itemType === 'UserMessage') {
-        turns++;
-      } else if (itemType === 'AgentMessage' && text === null) {
-        if (!endTurnOnly || item?.phase === 'final_answer') {
-          const content = item?.content as Array<Record<string, unknown>> | undefined;
-          const raw = String(content?.[0]?.text ?? '').trim().replace(/\s+/g, ' ');
-          text = raw.length > 240 ? raw.slice(0, 240) + '…' : (raw.length > 0 ? raw : null);
-        }
-      }
-    }
-  }
-
-  let contextTokens: number | null = null;
-  let contextPct: number | null = null;
-  let totalTokens: number | null = null;
-  if (tokenUsage && modelContextWindow) {
-    contextTokens = tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : null;
-    contextPct = contextTokens !== null
-      ? Math.min(100, Math.round((contextTokens / modelContextWindow) * 100))
-      : null;
-    totalTokens = contextTokens;
-  }
-
-  const costUsd = tokenUsage && modelId
-    ? calcTurnCost(
-        {
-          // Codex's `input_tokens` is cache-inclusive (confirmed live: input_tokens +
-          // output_tokens == total_tokens exactly, with cached_input_tokens as a subset
-          // of input_tokens, not additional to it) — unlike calcTurnCost's Claude-derived
-          // usage shape, where input_tokens and cache_read_input_tokens are mutually
-          // exclusive pools. Subtract the cached portion so it's only priced once, at the
-          // cache-read rate, instead of once at full input rate and again at cache-read rate.
-          input_tokens: Math.max(0, tokenUsage.inputTokens - tokenUsage.cachedInputTokens),
-          output_tokens: tokenUsage.outputTokens,
-          cache_read_input_tokens: tokenUsage.cachedInputTokens,
-          cache_creation_input_tokens: tokenUsage.cacheWriteInputTokens,
-        },
-        modelId,
-        cfg,
-      )
-    : 0;
-
-  return {
-    text,
-    model: modelId,
-    modelId,
-    contextPct,
-    contextTokens,
-    turns: turns > 0 ? turns : null,
-    costUsd: costUsd > 0 ? Math.round(costUsd * 10000) / 10000 : null,
-    totalTokens,
-    schema: 'codex',
-  };
-}
-
-export function readLastAssistantStats(transcriptPath: string, endTurnOnly = false, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
+// Read a transcript file and delegate parsing to the resolved agent's descriptor. An
+// unreadable/missing file yields EMPTY_STATS, matching the previous inline parser's behavior
+// where a failed read produced empty stats rather than throwing.
+function parseTranscript(
+  agent: AgentDescriptor,
+  transcriptPath: string,
+  endTurnOnly: boolean,
+  cfg?: ReturnType<typeof readConfig>,
+): TranscriptStats {
   try {
-    const fsSync = require('fs') as typeof import('fs');
-    const content = fsSync.readFileSync(transcriptPath, 'utf8');
-    const lines = content.split('\n').filter(Boolean);
-
-    // First successfully-parsed line decides which of the three schemas this transcript
-    // uses (Claude Code, Cursor, or Codex) — Codex's shape is structurally distinct enough
-    // that one match is sufficient, and this avoids tangling three incompatible per-line
-    // shapes into the single backward-scanning loop below.
-    for (let i = lines.length - 1; i >= 0; i--) {
-      let probe: unknown;
-      try {
-        probe = JSON.parse(lines[i]);
-      } catch {
-        continue;
-      }
-      if (isCodexRolloutEntry(probe)) return readCodexStats(lines, endTurnOnly, cfg);
-      break;
-    }
-
-    let text: string | null = null;
-    let model: string | null = null;
-    let rawModelId: string | null = null;
-    let contextPct: number | null = null;
-    let contextTokens: number | null = null;
-    let turns = 0;
-    let costUsd = 0;
-    let cumulativeTokens = 0;
-    let foundAssistant = false;
-    let pastTurnBoundary = false;
-    // Cursor's own agent (not the `claude` CLI) fires the same hook events but writes
-    // transcripts in a different schema: entries use `role` instead of `type` and carry no
-    // model/usage/stop_reason. A turn's end is *sometimes* marked by a standalone
-    // `{"type":"turn_ended"}` line, but confirmed live against a real interactive
-    // cursor-agent session: it is not written reliably per turn (a two-turn session had
-    // exactly one, trailing the second turn only, after an API error) — requiring it caused
-    // the Stop hook to miss the first turn's response entirely and show later cards one
-    // turn behind. So for Cursor's schema, the most recent assistant entry (scanning
-    // backwards) is always treated as the turn's final message, regardless of endTurnOnly;
-    // still track the marker (below) since it's a harmless, occasionally-present signal.
-    let cursorTurnJustEnded = false;
-    let schema: 'claude-code' | 'cursor' | null = null;
-
-    for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const entry = JSON.parse(lines[i]);
-        if (entry.type === 'turn_ended') {
-          cursorTurnJustEnded = true;
-          continue;
-        }
-        const isClaudeAssistant = entry.type === 'assistant' && entry.message?.model !== '<synthetic>';
-        const isCursorAssistant = entry.type === undefined && entry.role === 'assistant';
-        if (isClaudeAssistant || isCursorAssistant) {
-          const msg = entry.message;
-          if (schema === null) schema = isCursorAssistant ? 'cursor' : 'claude-code';
-          if (!foundAssistant) {
-            foundAssistant = true;
-            const modelId: string | null = typeof msg?.model === 'string' ? msg.model : null;
-            const u = msg?.usage ?? {};
-            const cacheRead   = typeof u.cache_read_input_tokens     === 'number' ? u.cache_read_input_tokens     : 0;
-            const cacheCreate = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0;
-            // cache_read = tokens served from an existing cache breakpoint (not re-processed)
-            // cache_creation = tokens written to a new cache checkpoint (freshly processed)
-            // These represent different parts of the context, so sum all three fields.
-            const lastTurnTokens =
-              (typeof u.input_tokens === 'number' ? u.input_tokens : 0) +
-              cacheRead + cacheCreate;
-            contextTokens = lastTurnTokens > 0 ? lastTurnTokens : null;
-            contextPct = modelId && lastTurnTokens > 0
-              ? Math.min(100, Math.round((lastTurnTokens / modelContextWindowFromConfig(modelId, cfg)) * 100))
-              : null;
-            rawModelId = modelId;
-            model = modelId ? modelDisplayName(modelId) : null;
-          }
-          // Scan backwards within the current turn for the most recent text block.
-          // Claude Code emits text and tool_use as separate assistant entries, so the
-          // last entry before a tool call is tool-only — we must keep looking back.
-          // When endTurnOnly=true (Stop hook), only accept the final entry (stop_reason='end_turn')
-          // so we never grab an intermediate tool-use text as the session's final message.
-          // Cursor entries have no such per-entry marker, but scanning backwards already
-          // lands on the most recent (i.e. truly final) assistant entry first — endTurnOnly
-          // is a no-op restriction for Cursor's schema, not a gate (see comment above).
-          const isEndTurn = isCursorAssistant ? true : msg?.stop_reason === 'end_turn';
-          if (text === null && !pastTurnBoundary && (!endTurnOnly || isEndTurn)) {
-            const blocks = msg?.content;
-            if (Array.isArray(blocks)) {
-              for (const block of blocks) {
-                if (block?.type === 'text' && typeof block.text === 'string') {
-                  const t = block.text.trim().replace(/\s+/g, ' ');
-                  text = t.length > 240 ? t.slice(0, 240) + '…' : t;
-                  break;
-                }
-              }
-            }
-          }
-        }
-        // Consumed by at most the one assistant entry immediately preceding it.
-        cursorTurnJustEnded = false;
-        // Count turns: only actual user text messages, not tool_result entries
-        // (tool results are also stored as type:'user' in the transcript)
-        if (entry.type === 'user' || (entry.type === undefined && entry.role === 'user')) {
-          const content = entry.message?.content;
-          const isUserText = Array.isArray(content)
-            ? content.some((b: unknown) => (b as Record<string, unknown>)?.type === 'text')
-            : typeof content === 'string' && content.length > 0;
-          if (isUserText) {
-            turns++;
-            pastTurnBoundary = true; // don't read text from a previous turn
-          }
-        }
-        if (entry.type === 'assistant' && entry.message?.usage && entry.message?.model && entry.message.model !== '<synthetic>') {
-          costUsd += calcTurnCost(entry.message.usage as Record<string, unknown>, entry.message.model as string, cfg);
-          const u = entry.message.usage as Record<string, unknown>;
-          cumulativeTokens +=
-            (typeof u.input_tokens  === 'number' ? u.input_tokens  : 0) +
-            (typeof u.output_tokens === 'number' ? u.output_tokens : 0);
-        }
-      } catch { /* malformed line, skip */ }
-    }
-
-    return {
-      text,
-      model,
-      modelId: rawModelId,
-      contextPct,
-      contextTokens,
-      turns: turns > 0 ? turns : null,
-      costUsd: costUsd > 0 ? Math.round(costUsd * 10000) / 10000 : null,
-      totalTokens: cumulativeTokens > 0 ? cumulativeTokens : null,
-      schema,
-    };
-  } catch { /* file unreadable */ }
-  return EMPTY_STATS;
+    const content = require('fs').readFileSync(transcriptPath, 'utf8') as string;
+    return agent.parse(safeParseLines(content), endTurnOnly, cfg);
+  } catch {
+    return EMPTY_STATS;
+  }
 }
 
 // The transcript may be written concurrently with the Stop hook firing.
 // Retry until we find stats whose text differs from the previous turn's message.
 // previousMessage: the last known assistant message before this turn started.
-function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage: string | null, cfg?: ReturnType<typeof readConfig>): TranscriptStats {
+function readLastAssistantStatsWithRetry(
+  transcriptPath: string,
+  previousMessage: string | null,
+  cfg: ReturnType<typeof readConfig> | undefined,
+  agent: AgentDescriptor,
+): TranscriptStats {
   for (let attempt = 0; attempt < 6; attempt++) {
     // endTurnOnly=true ensures we only accept the actual final message (stop_reason='end_turn'),
     // not an intermediate text written before a tool call (stop_reason='tool_use').
-    const stats = readLastAssistantStats(transcriptPath, true, cfg);
+    const stats = parseTranscript(agent, transcriptPath, true, cfg);
     // Accept only if we got something new (different from the prior turn's message)
     if (stats.text && stats.text !== previousMessage) return stats;
     if (attempt < 5) {
@@ -429,35 +164,6 @@ function readLastAssistantStatsWithRetry(transcriptPath: string, previousMessage
     }
   }
   return EMPTY_STATS;
-}
-
-function toolSummary(toolName: string, input: Record<string, unknown>): string | null {
-  const trunc = (s: string, n = 60) => s.length > n ? s.slice(0, n) + '…' : s;
-  switch (toolName) {
-    // 'Shell' is Cursor CLI's name for its shell tool (confirmed via a real captured
-    // preToolUse payload); its `command` field matches Claude Code's Bash exactly.
-    case 'Bash':
-    case 'Shell':      return input.command   ? trunc(String(input.command).replace(/\s+/g, ' ')) : null;
-    case 'Read':       return input.file_path ? trunc(String(input.file_path)) : null;
-    // Cursor CLI's Write tool sends `path`, not `file_path` (confirmed via a real
-    // captured preToolUse payload) — Claude Code's Write always sends `file_path`.
-    case 'Write':      return (input.file_path ?? input.path) ? trunc(String(input.file_path ?? input.path)) : null;
-    // Codex CLI's file-edit tool (confirmed via a real captured preToolUse payload):
-    // tool_input.command is a patch-format string, e.g.
-    // "*** Begin Patch\n*** Update File: /path/to/sample.txt\n@@\n+round 2\n*** End Patch"
-    case 'apply_patch': {
-      const cmd = String(input.command ?? '');
-      const m = cmd.match(/\*\*\* (?:Update|Add|Delete) File: (.+)/);
-      return m ? trunc(m[1]) : null;
-    }
-    case 'Edit':       return input.file_path ? trunc(String(input.file_path)) : null;
-    case 'Glob':       return input.pattern   ? trunc(String(input.pattern)) : null;
-    case 'Grep':       return input.pattern   ? trunc(String(input.pattern)) : null;
-    case 'WebFetch':   return input.url       ? trunc(String(input.url)) : null;
-    case 'WebSearch':  return input.query     ? trunc(String(input.query)) : null;
-    case 'Agent':      return input.subagent_type ? trunc(String(input.subagent_type)) : null;
-    default:           return null;
-  }
 }
 
 // Prevent git from touching credentials, keychains, or system config — those
@@ -578,7 +284,12 @@ function makeNewSession(event: { sessionId: string; pid: number; termSessionId: 
   };
 }
 
-export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: ReturnType<typeof readConfig>): void {
+export function processHookEvent(
+  event: HookEvent,
+  sessionsFile: string,
+  cfg?: ReturnType<typeof readConfig>,
+  agent: AgentDescriptor = claudeCodeDescriptor,
+): void {
   const sessions = readSessions(sessionsFile);
   const existing = sessions.find((s) => s.sessionId === event.sessionId);
   let session: Session = existing ?? makeNewSession(event);
@@ -608,7 +319,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
     // fall back to the path we already learned from an earlier event on this session.
     const userPromptTranscriptPath = event.transcriptPath ?? session.transcriptPath;
     const stats = userPromptTranscriptPath
-      ? readLastAssistantStats(userPromptTranscriptPath, false, cfg)
+      ? parseTranscript(agent, userPromptTranscriptPath, false, cfg)
       : EMPTY_STATS;
     // Refresh branch/worktree on each turn in case session was created before worktree was set up
     const freshBranch   = getGitBranch(event.workingDir);
@@ -632,7 +343,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(stats.schema === 'cursor' || stats.schema === 'codex' ? { source: stats.schema } : {}),
+      source: agent.id as Session['source'],
       // Cursor's own agent carries model directly on the payload (no transcript data);
       // only apply it when the transcript didn't already give us a model this turn.
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
@@ -653,7 +364,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
     // Read full transcript stats: model, contextPct, turns, cost, tokens, and partial text.
     // Ignore partial text if it matches lastMessage — transcript not yet updated this turn.
     const stats = session.transcriptPath
-      ? readLastAssistantStats(session.transcriptPath, false, cfg)
+      ? parseTranscript(agent, session.transcriptPath, false, cfg)
       : EMPTY_STATS;
     const freshPartial = stats.text && stats.text !== session.lastMessage ? stats.text : null;
 
@@ -670,7 +381,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(stats.schema === 'cursor' || stats.schema === 'codex' ? { source: stats.schema } : {}),
+      source: agent.id as Session['source'],
       // Track when Bash starts so we can detect stuck commands
       ...(event.toolName === 'Bash' ? { bashStartedAt: now } : {}),
     };
@@ -720,7 +431,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
     // Transcript is written between PreToolUse and PostToolUse, so read it now
     // to capture the text Claude wrote before this tool call.
     const postStats = session.transcriptPath
-      ? readLastAssistantStats(session.transcriptPath, false, cfg)
+      ? parseTranscript(agent, session.transcriptPath, false, cfg)
       : EMPTY_STATS;
     const freshPostPartial = postStats.text && postStats.text !== session.lastMessage ? postStats.text : null;
 
@@ -729,14 +440,14 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       currentTool: null,
       lastTool: event.toolName,
       lastToolAt: now,
-      lastToolSummary: toolSummary(event.toolName, event.input),
+      lastToolSummary: agent.toolSummary(event.toolName, event.input),
       lastActivity: now,
       tasks,
       subagents,
       completionPct,
       currentTask,
       ...(freshPostPartial ? { partialResponse: freshPostPartial } : {}),
-      ...(postStats.schema === 'cursor' || postStats.schema === 'codex' ? { source: postStats.schema } : {}),
+      source: agent.id as Session['source'],
       // Clear bash timer when Bash completes
       ...(event.toolName === 'Bash' ? { bashStartedAt: null } : {}),
     };
@@ -746,7 +457,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
     // path already known from an earlier event on this session if the current one lacks it.
     const stopTranscriptPath = event.transcriptPath ?? session.transcriptPath;
     const stats = stopTranscriptPath
-      ? readLastAssistantStatsWithRetry(stopTranscriptPath, session.lastMessage, cfg)
+      ? readLastAssistantStatsWithRetry(stopTranscriptPath, session.lastMessage, cfg, agent)
       : EMPTY_STATS;
     const gitSummary = getGitSummary(event.workingDir);
     const gitAhead = getGitAhead(event.workingDir);
@@ -778,7 +489,7 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      ...(stats.schema === 'cursor' || stats.schema === 'codex' ? { source: stats.schema } : {}),
+      source: agent.id as Session['source'],
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
       // Falls back to payloadModel here too, matching the payloadModelId computation above —
       // so Settings > Cost tab custom pricing/context-window prefixes (keyed on modelId) can
@@ -813,27 +524,35 @@ export function processHookEvent(event: HookEvent, sessionsFile: string, cfg?: R
   writeSessions(sessionsFile, updated);
 }
 
-// Claude Code's hook payload always includes `cwd`. Cursor's never does, and when no
-// folder is open in the Cursor window, `workspace_roots` (the one cwd-adjacent field it
-// does send) is also empty — in that case there's no real project directory to report,
-// so we fall back to the hook process's own cwd, which lands wherever Cursor happens to
-// run hook commands from (observed: the directory containing ~/.claude/settings.json,
-// which is where it discovers the hook registration — not the conversation's workspace).
-export function resolveCwd(payload: Record<string, unknown>, fallbackCwd: string): string {
-  if (typeof payload.cwd === 'string' && payload.cwd) return payload.cwd;
-  const roots = payload.workspace_roots;
-  if (Array.isArray(roots) && typeof roots[0] === 'string' && roots[0]) return roots[0];
-  return fallbackCwd;
-}
-
-// Claude Code's payload always includes `session_id`. Cursor's native payload (both the
-// IDE and the `cursor-agent` CLI) carries `conversation_id` instead — falling straight to
-// the CLAUDE_SESSION_ID-derived default would collapse every Cursor session into the same
-// 'unknown' record.
-export function resolveSessionId(payload: Record<string, unknown>, fallbackSessionId: string): string {
-  if (typeof payload.session_id === 'string' && payload.session_id) return payload.session_id;
-  if (typeof payload.conversation_id === 'string' && payload.conversation_id) return payload.conversation_id;
-  return fallbackSessionId;
+// Resolve which agent's descriptor drives this hook invocation. The installed hook command
+// carries an explicit `--agent=<id>` flag (see the install step), which wins when it names a
+// known agent. Older installs predate the flag, so we fall back to probing the transcript:
+// scan its lines (newest first) and use the first line whose shape a descriptor recognizes.
+// Last resort is Claude Code, the original single-agent behavior.
+export function resolveAgent(transcriptPath: string | null, flag: string | null): AgentDescriptor {
+  if (flag) {
+    const byFlag = getAgentById(flag);
+    if (byFlag) return byFlag;
+  }
+  if (transcriptPath) {
+    try {
+      const content = require('fs').readFileSync(transcriptPath, 'utf8') as string;
+      const lines = safeParseLines(content);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(lines[i]);
+        } catch {
+          continue;
+        }
+        const probed = probeAgent(parsed);
+        if (probed) return probed;
+      }
+    } catch {
+      /* transcript unreadable — fall through to the default */
+    }
+  }
+  return getAgentById('claude-code')!;
 }
 
 // Walk up the process tree to find Claude Code's PID.
@@ -862,6 +581,9 @@ function getClaudePid(): number {
 // CLI entrypoint
 if (require.main === module) {
   const eventType = process.argv[2];
+  // The installed hook command tags each invocation with the agent it belongs to; resolveAgent
+  // falls back to probing the transcript for older installs that predate the flag.
+  const agentFlag = process.argv.find((a) => a.startsWith('--agent='))?.split('=')[1] ?? null;
   const sessionId = process.env.CLAUDE_SESSION_ID ?? 'unknown';
   const pid = getClaudePid();
   const workingDir = process.env.PWD ?? process.cwd();
@@ -882,10 +604,15 @@ if (require.main === module) {
       // silently ignore malformed stdin
     }
 
-    // Claude Code passes session_id and cwd in the stdin JSON payload
-    const resolvedSessionId = resolveSessionId(payload, sessionId);
+    // Resolve the agent from the --agent flag (probe fallback), then use its descriptor to
+    // pull the session id / cwd out of the payload — each agent names those fields differently
+    // (Claude Code: session_id/cwd; Cursor: conversation_id/workspace_roots).
+    const transcriptPathForResolve =
+      typeof payload.transcript_path === 'string' ? payload.transcript_path : null;
+    const agent = resolveAgent(transcriptPathForResolve, agentFlag);
+    const resolvedSessionId = agent.sessionIdFromPayload(payload, sessionId);
     const resolvedPid = typeof payload.pid === 'number' ? payload.pid : pid;
-    const resolvedCwd = resolveCwd(payload, workingDir);
+    const resolvedCwd = agent.cwdFromPayload(payload, workingDir);
 
     let event: HookEvent;
     if (eventType === 'user-prompt') {
@@ -979,7 +706,7 @@ if (require.main === module) {
       const fsSync = require('fs');
       const dir = path.dirname(sessionsFile);
       if (!fsSync.existsSync(dir)) fsSync.mkdirSync(dir, { recursive: true });
-      processHookEvent(event, sessionsFile, dashConfig);
+      processHookEvent(event, sessionsFile, dashConfig, agent);
     } catch {
       // Hook failures must be silent to avoid blocking Claude sessions
       process.exit(0);
