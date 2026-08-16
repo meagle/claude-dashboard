@@ -32,6 +32,41 @@ function renderCard(overrides: Parameters<typeof makeSession>[0] = {}, configOve
   return { ...result, onFocus, onDismiss, onCopyPath, session };
 }
 
+describe('SessionCard — agent identity', () => {
+  it('shows the agent chip for the session source', () => {
+    renderCard({ source: 'cursor' }, { showAgentChip: true });
+    expect(screen.getByTestId('agent-chip')).toHaveTextContent('Cursor');
+  });
+
+  it('distinguishes two sessions that differ only by agent', () => {
+    renderCard({ source: 'codex' }, { showAgentChip: true });
+    expect(screen.getByTestId('agent-chip')).toHaveTextContent('Codex');
+  });
+
+  it('is off by default — no chip unless the setting is enabled', () => {
+    renderCard({ source: 'cursor', dirName: 'storefront' });
+    expect(screen.queryByTestId('agent-chip')).not.toBeInTheDocument();
+    expect(screen.getAllByText('storefront').length).toBeGreaterThan(0);
+  });
+
+  it('still shows the host app alongside the agent', () => {
+    renderCard({ source: 'claude-code', appName: 'iTerm2' }, { showAgentChip: true });
+    expect(screen.getByTestId('agent-chip')).toHaveTextContent('Claude Code');
+    expect(screen.getByText('iTerm2')).toBeInTheDocument();
+  });
+
+  // The host app is only demoted when the chip is there to take over as primary
+  // identity; with the chip off it keeps its pill rather than silently losing it.
+  it('keeps the host-app pill when the chip is off and drops it when the chip is on', () => {
+    const { unmount } = renderCard({ appName: 'iTerm2' });
+    expect(screen.getByText('iTerm2').parentElement?.className).toContain('rounded-badge');
+    unmount();
+
+    renderCard({ appName: 'iTerm2' }, { showAgentChip: true });
+    expect(screen.getByText('iTerm2').parentElement?.className).not.toContain('rounded-badge');
+  });
+});
+
 describe('SessionCard — done', () => {
   it('shows prompt and answer', () => {
     renderCard({

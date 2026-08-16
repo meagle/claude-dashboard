@@ -41,6 +41,7 @@ export function makeSession(overrides: Partial<SessionRow> = {}): SessionRow {
     turnStartedAt: now,
     lastActivity: now,
     dismissed: false,
+    source: 'claude-code',
     ...overrides,
   };
 }
@@ -54,6 +55,7 @@ export const defaultCardConfig: CardConfig = {
   showCost: false,
   showDoneFooter: true,
   showContextInMeta: false,
+  showAgentChip: false,
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,

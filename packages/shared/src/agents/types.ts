@@ -1,4 +1,5 @@
 import type { DashboardConfig } from '../types';
+import type { SourceId } from './sourceMeta';
 
 export interface TranscriptStats {
   text: string | null;
@@ -12,13 +13,11 @@ export interface TranscriptStats {
   schema: string | null; // descriptor id, or null if nothing recognized yet
 }
 
-export interface HookPayloadFields {
-  sessionId: string[];   // payload keys to try, in order (e.g. ['session_id','conversation_id'])
-  cwd: string[];         // e.g. ['cwd'] ; may resolve arrays (workspace_roots[0]) — see cwdFromPayload
-}
-
 export interface AgentDescriptor {
-  id: string;                         // === Session.source
+  // Typed as the Session['source'] union (not string) so a descriptor id that isn't a known
+  // source fails to compile here, rather than being cast away at the hook's write site.
+  id: SourceId;
+  // Display identity — spread from SOURCE_META in each descriptor; see agents/sourceMeta.ts.
   displayName: string;                // 'Claude Code' | 'Cursor' | 'Codex'
   color: string;                      // hex, used for the UI chip
   iconKey: string;                    // renderer maps this to an SVG (see agentIdentity.ts)
@@ -28,7 +27,6 @@ export interface AgentDescriptor {
   matchesTranscript(firstParsedLine: unknown): boolean; // stale-install probe fallback
   parse(lines: string[], endTurnOnly: boolean, cfg?: DashboardConfig): TranscriptStats;
   toolSummary(toolName: string, input: Record<string, unknown>): string | null;
-  payload: HookPayloadFields;
   cwdFromPayload(payload: Record<string, unknown>, fallback: string): string;
   sessionIdFromPayload(payload: Record<string, unknown>, fallback: string): string;
 
@@ -40,7 +38,7 @@ export interface AgentDescriptor {
 }
 
 export interface PresenceSourceMeta {
-  id: string;             // e.g. 'desktop'  (=== Session.source)
+  id: SourceId;           // e.g. 'desktop'
   displayName: string;    // 'Claude Desktop'
   color: string;
   iconKey: string;

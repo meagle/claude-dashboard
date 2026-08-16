@@ -14,7 +14,7 @@ function renderList(sessions: ReturnType<typeof makeSession>[]) {
 describe('SessionList', () => {
   it('renders empty state when no sessions', () => {
     renderList([]);
-    expect(screen.getByText(/No active Claude sessions/)).toBeInTheDocument();
+    expect(screen.getByText(/No active agent sessions/)).toBeInTheDocument();
   });
 
   it('renders one card per session', () => {

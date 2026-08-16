@@ -8,6 +8,7 @@ import {
   extractGitChanges,
 } from "../utils/format";
 import { accentColor, dotColor } from "../utils/statusColors";
+import { AgentChip } from "./AgentChip";
 
 /* ─────────────────────────────────────────────────────────────────────────
  * CompactSessionRow — 2-line compact layout, matches SessionCard style.
@@ -189,6 +190,9 @@ export function CompactSessionRow({
       {/* ── Line 1: status dot · project · branch pill · worktree · (right) time + ⌘N ── */}
       <div className="flex items-center gap-2 min-w-0">
         <StatusDot status={s.status} errorState={s.errorState} />
+
+        {/* Icon-only agent identity — the row is too tight for the full chip. */}
+        {cfg.showAgentChip && <AgentChip source={s.source} compact />}
 
         <span className="inline-flex items-center gap-0 min-w-0 max-w-[50%] font-mono text-[11px]">
           <span className="font-bold text-brighter truncate" title={s.workingDir}>{s.dirName}</span>

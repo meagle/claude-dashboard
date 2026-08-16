@@ -343,7 +343,7 @@ export function processHookEvent(
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      source: agent.id as Session['source'],
+      source: agent.id,
       // Cursor's own agent carries model directly on the payload (no transcript data);
       // only apply it when the transcript didn't already give us a model this turn.
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
@@ -381,7 +381,7 @@ export function processHookEvent(
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      source: agent.id as Session['source'],
+      source: agent.id,
       // Track when Bash starts so we can detect stuck commands
       ...(event.toolName === 'Bash' ? { bashStartedAt: now } : {}),
     };
@@ -447,7 +447,7 @@ export function processHookEvent(
       completionPct,
       currentTask,
       ...(freshPostPartial ? { partialResponse: freshPostPartial } : {}),
-      source: agent.id as Session['source'],
+      source: agent.id,
       // Clear bash timer when Bash completes
       ...(event.toolName === 'Bash' ? { bashStartedAt: null } : {}),
     };
@@ -489,7 +489,7 @@ export function processHookEvent(
       ...(stats.turns !== null ? { turns: stats.turns } : {}),
       ...(stats.costUsd !== null ? { costUsd: stats.costUsd } : {}),
       ...(stats.totalTokens !== null ? { totalTokens: stats.totalTokens } : {}),
-      source: agent.id as Session['source'],
+      source: agent.id,
       ...(!stats.model && event.payloadModel ? { model: event.payloadModel } : {}),
       // Falls back to payloadModel here too, matching the payloadModelId computation above —
       // so Settings > Cost tab custom pricing/context-window prefixes (keyed on modelId) can

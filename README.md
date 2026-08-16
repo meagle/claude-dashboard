@@ -69,7 +69,7 @@ What each supported agent can populate on a session card. `✅` full support · 
 
 | Card field                     | Claude Code | Cursor (IDE + CLI) | Codex CLI | Claude Desktop |
 | ------------------------------ | :---------: | :----------------: | :-------: | :------------: |
-| Agent identity (`source`)      |     ✅      |         ✅         |    ✅     |   ✅ (presence) |
+| Agent identity chip ⁽⁸⁾        |     ✅      |         ✅         |    ✅     |   ✅ (presence) |
 | Project / directory name       |     ✅      |     ⚠️ ⁽¹⁾         |    ✅     |      ❌        |
 | Git branch / worktree / diff   |     ✅      |         ✅         |    ✅     |      ❌        |
 | Status (active / idle / done)  |     ✅      |         ✅         |    ✅     |   ⚠️ ⁽⁶⁾       |
@@ -97,14 +97,15 @@ What each supported agent can populate on a session card. `✅` full support · 
 5. Codex reports its own `model_context_window` per turn, so its context % is **exact** rather than derived from a static lookup table; its `PermissionRequest` hook provides a genuine waiting-for-permission signal.
 6. Claude Desktop appears as a presence-only card (it exposes no hooks or transcript) — it shows that the app is running but no per-session detail.
 7. Task-list progress and subagents are driven by Claude Code's `TaskCreate` / `TaskUpdate` / `Agent` tools; other agents don't emit these tool events, so those fields stay empty.
+8. The agent chip is **off by default**; enable it in **Settings → Show agent chip**.
 
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |
 | ----------------------------------------------------------------------- | -------------------- | ----------------------- |
-| ![](https://img.shields.io/badge/●_ACTIVE-238636?style=flat-square)     | `active`             | Claude is running       |
+| ![](https://img.shields.io/badge/●_ACTIVE-238636?style=flat-square)     | `active`             | The agent is running    |
 | ![](https://img.shields.io/badge/●_PERMISSION-b45309?style=flat-square) | `waiting_permission` | Tool approval needed    |
-| ![](https://img.shields.io/badge/●_INPUT-b45309?style=flat-square)      | `waiting_input`      | Claude asked a question |
+| ![](https://img.shields.io/badge/●_INPUT-b45309?style=flat-square)      | `waiting_input`      | The agent asked a question |
 | ![](https://img.shields.io/badge/○_IDLE-444444?style=flat-square)       | `idle`               | Between tool calls      |
 | ![](https://img.shields.io/badge/●_DONE-555555?style=flat-square)       | `done`               | Session finished        |
 
@@ -115,6 +116,8 @@ What each supported agent can populate on a session card. `✅` full support · 
 ![Compact view](docs/compact.png)
 
 **Partial response preview:** While Claude is generating output, the card shows a live streaming preview of the response before the turn completes. In compact mode this appears as the task text; in card view it appears as a secondary line beneath the prompt.
+
+**Agent chip** *(off by default — enable in Settings → "Show agent chip")*: adds a colored chip naming the agent that owns each session — **Claude Code**, **Cursor**, **Codex**, or **Claude Desktop** — so a list mixing agents is scannable by color before you read any text. The compact view shows the icon only, with the name exposed as a tooltip / accessible label. Worth enabling if you run more than one agent, and especially if you run Claude Code inside Cursor's terminal — there the host-app label reads "Cursor" while the agent is actually Claude Code, and only the chip disambiguates. While the chip is on, the host app (iTerm2, VS Code, …) drops to plain secondary text; with it off the host app keeps its pill as before. A session whose `source` this build doesn't recognize falls back to a neutral grey "Agent" chip. macOS notifications name the agent regardless of this setting (e.g. *"myproject: Codex asked a question"*), and the tray tooltip reads **Agent sessions: N**.
 
 **Worktree indicator:** When Claude is running inside a [git worktree](https://git-scm.com/docs/git-worktree) (including sessions spawned by Claude Code's Agent tool with `isolation: "worktree"`), a 🌿 icon appears after the branch name on the card — e.g. `main 🌿 stripe-v2`. The worktree name is the directory basename of the linked worktree.
 

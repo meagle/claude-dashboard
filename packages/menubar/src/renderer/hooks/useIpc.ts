@@ -17,6 +17,7 @@ const DEFAULT_CARD_CONFIG: CardConfig = {
   showCost: false,
   showDoneFooter: true,
   showContextInMeta: false,
+  showAgentChip: false,
   footerStyle: 'default',
   theme: 'light',
   pinnedPanelOpacity: 1,

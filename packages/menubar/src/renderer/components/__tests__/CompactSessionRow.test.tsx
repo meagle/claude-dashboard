@@ -19,6 +19,24 @@ beforeEach(() => {
 });
 
 describe('CompactSessionRow — content', () => {
+  it('renders an icon-only agent chip carrying the agent name accessibly', () => {
+    render(
+      <CompactSessionRow
+        session={makeSession({ source: 'codex' })}
+        cardConfig={{ ...defaultCardConfig, showAgentChip: true }}
+        onFocus={vi.fn()}
+      />,
+    );
+    const chip = screen.getByTestId('agent-chip');
+    expect(chip).toHaveAttribute('aria-label', 'Codex');
+    expect(chip).not.toHaveTextContent('Codex');
+  });
+
+  it('is off by default — no agent chip unless the setting is enabled', () => {
+    renderRow({ source: 'codex' });
+    expect(screen.queryByTestId('agent-chip')).not.toBeInTheDocument();
+  });
+
   it('renders dirName', () => {
     renderRow({ dirName: 'my-project' });
     expect(screen.getByText('my-project')).toBeInTheDocument();
