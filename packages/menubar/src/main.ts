@@ -17,15 +17,17 @@ import chokidar from "chokidar";
 import {
   readSessions,
   writeSessions,
-  pruneStaleSessions,
   appendHistory,
   readHistory,
   readConfig,
   DEFAULT_CONFIG,
   modelContextWindowFromConfig,
+  HOOK_AGENTS,
+  pruneDashboardHooks,
 } from "@claude-dashboard/shared";
 import { focusTerminal, findParentApp } from "./focusTerminal";
 import { isKnownAgentProcessArgs } from "./knownAgentProcess";
+import { selectVisibleSessions } from "./sessionSelection";
 import { TrayIconController } from "./trayIcon";
 import { createDesktopSessionWatcher, DesktopSessionWatcher } from "./desktopSessions";
 
@@ -43,9 +45,6 @@ const CONFIG_FILE = path.join(DASHBOARD_DIR, "config.json");
 const HISTORY_FILE = path.join(DASHBOARD_DIR, "history.json");
 const HOOK_DEST = path.join(DASHBOARD_DIR, "hook.js");
 const WINDOW_STATE_FILE = path.join(DASHBOARD_DIR, "window-state.json");
-const SETTINGS_FILE = path.join(os.homedir(), ".claude", "settings.json");
-const CURSOR_HOOKS_FILE = path.join(os.homedir(), ".cursor", "hooks.json");
-const CODEX_HOOKS_FILE = path.join(os.homedir(), ".codex", "hooks.json");
 
 interface WindowState {
   cardWidth: number;
@@ -78,29 +77,6 @@ function writeWindowState(state: WindowState): void {
 
 const windowState = readWindowState();
 
-function isDashboardHook(h: unknown): boolean {
-  const hook = h as Record<string, unknown>;
-  if (typeof hook.command === "string" && hook.command.includes("dashboard/hook.js"))
-    return true;
-  if (
-    Array.isArray(hook.hooks) &&
-    hook.hooks.some((i: unknown) => {
-      const item = i as Record<string, unknown>;
-      return typeof item.command === "string" && item.command.includes("dashboard/hook.js");
-    })
-  )
-    return true;
-  return false;
-}
-
-function pruneDashboardHooks(hooks: Record<string, unknown> | undefined): void {
-  if (!hooks) return;
-  for (const event of Object.keys(hooks)) {
-    hooks[event] = (hooks[event] as unknown[]).filter((h) => !isDashboardHook(h));
-    if ((hooks[event] as unknown[]).length === 0) delete hooks[event];
-  }
-}
-
 function installHook(): void {
   try {
     // Locate the bundled hook.js — next to the executable when packaged, in the
@@ -116,100 +92,21 @@ function installHook(): void {
     fs.copyFileSync(bundledHook, HOOK_DEST);
     fs.chmodSync(HOOK_DEST, 0o644);
 
-    // Patch ~/.claude/settings.json idempotently.
-    if (!fs.existsSync(SETTINGS_FILE)) {
-      fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
-      fs.writeFileSync(SETTINGS_FILE, "{}");
+    for (const agent of HOOK_AGENTS) {
+      // Auto-detect: only touch config for agents actually present on the machine.
+      // Runs on every launch, so an agent installed later is wired up next launch.
+      // Never creates ~/.cursor or ~/.codex for a non-user.
+      if (!agent.isInstalled(os.homedir())) continue;
+      const file = agent.configPath(os.homedir());
+      if (!fs.existsSync(file)) {
+        fs.mkdirSync(path.dirname(file), { recursive: true });
+        fs.writeFileSync(file, JSON.stringify(agent.defaultConfig()));
+      }
+      const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
+      agent.installHooks(cfg, (arg) =>
+        `node ~/.config/claude-dashboard/hook.js ${arg} --agent=${agent.id}`);
+      fs.writeFileSync(file, JSON.stringify(cfg, null, 2));
     }
-    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
-    settings.hooks = settings.hooks ?? {};
-
-    function mergeHook(event: string, arg: string) {
-      const entry = {
-        matcher: "",
-        hooks: [
-          {
-            type: "command",
-            command: `node ~/.config/claude-dashboard/hook.js ${arg}`,
-          },
-        ],
-      };
-      const existing: unknown[] = settings.hooks[event] ?? [];
-      settings.hooks[event] = [
-        ...existing.filter((h) => !isDashboardHook(h)),
-        entry,
-      ];
-    }
-
-    mergeHook("UserPromptSubmit", "user-prompt");
-    mergeHook("PreToolUse", "pre-tool");
-    mergeHook("PostToolUse", "post-tool");
-    mergeHook("Stop", "stop");
-    mergeHook("Notification", "notification");
-
-    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-
-    // Patch ~/.cursor/hooks.json idempotently — cursor-agent (the Cursor CLI) reads its
-    // own native hooks file, not ~/.claude/settings.json.
-    if (!fs.existsSync(CURSOR_HOOKS_FILE)) {
-      fs.mkdirSync(path.dirname(CURSOR_HOOKS_FILE), { recursive: true });
-      fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify({ version: 1, hooks: {} }));
-    }
-    const cursorHooks = JSON.parse(fs.readFileSync(CURSOR_HOOKS_FILE, "utf8"));
-    cursorHooks.version = cursorHooks.version ?? 1;
-    cursorHooks.hooks = cursorHooks.hooks ?? {};
-
-    function mergeCursorHook(event: string, arg: string) {
-      const entry = { command: `node ~/.config/claude-dashboard/hook.js ${arg}` };
-      const existing: unknown[] = cursorHooks.hooks[event] ?? [];
-      cursorHooks.hooks[event] = [
-        ...existing.filter((h) => !isDashboardHook(h)),
-        entry,
-      ];
-    }
-
-    mergeCursorHook("beforeSubmitPrompt", "user-prompt");
-    mergeCursorHook("preToolUse", "pre-tool");
-    mergeCursorHook("postToolUse", "post-tool");
-    mergeCursorHook("stop", "stop");
-
-    fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
-
-    // Patch ~/.codex/hooks.json idempotently — the Codex CLI reads its own native hooks
-    // file, not ~/.claude/settings.json. Unlike Cursor's flat {command} shape, Codex
-    // requires the nested {matcher, hooks: [{type, command}]} shape (confirmed live —
-    // an argv-array command errors, and the flat shape is never accepted).
-    if (!fs.existsSync(CODEX_HOOKS_FILE)) {
-      fs.mkdirSync(path.dirname(CODEX_HOOKS_FILE), { recursive: true });
-      fs.writeFileSync(CODEX_HOOKS_FILE, JSON.stringify({ hooks: {} }));
-    }
-    const codexHooks = JSON.parse(fs.readFileSync(CODEX_HOOKS_FILE, "utf8"));
-    codexHooks.hooks = codexHooks.hooks ?? {};
-
-    function mergeCodexHook(event: string, arg: string) {
-      const entry = {
-        matcher: "*",
-        hooks: [
-          {
-            type: "command",
-            command: `node ~/.config/claude-dashboard/hook.js ${arg}`,
-          },
-        ],
-      };
-      const existing: unknown[] = codexHooks.hooks[event] ?? [];
-      codexHooks.hooks[event] = [
-        ...existing.filter((h) => !isDashboardHook(h)),
-        entry,
-      ];
-    }
-
-    mergeCodexHook("UserPromptSubmit", "user-prompt");
-    mergeCodexHook("PreToolUse", "pre-tool");
-    mergeCodexHook("PostToolUse", "post-tool");
-    mergeCodexHook("Stop", "stop");
-    mergeCodexHook("PermissionRequest", "permission-request");
-
-    fs.writeFileSync(CODEX_HOOKS_FILE, JSON.stringify(codexHooks, null, 2));
   } catch {
     // Non-fatal — dashboard still works, user just won't receive hook events.
   }
@@ -287,7 +184,12 @@ function isAlive(pid: number): boolean {
 function getActiveSessions() {
   const config = readConfig(CONFIG_FILE);
   const all = readSessions(SESSIONS_FILE);
-  const cutoff = Date.now() - config.staleSessionMinutes * 60 * 1000;
+  const now = Date.now();
+
+  // Archive sessions that have exceeded the stale timeout (moves them to history
+  // and drops them from sessions.json). This is the single timer that governs how
+  // long a card lives — applied identically to every agent.
+  const cutoff = now - config.staleSessionMinutes * 60 * 1000;
   const toArchive = all.filter((s) => s.lastActivity <= cutoff);
   if (toArchive.length > 0) {
     appendHistory(HISTORY_FILE, toArchive);
@@ -296,40 +198,12 @@ function getActiveSessions() {
       all.filter((s) => s.lastActivity > cutoff),
     );
   }
-  type S = ReturnType<typeof pruneStaleSessions>[number];
-  const live = pruneStaleSessions(all, config.staleSessionMinutes)
-    .filter((s) => !s.dismissed)
-    .map((s): S => {
-      if (s.status !== "done" && !isAlive(s.pid))
-        return { ...s, status: "done" as const };
-      return s;
-    });
 
-  // Deduplicate by pid+termSessionId: same terminal reused after Escape produces
-  // two entries sharing these fields. Keep the newest (by startedAt), mark older done.
-  const groups = new Map<string, S[]>();
-  const ungrouped: S[] = [];
-  for (const s of live) {
-    const k = s.pid && s.termSessionId ? `${s.pid}:${s.termSessionId}` : null;
-    if (!k) { ungrouped.push(s); continue; }
-    const g = groups.get(k) ?? [];
-    g.push(s);
-    groups.set(k, g);
-  }
-  const deduped: S[] = [...ungrouped];
-  for (const group of groups.values()) {
-    group.sort((a, b) => b.startedAt - a.startedAt);
-    deduped.push(group[0]); // oldest duplicates are dropped entirely
-  }
-
-  return deduped.filter(
-    (s) =>
-      !(
-        s.status === "done" &&
-        !isAlive(s.pid) &&
-        Date.now() - s.lastActivity > 60_000
-      ),
-  );
+  return selectVisibleSessions(all, {
+    now,
+    staleMinutes: config.staleSessionMinutes,
+    isAlive,
+  });
 }
 
 function updateTray() {
@@ -935,23 +809,21 @@ app.whenReady().then(() => {
 
   ipcMain.handle("uninstall", () => {
     try {
-      if (fs.existsSync(SETTINGS_FILE)) {
-        const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
-        if (settings.hooks) {
-          pruneDashboardHooks(settings.hooks);
-          if (Object.keys(settings.hooks).length === 0) delete settings.hooks;
+      for (const agent of HOOK_AGENTS) {
+        // Guard on file presence, not isInstalled — uninstall must clean up any config we
+        // ever wrote even if the agent's home dir (e.g. ~/.cursor) was since removed.
+        const file = agent.configPath(os.homedir());
+        if (!fs.existsSync(file)) continue;
+        const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
+        if (agent.id === "claude-code") {
+          if (cfg.hooks) {
+            pruneDashboardHooks(cfg.hooks);
+            if (Object.keys(cfg.hooks).length === 0) delete cfg.hooks;
+          }
+        } else {
+          pruneDashboardHooks(cfg.hooks);
         }
-        fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings, null, 2));
-      }
-      if (fs.existsSync(CURSOR_HOOKS_FILE)) {
-        const cursorHooks = JSON.parse(fs.readFileSync(CURSOR_HOOKS_FILE, "utf8"));
-        pruneDashboardHooks(cursorHooks.hooks);
-        fs.writeFileSync(CURSOR_HOOKS_FILE, JSON.stringify(cursorHooks, null, 2));
-      }
-      if (fs.existsSync(CODEX_HOOKS_FILE)) {
-        const codexHooks = JSON.parse(fs.readFileSync(CODEX_HOOKS_FILE, "utf8"));
-        pruneDashboardHooks(codexHooks.hooks);
-        fs.writeFileSync(CODEX_HOOKS_FILE, JSON.stringify(codexHooks, null, 2));
+        fs.writeFileSync(file, JSON.stringify(cfg, null, 2));
       }
     } catch {}
     app.quit();

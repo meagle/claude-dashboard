@@ -63,6 +63,41 @@ Verified live against a real `cursor-agent` install (v2026.08.11): project name 
 
 **Codex hook trust (one-time manual step):** Codex requires hooks to be manually trusted before they'll fire — this can't be automated by an installer. After running `scripts/install.sh` (or launching the packaged app), run `codex` once, then run `/hooks` inside the session and trust the `claude-dashboard` entries. Until this is done, Codex sessions produce no hook events at all and never appear on the dashboard — this is silent (no error, no card, nothing), so if a Codex session isn't showing up, check this first.
 
+### Session card fields by agent
+
+What each supported agent can populate on a session card. `✅` full support · `⚠️` partial or conditional (see notes) · `❌` not available.
+
+| Card field                     | Claude Code | Cursor (IDE + CLI) | Codex CLI | Claude Desktop |
+| ------------------------------ | :---------: | :----------------: | :-------: | :------------: |
+| Agent identity (`source`)      |     ✅      |         ✅         |    ✅     |   ✅ (presence) |
+| Project / directory name       |     ✅      |     ⚠️ ⁽¹⁾         |    ✅     |      ❌        |
+| Git branch / worktree / diff   |     ✅      |         ✅         |    ✅     |      ❌        |
+| Status (active / idle / done)  |     ✅      |         ✅         |    ✅     |   ⚠️ ⁽⁶⁾       |
+| Waiting for permission         |     ✅      |     ❌ ⁽²⁾         | ✅ ⁽⁵⁾    |      ❌        |
+| Waiting for input              |     ✅      |     ❌ ⁽²⁾         |    ❌     |      ❌        |
+| Current / last tool + summary  |     ✅      |         ✅         |    ✅     |      ❌        |
+| Last prompt                    |     ✅      |         ✅         |    ✅     |      ❌        |
+| Last response text             |     ✅      |         ✅         |    ✅     |      ❌        |
+| Live partial response (stream) |     ✅      |     ⚠️ ⁽³⁾         |    ✅     |      ❌        |
+| Model                          |     ✅      |     ✅ ⁽³⁾         |    ✅     |      ❌        |
+| Context %                      |     ✅      |     ✅ ⁽³⁾         | ✅ ⁽⁵⁾    |      ❌        |
+| Token count                    |     ✅      |     ✅ ⁽³⁾         |    ✅     |      ❌        |
+| Cost                           |     ✅      |     ⚠️ ⁽⁴⁾         | ⚠️ ⁽⁴⁾    |      ❌        |
+| Turns                          |     ✅      |         ✅         |    ✅     |      ❌        |
+| Tool count                     |     ✅      |         ✅         |    ✅     |      ❌        |
+| Task-list progress             |  ✅ ⁽⁷⁾     |     ❌ ⁽⁷⁾         | ❌ ⁽⁷⁾    |      ❌        |
+| Subagents                      |  ✅ ⁽⁷⁾     |     ❌ ⁽⁷⁾         | ❌ ⁽⁷⁾    |      ❌        |
+
+**Notes**
+
+1. Cursor's hook payload has no `cwd`; the dashboard falls back to the first `workspace_roots` entry (the folder open in that Cursor window), and shows `.claude` if no folder is open.
+2. Cursor's hook system (confirmed for the `cursor-agent` CLI) has no Notification-equivalent event, so waiting-for-permission / waiting-for-input statuses are not surfaced for Cursor sessions.
+3. Cursor carries model / usage on its `stop` payload, not progressively in the transcript, so model, context %, tokens, and the response text land **once per turn (at `stop`)** rather than streaming as the turn runs.
+4. No built-in pricing exists for non-Claude models (e.g. Cursor's `composer-*`, Codex's `gpt-*`). Cost stays blank until you add a price in **Settings → Cost → Add custom**.
+5. Codex reports its own `model_context_window` per turn, so its context % is **exact** rather than derived from a static lookup table; its `PermissionRequest` hook provides a genuine waiting-for-permission signal.
+6. Claude Desktop appears as a presence-only card (it exposes no hooks or transcript) — it shows that the app is running but no per-session detail.
+7. Task-list progress and subagents are driven by Claude Code's `TaskCreate` / `TaskUpdate` / `Agent` tools; other agents don't emit these tool events, so those fields stay empty.
+
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |
@@ -135,6 +170,10 @@ The install script:
 4. Merges four hooks into `~/.cursor/hooks.json` for `cursor-agent` CLI support (creates the file if it doesn't exist; preserves existing hooks)
 5. Merges five hooks into `~/.codex/hooks.json` for Codex CLI support (creates the file if it doesn't exist; preserves existing hooks) — **requires a one-time manual trust step, see "Codex hook trust" above**
 
+**Auto-detection:** the app only wires up an agent whose config directory already exists on your machine — it patches `~/.cursor/hooks.json` only if `~/.cursor` is present, and `~/.codex/hooks.json` only if `~/.codex` is present. It never creates a config directory for a tool you don't use. Because this runs on every launch, installing a new supported agent later gets picked up automatically the next time the app starts — no reinstall needed.
+
+**Agent tagging:** each hook command is registered with an `--agent=<id>` flag (`claude-code`, `cursor`, or `codex`) so the hook knows which agent invoked it and dispatches straight to that agent's parser. If the flag is ever missing (e.g. an old registration), the hook falls back to detecting the agent from the transcript format.
+
 **What gets added to `~/.claude/settings.json`:**
 
 ```json
@@ -146,7 +185,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js user-prompt"
+            "command": "node ~/.config/claude-dashboard/hook.js user-prompt --agent=claude-code"
           }
         ]
       }
@@ -157,7 +196,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js pre-tool"
+            "command": "node ~/.config/claude-dashboard/hook.js pre-tool --agent=claude-code"
           }
         ]
       }
@@ -168,7 +207,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js post-tool"
+            "command": "node ~/.config/claude-dashboard/hook.js post-tool --agent=claude-code"
           }
         ]
       }
@@ -179,7 +218,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js stop"
+            "command": "node ~/.config/claude-dashboard/hook.js stop --agent=claude-code"
           }
         ]
       }
@@ -190,7 +229,7 @@ The install script:
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.config/claude-dashboard/hook.js notification"
+            "command": "node ~/.config/claude-dashboard/hook.js notification --agent=claude-code"
           }
         ]
       }
@@ -205,10 +244,10 @@ The install script:
 {
   "version": 1,
   "hooks": {
-    "beforeSubmitPrompt": [{ "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }],
-    "preToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }],
-    "postToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js post-tool" }],
-    "stop": [{ "command": "node ~/.config/claude-dashboard/hook.js stop" }]
+    "beforeSubmitPrompt": [{ "command": "node ~/.config/claude-dashboard/hook.js user-prompt --agent=cursor" }],
+    "preToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js pre-tool --agent=cursor" }],
+    "postToolUse": [{ "command": "node ~/.config/claude-dashboard/hook.js post-tool --agent=cursor" }],
+    "stop": [{ "command": "node ~/.config/claude-dashboard/hook.js stop --agent=cursor" }]
   }
 }
 ```
@@ -218,11 +257,11 @@ The install script:
 ```json
 {
   "hooks": {
-    "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt" }] }],
-    "PreToolUse":        [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool" }] }],
-    "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool" }] }],
-    "Stop":              [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop" }] }],
-    "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js permission-request" }] }]
+    "UserPromptSubmit":  [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js user-prompt --agent=codex" }] }],
+    "PreToolUse":        [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js pre-tool --agent=codex" }] }],
+    "PostToolUse":       [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js post-tool --agent=codex" }] }],
+    "Stop":              [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js stop --agent=codex" }] }],
+    "PermissionRequest": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "node ~/.config/claude-dashboard/hook.js permission-request --agent=codex" }] }]
   }
 }
 ```

@@ -16,6 +16,7 @@ export default defineConfig({
   plugins: [tailwindcss(), react()],
   resolve: {
     alias: {
+      '@claude-dashboard/shared/types': path.resolve(__dirname, '../shared/src/typesEntry.ts'),
       '@claude-dashboard/shared': path.resolve(__dirname, '../shared/src/index.ts'),
     },
   },

@@ -42,7 +42,9 @@ bash scripts/uninstall.sh
 
 **`packages/hook`** — Claude Code hook script. Compiled by `tsup` into a single self-contained CJS file (`dist/hook.js`) that is copied to `~/.config/claude-dashboard/hook.js`. `@claude-dashboard/shared` is bundled in (not external). Claude Code fires this script on `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop`, and `Notification` events. It reads/writes `~/.config/claude-dashboard/sessions.json`.
 
-**`packages/shared`** — Types, sessions.json I/O, and config reader. Used by both hook and menubar. The `Session` type is the canonical shape for everything written to sessions.json. Built by `tsc` to `dist/` (CJS). The menubar renderer resolves this package via a Vite alias pointing directly at `src/index.ts`.
+**`packages/shared`** — Types, sessions.json I/O, config reader, and the **agent-adapter layer**. Used by both hook and menubar. The `Session` type is the canonical shape for everything written to sessions.json. Built by `tsc` to `dist/` (CJS). The menubar renderer resolves this package via a Vite alias pointing directly at `src/index.ts`, and imports canonical types via the types-only `@claude-dashboard/shared/types` subpath (aliased to `src/typesEntry.ts`).
+
+**`packages/shared/src/agents/`** — one `AgentDescriptor` per supported coding agent (`claudeCode.ts`, `cursor.ts`, `codex.ts`), registered in `agents/index.ts` (`HOOK_AGENTS`, `SOURCES` manifest incl. Claude Desktop presence). Each descriptor co-locates everything agent-specific: `parse()` (its transcript-schema walking + usage-normalization → the shared `calcTurnCost`), `toolSummary()`, `installHooks()` (its native config-file shape), `isInstalled()` (auto-detect), `processPattern`, `matchesTranscript()` (probe fallback), and `sessionIdFromPayload`/`cwdFromPayload`. **To add a new agent: write one descriptor file and add it to `HOOK_AGENTS`.** Per-agent parsing logic is deliberately duplicated (not shared) so each agent can evolve independently; only stable format-agnostic primitives live in `parseUtils.ts`/`cost.ts`. Behavior is pinned by golden snapshots in `packages/hook/src/__tests__/goldenParse.test.ts`.
 
 **`packages/menubar`** — Electron tray app. Has two separate TypeScript compilations:
 - **Main process** (`tsconfig.main.json`): compiles `src/main.ts`, `src/focusTerminal.ts`, `src/trayIcon.ts` to CJS via `tsc`. Output goes to `dist/`.
@@ -66,7 +68,7 @@ The renderer (`src/renderer/`) is a React app loaded by the Electron BrowserWind
 - **`utils/electron.ts`** — All Electron API access goes through this module. It uses `window.require('electron')` (not an ES import) so Vite doesn't bundle the electron package. Any new renderer code that needs `ipcRenderer` or `clipboard` must import from here, not directly from `'electron'`.
 - **`hooks/useIpc.ts`** — Subscribes to `sessions-update` IPC messages from main, returns `{ sessions, cardConfig, home }`.
 - **`App.tsx`** — Root component. Detects detached panel mode via `window.location.hash === '#detached'`. Sends `resize-to-fit` IPC after every render so main.ts can shrink the window to content height.
-- **`types.ts`** — Renderer-local `SessionRow` and `CardConfig` interfaces. These mirror fields from `packages/shared` but are kept separate (renderer doesn't import shared types directly to avoid bundling Node.js deps).
+- **`types.ts`** — Re-exports the canonical `Session`/`DashboardConfig`/etc. from the types-only `@claude-dashboard/shared/types` subpath (aliased in `vite.config.ts` so no Node.js runtime deps are bundled), exposing `SessionRow = Session` for existing imports. Only `CardConfig` and `HistoryRow` are renderer-local. Do NOT re-declare `Session` shapes here — there is one canonical definition in `packages/shared/src/types.ts`.
 
 ### Electron-specific constraints
 
