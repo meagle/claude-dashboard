@@ -63,6 +63,41 @@ Verified live against a real `cursor-agent` install (v2026.08.11): project name 
 
 **Codex hook trust (one-time manual step):** Codex requires hooks to be manually trusted before they'll fire — this can't be automated by an installer. After running `scripts/install.sh` (or launching the packaged app), run `codex` once, then run `/hooks` inside the session and trust the `claude-dashboard` entries. Until this is done, Codex sessions produce no hook events at all and never appear on the dashboard — this is silent (no error, no card, nothing), so if a Codex session isn't showing up, check this first.
 
+### Session card fields by agent
+
+What each supported agent can populate on a session card. `✅` full support · `⚠️` partial or conditional (see notes) · `❌` not available.
+
+| Card field                     | Claude Code | Cursor (IDE + CLI) | Codex CLI | Claude Desktop |
+| ------------------------------ | :---------: | :----------------: | :-------: | :------------: |
+| Agent identity (`source`)      |     ✅      |         ✅         |    ✅     |   ✅ (presence) |
+| Project / directory name       |     ✅      |     ⚠️ ⁽¹⁾         |    ✅     |      ❌        |
+| Git branch / worktree / diff   |     ✅      |         ✅         |    ✅     |      ❌        |
+| Status (active / idle / done)  |     ✅      |         ✅         |    ✅     |   ⚠️ ⁽⁶⁾       |
+| Waiting for permission         |     ✅      |     ❌ ⁽²⁾         | ✅ ⁽⁵⁾    |      ❌        |
+| Waiting for input              |     ✅      |     ❌ ⁽²⁾         |    ❌     |      ❌        |
+| Current / last tool + summary  |     ✅      |         ✅         |    ✅     |      ❌        |
+| Last prompt                    |     ✅      |         ✅         |    ✅     |      ❌        |
+| Last response text             |     ✅      |         ✅         |    ✅     |      ❌        |
+| Live partial response (stream) |     ✅      |     ⚠️ ⁽³⁾         |    ✅     |      ❌        |
+| Model                          |     ✅      |     ✅ ⁽³⁾         |    ✅     |      ❌        |
+| Context %                      |     ✅      |     ✅ ⁽³⁾         | ✅ ⁽⁵⁾    |      ❌        |
+| Token count                    |     ✅      |     ✅ ⁽³⁾         |    ✅     |      ❌        |
+| Cost                           |     ✅      |     ⚠️ ⁽⁴⁾         | ⚠️ ⁽⁴⁾    |      ❌        |
+| Turns                          |     ✅      |         ✅         |    ✅     |      ❌        |
+| Tool count                     |     ✅      |         ✅         |    ✅     |      ❌        |
+| Task-list progress             |  ✅ ⁽⁷⁾     |     ❌ ⁽⁷⁾         | ❌ ⁽⁷⁾    |      ❌        |
+| Subagents                      |  ✅ ⁽⁷⁾     |     ❌ ⁽⁷⁾         | ❌ ⁽⁷⁾    |      ❌        |
+
+**Notes**
+
+1. Cursor's hook payload has no `cwd`; the dashboard falls back to the first `workspace_roots` entry (the folder open in that Cursor window), and shows `.claude` if no folder is open.
+2. Cursor's hook system (confirmed for the `cursor-agent` CLI) has no Notification-equivalent event, so waiting-for-permission / waiting-for-input statuses are not surfaced for Cursor sessions.
+3. Cursor carries model / usage on its `stop` payload, not progressively in the transcript, so model, context %, tokens, and the response text land **once per turn (at `stop`)** rather than streaming as the turn runs.
+4. No built-in pricing exists for non-Claude models (e.g. Cursor's `composer-*`, Codex's `gpt-*`). Cost stays blank until you add a price in **Settings → Cost → Add custom**.
+5. Codex reports its own `model_context_window` per turn, so its context % is **exact** rather than derived from a static lookup table; its `PermissionRequest` hook provides a genuine waiting-for-permission signal.
+6. Claude Desktop appears as a presence-only card (it exposes no hooks or transcript) — it shows that the app is running but no per-session detail.
+7. Task-list progress and subagents are driven by Claude Code's `TaskCreate` / `TaskUpdate` / `Agent` tools; other agents don't emit these tool events, so those fields stay empty.
+
 **Statuses:**
 
 | Badge                                                                   | Status               | Meaning                 |
