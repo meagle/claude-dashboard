@@ -66,7 +66,7 @@ The renderer (`src/renderer/`) is a React app loaded by the Electron BrowserWind
 - **`utils/electron.ts`** — All Electron API access goes through this module. It uses `window.require('electron')` (not an ES import) so Vite doesn't bundle the electron package. Any new renderer code that needs `ipcRenderer` or `clipboard` must import from here, not directly from `'electron'`.
 - **`hooks/useIpc.ts`** — Subscribes to `sessions-update` IPC messages from main, returns `{ sessions, cardConfig, home }`.
 - **`App.tsx`** — Root component. Detects detached panel mode via `window.location.hash === '#detached'`. Sends `resize-to-fit` IPC after every render so main.ts can shrink the window to content height.
-- **`types.ts`** — Renderer-local `SessionRow` and `CardConfig` interfaces. These mirror fields from `packages/shared` but are kept separate (renderer doesn't import shared types directly to avoid bundling Node.js deps).
+- **`types.ts`** — Re-exports the canonical `Session`/`DashboardConfig`/etc. from the types-only `@claude-dashboard/shared/types` subpath (aliased in `vite.config.ts` so no Node.js runtime deps are bundled), exposing `SessionRow = Session` for existing imports. Only `CardConfig` and `HistoryRow` are renderer-local. Do NOT re-declare `Session` shapes here — there is one canonical definition in `packages/shared/src/types.ts`.
 
 ### Electron-specific constraints
 

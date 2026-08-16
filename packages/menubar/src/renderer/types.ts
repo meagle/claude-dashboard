@@ -1,66 +1,16 @@
-export interface TaskSummary {
-  id: string;
-  subject: string;
-  status: 'pending' | 'in_progress' | 'completed';
-}
+// Canonical types live in packages/shared/src/types.ts. The renderer imports them
+// through the types-only `@claude-dashboard/shared/types` subpath (aliased in
+// vite.config.ts) so it never pulls in shared's Node.js runtime deps (fs, chokidar).
+export type {
+  Session, TaskSummary, SubagentSummary, ModelPricingEntry, DashboardConfig,
+} from '@claude-dashboard/shared/types';
+import type { Session } from '@claude-dashboard/shared/types';
 
-export interface SubagentSummary {
-  id: string;
-  type: string;
-  status: 'running' | 'done';
-}
+// SessionRow is kept as the name components already import; Session is a superset
+// of the old hand-rolled SessionRow (it adds fields like changedFiles).
+export type SessionRow = Session;
 
-export interface ModelPricingEntry {
-  input: number;
-  cacheWrite: number;
-  cacheRead: number;
-  output: number;
-}
-
-export interface SessionRow {
-  sessionId: string;
-  pid: number;
-  termSessionId: string | null;
-  workingDir: string;
-  dirName: string;
-  branch: string | null;
-  worktree: string | null;
-  status: 'active' | 'waiting_permission' | 'waiting_input' | 'idle' | 'done';
-  currentTool: string | null;
-  lastTool: string | null;
-  lastToolAt: number | null;
-  lastToolSummary: string | null;
-  lastPrompt: string | null;
-  lastMessage: string | null;
-  currentTask: string | null;
-  tasks: TaskSummary[];
-  subagents: SubagentSummary[];
-  completionPct: number;
-  costUsd: number | null;
-  turns: number | null;
-  toolCount: number;
-  totalTokens: number | null;
-  model: string | null;
-  modelId: string | null;
-  contextPct: number | null;
-  contextTokens: number | null;
-  bashStartedAt: number | null;
-  gitSummary: string | null;
-  gitAhead: number | null;
-  transcriptPath: string | null;
-  partialResponse: string | null;
-  errorState: boolean;
-  loopTool: string | null;
-  loopCount: number;
-  startedAt: number;
-  turnStartedAt: number | null;
-  lastActivity: number;
-  dismissed: boolean;
-  appName?: string | null;
-  source?: 'claude-code' | 'desktop' | 'cursor' | 'codex';
-}
-
-export interface HistoryRow extends SessionRow {
+export interface HistoryRow extends Session {
   archivedAt: number;
 }
 
@@ -79,36 +29,4 @@ export interface CardConfig {
   collapsedAlwaysOpaque: boolean;
   showDesktopPresence: boolean;
   modelColors: Record<string, { color: string; badgeStyle: 'A' | 'B' | 'C' }>;
-}
-
-export interface DashboardConfig {
-  columns: {
-    gitBranch: boolean;
-    changedFiles: boolean;
-    subagents: boolean;
-    lastAction: boolean;
-    compactPaths: boolean;
-    cost: boolean;
-    doneFooter: boolean;
-    footerStyle: 'default' | 'grid';
-  };
-  staleSessionMinutes: number;
-  maxHeight: number;
-  theme: 'light' | 'dark';
-  notifications: boolean;
-  notificationSound: boolean;
-  showBadgeCount?: boolean;
-  showDesktopPresence?: boolean;
-  pinnedPanelOpacity?: number;
-  openPanelOnLaunch?: boolean;
-  modelPricing?: {
-    fetched: Record<string, ModelPricingEntry>;
-    custom: Array<{ prefix: string } & ModelPricingEntry>;
-    fetchedAt?: number;
-  };
-  modelContextWindows?: {
-    fetched: Record<string, number>;
-    custom: Array<{ prefix: string; contextWindow: number }>;
-    fetchedAt?: number;
-  };
 }
