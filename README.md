@@ -429,6 +429,32 @@ npm run dev
 
 This starts the TypeScript watcher, Vite dev server, and Electron together. Renderer changes hot-reload instantly. Press `Ctrl+C` to stop everything. Changes to `main.ts` require restarting the command.
 
+## Adding a new agent
+
+Every supported agent lives behind a single **`AgentDescriptor`** in `packages/shared/src/agents/`. Adding one (e.g. Gemini CLI, Aider) is essentially one new file — **`main.ts` and the hook need no changes.**
+
+**1. Write the descriptor** — `packages/shared/src/agents/<id>.ts`, exporting `<id>Descriptor: AgentDescriptor`:
+
+| Field | What it does |
+| --- | --- |
+| `id` | stable slug (e.g. `'gemini'`) — becomes `Session.source` |
+| `displayName` / `color` / `iconKey` | UI identity: chip label, hex color, icon key |
+| `processPattern` | regex matching the agent's process args, for the pid-liveness guard (e.g. `/gemini/i`) |
+| `matchesTranscript(line)` | recognize this agent's transcript from one parsed line (probe fallback) |
+| `parse(lines, endTurnOnly, cfg)` | the agent's **own** transcript walking → `TranscriptStats`; normalize usage, then call the shared `calcTurnCost`. Start from the closest existing family — `claudeCode.ts`/`cursor.ts` (one entry per message) or `codex.ts` (rollout format). |
+| `toolSummary(tool, input)` | map the agent's tool names to a one-line summary |
+| `payload` / `sessionIdFromPayload` / `cwdFromPayload` | which hook-payload fields carry the session id and cwd |
+| `isInstalled(home)` | detect the agent's presence (e.g. `existsSync(`${home}/.gemini`)`) — powers auto-detect |
+| `configPath(home)` / `defaultConfig()` / `installHooks(config, hookCmd)` | the agent's native hook-config file, its empty shape, and how to write dashboard entries (copy the flat-vs-nested pattern from `cursor.ts` / `codex.ts`) |
+
+**2. Register it** — add the descriptor to the `HOOK_AGENTS` array in `packages/shared/src/agents/index.ts`. That one array drives install, uninstall, process detection, transcript probing, and the `SOURCES` manifest automatically.
+
+**3. Add the id to the union** — extend `Session['source']` in `packages/shared/src/types.ts` to include `'<id>'`.
+
+**4. Pin its parsing** — drop a redacted real transcript into `packages/hook/src/__tests__/fixtures/` and snapshot `<id>Descriptor.parse(...)` in `goldenParse.test.ts`, matching the pattern used for the existing agents.
+
+Then rebuild and relaunch (or ship a new `.dmg`). Install is automatic: the app wires the agent up on launch **only if its config directory exists**, and re-checks every launch. A newly-added agent works end to end immediately (parsing, `source`, install, cards); a distinct **identity chip** in the UI depends on the pending awareness-UX work (see `docs/plans/2026-08-16-awareness-ux.md`).
+
 ## Packaging as a .dmg
 
 To build an unsigned distributable `.dmg`:
